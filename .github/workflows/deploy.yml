@@ -1,0 +1,46 @@
+# Builds and deploys the site to GitHub Pages on every push to main and every 12 hours,
+# refreshing the data first. The fresh data goes into the deployed site only (no commits);
+# if a source is down, the copy committed in data/ is deployed instead.
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 */12 * * *' # 00:17 and 12:17 UTC; GitHub may start scheduled runs a little late
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Refresh data
+        run: node scrape.mjs
+        continue-on-error: true
+      - name: Assemble site
+        run: |
+          mkdir -p _site/data
+          cp index.html aa-data.js _site/
+          cp data/models.js data/external.js _site/data/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
