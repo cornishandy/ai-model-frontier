@@ -1,0 +1,6 @@
+.DS_Store
+# Build outputs of scrape.mjs (the site serves index.html + data/models.js directly)
+AI Model Frontier.html
+data/models.json
+# personal backup of an old saved view (it's also in the sync gist)
+my-earlier-view.json
