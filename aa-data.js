@@ -104,24 +104,53 @@
         ttft: num(m.timeToFirstAnswerToken?.total),
         e2e: num(m.endToEndResponseTime?.total),
         outputTokens: num(m.canonicalIntelligenceIndexTokenCount?.output),
+        tokensPerTask: num(m.intelligenceIndexOutputTokensPerTask?.output),
         timePerTask: num(m.intelligenceIndexTimePerTask),
-        gpqa: num(m.gpqa),
-        hle: num(m.hle),
-        scicode: num(m.scicode),
-        terminalBench: num(m.terminalBench40 ?? m.terminalbenchHard),
-        omniscience: num(m.omniscience),
-        gdpval: num(m.gdpval),
+        parameters: num(m.parameters),
+        ...Object.fromEntries(BENCHMARKS.map(([k, get]) => [k, num(get(m))])),
         defaultSelected: !!m.chartDefaultSelected,
       }))
       .sort((a, b) => b.intelligence - a.intelligence);
   }
+  // Every per-model benchmark the site publishes (the page's METRICS has the labels): our key -> the field on AA's record.
+  const BENCHMARKS = Object.entries({
+    gpqa: (m) => m.gpqa, hle: (m) => m.hle, critpt: (m) => m.critpt, scicode: (m) => m.scicode,
+    omniscience: (m) => m.omniscience, omniscienceAccuracy: (m) => m.omniscienceAccuracy, hallucination: (m) => m.omniscienceHallucinationRate,
+    lcr: (m) => m.lcr, ifbench: (m) => m.ifbench, mmmuPro: (m) => m.mmmuPro, livecodebench: (m) => m.livecodebench, aime25: (m) => m.aime25,
+    terminalBench40: (m) => m.terminalBench40, terminalBench21: (m) => m.terminalBench21, terminalbenchHard: (m) => m.terminalbenchHard, terminalBenchScience: (m) => m.terminalBenchScience,
+    tau2: (m) => m.tau2, tauBanking: (m) => m.tauBanking, automationBench: (m) => m.automationBenchPartialScore, enterpriseOps: (m) => m.enterpriseOpsGym,
+    apexAgents: (m) => m.apexAgents, itBench: (m) => m.itBenchSre, analystAgent: (m) => m.analystAgent,
+    gdpval: (m) => m.gdpval, briefcase: (m) => m.briefcaseBreakdown?.overall?.elo, gdpPdf: (m) => m.gdpPdfAllPass, mlcr: (m) => m.mlcrOverall, harvey: (m) => m.harveyLab,
+    openness: (m) => m.openness?.opennessIndex,
+  });
 
-  // -> { scrapedAt, source, models }
+  // The site's "what's new" feed: models added, articles published, …
+  const changelogOf = (manifests) => {
+    const list = manifests.find((m) => Array.isArray(m?.changelog))?.changelog || [];
+    return list.map((c) => ({ id: c.id, date: c.dateLa, type: c.type, title: c.title, url: c.url })).filter((c) => c.id && c.title);
+  };
+  // Coding Agent Index: harness + model pairs (Claude Code, Codex, …) run on agentic coding tasks.
+  const codingAgentsOf = (manifests) => {
+    const list = manifests.find((m) => Array.isArray(m?.codingAgents))?.codingAgents || [];
+    return list.filter((a) => !a.isUnavailable && Number.isFinite(a.indexScore)).map((a) => ({
+      id: a.id, agent: a.display?.agent ?? a.agentName, model: a.display?.model ?? a.displayLabel, provider: a.display?.creator?.agent ?? a.provider,
+      isDefault: !!a.isDefault, index: a.indexScore,
+      evals: Object.fromEntries((a.evals || []).map((e) => [e.evaluationDatasetSlug, num(e.mean?.reward)])),
+      costPerTask: num(a.mean?.costUsd), timePerTask: num(a.mean?.agentWallTimeSec), tokensPerTask: num(a.mean?.totalTokens),
+      outputTokensPerTask: num(a.mean?.outputTokens), steps: num(a.mean?.steps),
+    })).sort((a, b) => b.index - a.index);
+  };
+
+  // -> { v, scrapedAt, source, models, changelog, codingAgents }
   async function scrape({ fetchOpts = {}, log = () => {} } = {}) {
-    const models = buildModels(await loadManifests(fetchOpts, log));
+    const manifests = await loadManifests(fetchOpts, log);
+    // Most models have only some benchmarks: leave the missing ones out rather than storing nulls.
+    const models = buildModels(manifests).map((m) => Object.fromEntries(Object.entries(m).filter(([, v]) => v != null)));
     if (!models.length) throw new Error('Decoded the data but found no models — the format may have changed.');
-    return { scrapedAt: new Date().toISOString(), source: BASE, models };
+    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, changelog: changelogOf(manifests), codingAgents: codingAgentsOf(manifests) };
   }
+  // Bump when the saved shape changes, so the page ignores copies saved by an older version.
+  const VERSION = 2;
 
-  globalThis.AAData = { scrape };
+  globalThis.AAData = { scrape, VERSION };
 })();

@@ -2,22 +2,46 @@
 
 Interactive charts built from the [Artificial Analysis](https://artificialanalysis.ai) data.
 
-**Live site: https://cornishandy.github.io/ai-model-frontier/** (GitHub Pages serves `index.html` from `main`).
+**Live site: https://cornishandy.github.io/ai-model-frontier/**
 
+- **Deploys**: a GitHub Actions workflow (`.github/workflows/deploy.yml`) re-scrapes all the data and deploys the site
+  on every push to `main` and every 12 hours (00:17 and 12:17 UTC). The fresh data goes into the deployed site only,
+  nothing is committed; if a source is down, the copy committed in `data/` is deployed instead.
+  Run it by hand from the repo's Actions tab ("Deploy site" → Run workflow).
+  GitHub pauses scheduled workflows after 60 days without repo activity; re-enable it in the Actions tab if that happens.
 - **Update data** button (top right) pulls the latest numbers straight from artificialanalysis.ai
   in the browser and saves them locally. It also updates automatically when opened if the data is
-  more than 12 hours old, and re-checks hourly while left open. So the site stays current without republishing.
-- `node scrape.mjs` refreshes the built-in data (`data/models.js`) and builds `AI Model Frontier.html`,
-  a single self-contained copy that works offline. The scraping code lives in `aa-data.js`, shared by both.
+  more than 12 hours old, and re-checks hourly while left open.
+- `node scrape.mjs` refreshes the built-in data (`data/models.js`, `data/external.js`) and builds `AI Model Frontier.html`,
+  a single self-contained copy that works offline. The Artificial Analysis scraper lives in `aa-data.js` (shared with the
+  page), the independent benchmarks in `external.mjs`.
 - **Publishing**: commit and push to `main`. `node publish.mjs` does it in one step, with fresh built-in data.
 - To preview locally, open `index.html` directly or run `python3 -m http.server` here.
+- `?celebrate` on the URL previews the "new on Artificial Analysis" toast and confetti.
 
 - **Scraper**: the site ships its data as encrypted "manifests" in the Next.js payload
   (AES-256-GCM, key in the page, IV = sha256(key)[:12], gzipped JSON). `scrape.mjs`
-  pulls `/` and `/models`, decrypts every manifest, and merges model records.
-- **Axes**: Intelligence Index or individual benchmarks vs. cost to run the index, price,
-  tokens used, speed, latency. Linear/log per axis.
-- **Pareto frontier**: step or line, computed on what's visible; frontier points are ringed.
+  pulls `/` and `/models`, decrypts every manifest, and merges model records, the site's changelog and its Coding Agent Index.
+- **Axes**: any metric on either axis: the Intelligence Index, every per-model benchmark Artificial Analysis publishes
+  (knowledge & reasoning, coding & terminal, agents & tool use, work & documents), the independent benchmarks below,
+  cost, price, tokens per task, speed, latency. Scales: linear, square root (spreads out the cheap end without log's
+  distortion), log, and logit for percentage benchmarks (stretches the top end, where frontier models bunch up near 100%).
+- **Independent benchmarks** (`external.mjs`, matched to Artificial Analysis models by name; where a source doesn't say
+  which reasoning effort it ran, the value goes on the model's default effort and the tooltip says so):
+  [WeirdML v3 and v2](https://htihle.github.io/weirdml.html) (Håvard Tveit Ihle),
+  [LLM Chess](https://maxim-saplin.github.io/llm_chess/) (Maxim Saplin),
+  [Kaggle Game Arena chess](https://www.kaggle.com/benchmarks/kaggle/chess-text) (Google DeepMind & Kaggle),
+  [dubesor chess](https://dubesor.de/chess/chess-leaderboard),
+  [ARC-AGI-2](https://arcprize.org/leaderboard) (score and cost per task; ARC Prize Foundation),
+  [SimpleBench](https://simple-bench.com),
+  [LMArena Text](https://lmarena.ai/leaderboard/text).
+- **What's new**: the Artificial Analysis changelog (models added, articles), with "+ Chart" to plot a new model.
+  When a data update brings entries you haven't seen, a toast and confetti announce them (no confetti with reduced motion);
+  the first visit on a device just records what's there.
+- **Coding agents**: the Artificial Analysis Coding Agent Index as a sortable table: the same model scores differently
+  depending on the harness driving it (Claude Code, Codex, …).
+- **Pareto frontier**: step or line, computed on what's visible. Styles: **Shade** (the default: tints the region the
+  frontier beats), **Fade** (dims everything off the frontier), **Rings** (circles frontier points).
   Tick **all models** to compute the true frontier over every model; frontier models you haven't selected show as faint dots (click one to add it).
 - **Labels**: Auto (model names + effort tags where they fit, the default), Auto+ (also the top effort next to each name), Models, Every dot, None.
 - **Grid** (normal / faint / off) and **Axis text** (normal / faint).
