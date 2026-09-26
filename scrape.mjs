@@ -2,6 +2,7 @@
 // aa-data.js, which the page also uses for its "Update data" button.
 import fs from 'node:fs';
 import './aa-data.js';
+import { scrapeExternal } from './external.mjs';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36';
 const here = (p) => new URL(p, import.meta.url);
@@ -13,12 +14,16 @@ fs.mkdirSync(here('./data/'), { recursive: true });
 fs.writeFileSync(here('./data/models.json'), JSON.stringify(out));
 fs.writeFileSync(here('./data/models.js'), `window.AA_DATA = ${JSON.stringify(out)};\n`);
 
+console.log('Fetching independent benchmarks …');
+await scrapeExternal(here('./data/external.js'), (s) => console.log('  ' + s));
+
 // Self-contained copy: index.html with the scraper and data inlined, so the single file works anywhere
 // (opened on its own, moved, emailed, or in viewers that don't load sibling files).
 const inlineScript = (js) => `<script>${js.replace(/<\//g, '<\\/')}</script>`;
 const tags = {
   '<script src="aa-data.js"></script>': inlineScript(fs.readFileSync(here('./aa-data.js'), 'utf8')),
   '<script src="data/models.js"></script>': inlineScript(`window.AA_DATA = ${JSON.stringify(out)};`),
+  '<script src="data/external.js"></script>': inlineScript(fs.readFileSync(here('./data/external.js'), 'utf8')),
 };
 let page = fs.readFileSync(here('./index.html'), 'utf8');
 for (const [tag, inline] of Object.entries(tags)) {

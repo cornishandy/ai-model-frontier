@@ -51,6 +51,7 @@
   }
 
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; height: 100%; }
   body {
     font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -62,7 +63,13 @@
     padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);
   }
   header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .sub-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
   header .meta { color: var(--muted); font-size: 12px; }
+  a { color: inherit; }
+  a.src { color: var(--accent); font-size: 12px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+  a.src:hover { text-decoration: underline; }
+  #whatsNew { position: relative; }
+  .badge { display: inline-block; min-width: 17px; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: var(--s2); color: #fff; font-size: 11px; font-weight: 600; line-height: 17px; text-align: center; }
   header .meta.error, .note.error { color: #e66767; }
   button:disabled { opacity: .5; cursor: default; }
   header .spacer { flex: 1; }
@@ -154,6 +161,43 @@
   table.data tr:hover td { background: var(--hover); }
   table.data i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 
+  /* What's new: Artificial Analysis' own changelog */
+  .feed { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2px 20px; }
+  .feed li { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; min-width: 0; }
+  .feed li.fresh { background: color-mix(in srgb, var(--s4) 14%, transparent); }
+  .feed .when { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; width: 44px; flex: none; }
+  .feed .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .feed .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+  .feed .title:hover { text-decoration: underline; }
+  .feed .kind { color: var(--muted); font-size: 11px; flex: none; }
+  .feed .score { color: var(--ink-2); font-size: 11px; font-variant-numeric: tabular-nums; flex: none; }
+  .feed .add { font-size: 11px; padding: 1px 7px; border-radius: 999px; flex: none; }
+  .feed .add[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .pill-new { font-size: 10px; font-weight: 700; letter-spacing: .04em; color: var(--s2); flex: none; }
+  .card-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .card-head .spacer { flex: 1; }
+  .card-head a { font-size: 12px; color: var(--accent); text-decoration: none; }
+
+  /* Coding agents table: inline bars behind the numbers */
+  table.data td.bar { position: relative; min-width: 70px; }
+  table.data td.bar span { position: absolute; left: 0; top: 4px; bottom: 4px; background: var(--accent); opacity: .16; border-radius: 3px; }
+  table.data tr.hl-row td { font-weight: 600; }
+
+  /* celebration when the feed brings something new */
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+  #toast {
+    position: fixed; left: 50%; top: 18px; z-index: 51; transform: translate(-50%, calc(-100% - 40px)); visibility: hidden;
+    transition: transform .45s cubic-bezier(.2, 1.4, .4, 1), visibility 0s .45s;
+    display: flex; align-items: center; gap: 12px; max-width: min(560px, calc(100vw - 24px));
+    background: var(--ink); color: var(--surface); border-radius: 12px; padding: 10px 12px 10px 16px; box-shadow: 0 10px 40px rgba(0,0,0,.25);
+  }
+  #toast.show { transform: translate(-50%, 0); visibility: visible; transition-delay: 0s; }
+  #toast .msg { min-width: 0; }
+  #toast .msg b { display: block; font-size: 14px; }
+  #toast .msg span { display: block; font-size: 12px; opacity: .75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toast button { background: var(--surface); color: var(--ink); border: 0; flex: none; }
+  #toast button.x { background: transparent; color: var(--surface); opacity: .7; padding: 4px 6px; }
+
   .mobile-only, .sheet-head, #scrim { display: none; }
   #tooltip.docked { left: 8px !important; right: 8px; top: auto !important; bottom: calc(10px + env(safe-area-inset-bottom)); max-width: none; }
 
@@ -166,8 +210,17 @@
       padding: calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
     }
     header h1 { font-size: 15px; }
-    header .meta { order: 10; flex-basis: 100%; font-size: 11px; }
+    /* second row: source link + data age, with the "what's new" button at its end */
+    header::after { content: ''; order: 9; flex-basis: 100%; }
+    header .sub-head { order: 10; flex: 1 1 0; min-width: 0; }
+    header #whatsNew { order: 11; padding: 1px 8px; font-size: 12px; }
+    header .meta { font-size: 11px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    a.src { font-size: 11px; }
+    .feed { grid-template-columns: 1fr; }
+    #toast { top: calc(10px + env(safe-area-inset-top)); left: 10px; right: 10px; max-width: none; transform: translateY(calc(-100% - 40px)); }
+    #toast.show { transform: none; }
     header button { padding: 6px 10px; }
+    @media (max-width: 380px) { header h1 { font-size: 14px; } header button { padding: 6px 8px; } header { column-gap: 6px; } }
     .desk-only { display: none !important; }
     .mobile-only { display: inline-flex; align-items: center; }
     button[aria-pressed="true"].mobile-only { background: var(--ink); color: var(--surface); }
@@ -176,7 +229,7 @@
     .toolbar.opts { display: none; }
     body.opts-open .toolbar.opts { display: flex; }
     .toolbar .group { flex-wrap: wrap; }
-    .toolbar:first-child .group { flex: 1 1 100%; }
+    .toolbar:first-child .group { flex: 1 1 100%; flex-wrap: nowrap; min-width: 0; }
     .toolbar:first-child .group select { flex: 1; min-width: 0; }
     .seg button { padding: 6px 9px; }
     /* iOS zooms the page when focusing text smaller than 16px */
@@ -206,8 +259,12 @@
 <body>
 <header>
   <h1>AI Model Frontier</h1>
-  <span class="meta" id="dataMeta"></span>
+  <div class="sub-head">
+    <a class="src" href="https://artificialanalysis.ai" target="_blank" rel="noopener" title="The data comes from Artificial Analysis">artificialanalysis.ai<span aria-hidden="true"> ↗</span></a>
+    <span class="meta" id="dataMeta"></span>
+  </div>
   <span class="spacer"></span>
+  <button id="whatsNew" title="What's new on Artificial Analysis" aria-label="What's new"><span aria-hidden="true">✦</span><span class="desk-only"> What's new</span><span class="badge" id="newBadge" hidden></span></button>
   <button id="openSheet" class="mobile-only">Models</button>
   <button id="toggleOpts" class="mobile-only" aria-pressed="false">Options</button>
   <button id="updateData" class="primary" title="Download the latest numbers from artificialanalysis.ai">Update<span class="desk-only"> data</span></button>
@@ -272,11 +329,12 @@
 
 <main>
   <div class="toolbar">
-    <div class="group"><span>Y</span><select id="ySel"></select><div class="seg" id="yScale"><button data-v="linear">Linear</button><button data-v="log">Log</button></div></div>
-    <div class="group"><span>X</span><select id="xSel"></select><div class="seg" id="xScale"><button data-v="linear">Linear</button><button data-v="log">Log</button></div></div>
+    <div class="group"><span>Y</span><select id="ySel"></select><div class="seg" id="yScale">SCALES</div></div>
+    <div class="group"><span>X</span><select id="xSel"></select><div class="seg" id="xScale">SCALES</div></div>
   </div>
   <div class="toolbar opts">
     <div class="group"><span>Pareto</span><div class="seg" id="paretoSeg"><button data-v="off">Off</button><button data-v="step">Step</button><button data-v="line">Line</button></div>
+      <div class="seg" id="frontStyleSeg" title="How frontier models stand out"><button data-v="shade" title="Shade the area the frontier beats; no extra marks on the dots">Shade</button><button data-v="fade" title="Fade the models that aren't on the frontier">Fade</button><button data-v="rings" title="Ring each frontier model">Rings</button></div>
       <label class="inline" title="Compute the frontier over every model (matching the sidebar filters), and show frontier models you haven't selected as faint dots"><input type="checkbox" id="fullFrontier" /> all models</label></div>
     <div class="group"><span>Guides</span><div class="seg" id="guideSeg"><button data-v="hover">Hover</button><button data-v="pinned">Pinned</button><button data-v="frontier">Frontier</button><button data-v="all">All</button></div></div>
     <div class="group"><span>Labels</span><div class="seg" id="labelSeg"><button data-v="auto" title="Model names, plus effort tags on dots where they fit">Auto</button><button data-v="autoplus" title="Like Auto, and the top-effort dot also gets its effort level next to the model name">Auto+</button><button data-v="series">Models</button><button data-v="all">Every dot</button><button data-v="none">None</button></div></div>
@@ -298,17 +356,37 @@
     <div class="note" id="chartFoot" style="margin-top:6px"></div>
   </div>
 
+  <section class="card" id="feedCard">
+    <div class="card-head">
+      <h3>What's new on Artificial Analysis</h3><span class="note" id="feedNote"></span><span class="spacer"></span>
+      <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">artificialanalysis.ai ↗</a>
+    </div>
+    <ul class="feed" id="feed"></ul>
+    <button id="feedMore" class="chip" style="margin-top:8px" hidden></button>
+  </section>
+
   <details class="card" id="tableCard">
     <summary>Table view</summary>
     <table class="data" id="dataTable"></table>
+  </details>
+
+  <details class="card" id="agentsCard">
+    <summary>Coding agents — harness + model (Artificial Analysis Coding Agent Index)</summary>
+    <p class="note" style="margin:8px 0 0">The same model scores differently depending on the agent driving it. Each row is one agent running one model on
+      DeepSWE, SWE-Atlas-QnA and Terminal-Bench v4; cost, time and tokens are per task. Click a header to sort.
+      <a href="https://artificialanalysis.ai/agents/coding-agents" target="_blank" rel="noopener">Source ↗</a></p>
+    <table class="data" id="agentsTable"></table>
   </details>
 </main>
 
 <div id="scrim"></div>
 <div id="tooltip"></div>
+<canvas id="confetti" hidden></canvas>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script src="aa-data.js"></script>
 <script src="data/models.js"></script>
+<script src="data/external.js"></script>
 <script>
 (() => {
   // Data: the copy built into the page, or a newer one saved by the "Update data" button.
@@ -323,7 +401,9 @@
     return false;
   }
   const cachedData = (() => { try { return JSON.parse(localStorage.getItem(DATA_KEY)); } catch { return null; } })();
-  let DATA = [window.AA_DATA, cachedData].filter((d) => d?.models?.length).sort((a, b) => b.scrapedAt.localeCompare(a.scrapedAt))[0];
+  // Newest wins, but a copy saved by an older version of the page (missing newer fields) loses to any current one.
+  const currentShape = (d) => (d.v || 1) >= (window.AAData?.VERSION || 1);
+  let DATA = [window.AA_DATA, cachedData].filter((d) => d?.models?.length).sort((a, b) => (currentShape(b) - currentShape(a)) || b.scrapedAt.localeCompare(a.scrapedAt))[0];
   if (!DATA && !window.AAData) { document.body.innerHTML = '<p style="padding:40px;max-width:640px;line-height:1.6">No data loaded. This page reads <code>data/models.js</code> and <code>aa-data.js</code> from the folder next to it, so it only works when opened from the <code>aa-charts</code> folder.<br><br>Open <b>AI Model Frontier.html</b> instead — it has everything built in and works anywhere.</p>'; return; }
   DATA ||= { scrapedAt: new Date(0).toISOString(), models: [] }; // nothing yet: the auto-update below fetches it
   let ALL, BY_ID;
@@ -333,26 +413,126 @@
   const money = (v) => v === 0 ? '$0' : v >= 100 ? '$' + Math.round(v).toLocaleString() : v >= 1 ? '$' + v.toFixed(2).replace(/\.00$/, '') : '$' + +v.toPrecision(2);
   const compact = (v) => v >= 1e9 ? (v / 1e9).toFixed(1) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(v >= 1e4 ? 0 : 1) + 'K' : String(+v.toPrecision(3));
   const secs = (v) => v >= 100 ? Math.round(v) + 's' : v.toPrecision(2) + 's';
+  const elo = (v) => String(Math.round(v)), one = (v) => v.toFixed(1);
+  const bench = (label, long, extra) => ({ label, long, fmt: pct, better: 'high', frac: true, ...extra });
   const METRICS = {
-    intelligence: { label: 'Intelligence Index', long: 'Artificial Analysis Intelligence Index', fmt: (v) => v.toFixed(1), better: 'high' },
+    intelligence: { label: 'Intelligence Index', long: 'Artificial Analysis Intelligence Index', fmt: one, better: 'high' },
+    // knowledge & reasoning
+    hle: bench("Humanity's Last Exam", "Humanity's Last Exam"),
+    gpqa: bench('GPQA Diamond', 'GPQA Diamond (graduate-level science)'),
+    critpt: bench('CritPt', 'CritPt (research-level physics)'),
+    omniscience: { label: 'AA-Omniscience Index', long: 'AA-Omniscience Index (knowledge, penalising wrong answers; −100 to 100)', fmt: one, better: 'high' },
+    omniscienceAccuracy: bench('AA-Omniscience accuracy', 'AA-Omniscience accuracy'),
+    hallucination: bench('AA-Omniscience hallucination rate', 'AA-Omniscience hallucination rate (answers wrong instead of abstaining)', { better: 'low' }),
+    ifbench: bench('IFBench', 'IFBench (instruction following)'),
+    mmmuPro: bench('MMMU-Pro', 'MMMU-Pro (multimodal)'),
+    aime25: bench('AIME 2025', 'AIME 2025 (competition math)'),
+    // coding & terminal
+    terminalBench40: bench('Terminal-Bench 4.0', 'Terminal-Bench 4.0'),
+    terminalBench21: bench('Terminal-Bench 2.1', 'Terminal-Bench 2.1'),
+    terminalbenchHard: bench('Terminal-Bench Hard', 'Terminal-Bench Hard'),
+    terminalBenchScience: bench('Terminal-Bench-Science', 'Terminal-Bench-Science 0.1'),
+    scicode: bench('SciCode', 'SciCode (scientific coding)'),
+    livecodebench: bench('LiveCodeBench', 'LiveCodeBench'),
+    // agents & tools
+    tau2: bench('τ²-Bench Telecom', 'τ²-Bench Telecom (conversational tool use)'),
+    tauBanking: bench('τ³-Banking', 'τ³-Banking (knowledge-base tool use)'),
+    automationBench: bench('AutomationBench-AA', 'AutomationBench-AA (SaaS workflows)'),
+    enterpriseOps: bench('EnterpriseOps-Gym-AA', 'EnterpriseOps-Gym-AA (enterprise workflows)'),
+    apexAgents: bench('APEX-Agents-AA', 'APEX-Agents-AA (professional-services agents)'),
+    itBench: bench('ITBench-AA (SRE)', 'ITBench-AA SRE (incident response)'),
+    analystAgent: bench('AA-AnalystAgent', 'AA-AnalystAgent (spreadsheets & documents)'),
+    // work & documents
+    gdpval: { label: 'GDPval-AA (Elo)', long: 'GDPval-AA Elo (real-world knowledge work)', fmt: elo, better: 'high' },
+    briefcase: { label: 'AA-Briefcase (Elo)', long: 'AA-Briefcase Elo (business deliverables)', fmt: elo, better: 'high' },
+    gdpPdf: bench('GDP.pdf', 'GDP.pdf (long professional documents)'),
+    lcr: bench('AA-LCR', 'AA-LCR (long-context reasoning)'),
+    mlcr: bench('MLCR-AA (medical)', 'MLCR-AA (medical long-context reasoning)'),
+    harvey: bench('Harvey LAB-AA (legal)', 'Harvey LAB-AA (legal deliverables)'),
+    openness: { label: 'Openness Index', long: 'Artificial Analysis Openness Index', fmt: one, better: 'high' },
+    // cost
     costPerTask: { label: 'Cost per task', long: 'Cost per Intelligence Index task (USD)', fmt: money, better: 'low', scale: 'linear' },
     costToRun: { label: 'Cost to run Intelligence Index', long: 'Cost to run the Intelligence Index (USD)', fmt: money, better: 'low', scale: 'log' },
     priceBlended: { label: 'Price (blended 3:1)', long: 'Price, USD per 1M tokens (3:1 input:output blend)', fmt: money, better: 'low', scale: 'log' },
+    priceInput: { label: 'Input price', long: 'Input price, USD per 1M tokens', fmt: money, better: 'low', scale: 'log' },
     priceOutput: { label: 'Output price', long: 'Output price, USD per 1M tokens', fmt: money, better: 'low', scale: 'log' },
+    // tokens & speed
+    tokensPerTask: { label: 'Output tokens per task', long: 'Output tokens (reasoning + answer) per Intelligence Index task', fmt: compact, better: 'low', scale: 'log' },
     outputTokens: { label: 'Tokens used for Intelligence Index', long: 'Output tokens used to run the Intelligence Index', fmt: compact, better: 'low', scale: 'log' },
     outputSpeed: { label: 'Output speed', long: 'Output speed (tokens per second)', fmt: (v) => Math.round(v) + ' t/s', better: 'high', scale: 'log' },
     ttft: { label: 'Time to first answer token', long: 'Time to first answer token (seconds)', fmt: secs, better: 'low', scale: 'log' },
     e2e: { label: 'End-to-end response time', long: 'End-to-end response time, 500 output tokens (seconds)', fmt: secs, better: 'low', scale: 'log' },
     timePerTask: { label: 'Time per index task', long: 'Average time per Intelligence Index task (seconds)', fmt: secs, better: 'low', scale: 'log' },
-    gpqa: { label: 'GPQA Diamond', long: 'GPQA Diamond', fmt: pct, better: 'high' },
-    hle: { label: "Humanity's Last Exam", long: "Humanity's Last Exam", fmt: pct, better: 'high' },
-    scicode: { label: 'SciCode', long: 'SciCode', fmt: pct, better: 'high' },
-    terminalBench: { label: 'Terminal-Bench', long: 'Terminal-Bench', fmt: pct, better: 'high' },
-    omniscience: { label: 'Omniscience Index', long: 'AA-Omniscience Index', fmt: (v) => v.toFixed(1), better: 'high' },
-    gdpval: { label: 'GDPval-AA (Elo)', long: 'GDPval-AA Elo', fmt: (v) => Math.round(v), better: 'high' },
+    parameters: { label: 'Parameters', long: 'Total parameters (open-weights models)', fmt: (v) => v >= 1000 ? +(v / 1000).toPrecision(3) + 'T' : +v.toPrecision(3) + 'B', better: 'low', scale: 'log' },
   };
-  const Y_METRICS = ['intelligence', 'gpqa', 'hle', 'scicode', 'terminalBench', 'omniscience', 'gdpval'];
-  const X_METRICS = ['costPerTask', 'costToRun', 'priceBlended', 'priceOutput', 'outputTokens', 'outputSpeed', 'ttft', 'e2e', 'timePerTask', 'intelligence'];
+  const GROUPS = {
+    'Knowledge & reasoning': ['intelligence', 'hle', 'gpqa', 'critpt', 'omniscience', 'omniscienceAccuracy', 'hallucination', 'ifbench', 'mmmuPro', 'aime25'],
+    'Coding & terminal': ['terminalBench40', 'terminalBench21', 'terminalbenchHard', 'terminalBenchScience', 'scicode', 'livecodebench'],
+    'Agents & tool use': ['tau2', 'tauBanking', 'automationBench', 'enterpriseOps', 'apexAgents', 'itBench', 'analystAgent'],
+    'Work & documents': ['gdpval', 'briefcase', 'gdpPdf', 'lcr', 'mlcr', 'harvey', 'openness'],
+    'Independent benchmarks': [], // filled from data/external.js
+    'Cost': ['costPerTask', 'costToRun', 'priceBlended', 'priceInput', 'priceOutput'],
+    'Tokens & speed': ['tokensPerTask', 'outputTokens', 'outputSpeed', 'ttft', 'e2e', 'timePerTask', 'parameters'],
+  };
+  // Independent benchmarks (data/external.js): each source becomes a metric, plus a cost metric where the source reports one.
+  const EXT = window.EXT_DATA?.sources || [];
+  const EXT_FMT = { pct, elo, score: (v) => (v * 100).toFixed(1) };
+  for (const src of EXT) {
+    METRICS['ext:' + src.key] = { label: src.label, long: src.long, fmt: EXT_FMT[src.fmt] || one, better: 'high', frac: !!src.frac, ext: src };
+    GROUPS['Independent benchmarks'].push('ext:' + src.key);
+    if (src.cost) {
+      METRICS['ext:' + src.cost.key] = { label: src.cost.label, long: src.cost.long, fmt: money, better: 'low', scale: 'log', ext: src, costOf: src.key };
+      GROUPS.Cost.push('ext:' + src.cost.key);
+    }
+  }
+  // Each source names models its own way ("gemini-3.8-flash-high", "Gemini 3.8 Flash (High)", "openai/gpt-6-astra", "qwen3-8-max-0902").
+  // Reduce family names to a common key: separators unified, dates dropped, words before version numbers.
+  function famKey(s) {
+    const t = String(s).toLowerCase().replace(/^.*\//, '').replace(/[@:].*$/, '').replace(/\(.*?\)/g, '').replace(/[\s._]+/g, '-')
+      .replace(/-(20\d\d-\d\d-\d\d|20\d{6}|\d{4}|\d\d-\d\d)(?=-|$)/g, '').replace(/([a-z])(\d)/g, '$1-$2');
+    const parts = t.split('-').filter(Boolean);
+    return [...parts.filter((p) => /[a-z]/.test(p)), ...parts.filter((p) => !/[a-z]/.test(p))].join('-');
+  }
+  const DEFAULT_PICK = ['default', 'high', 'medium', 'xhigh', 'max', 'low', 'minimal', 'non-reasoning'];
+  function joinExternal() {
+    const famFor = new Map(), variants = new Map();
+    for (const m of ALL) {
+      (variants.get(m.family) || variants.set(m.family, []).get(m.family)).push(m);
+      const k = famKey(m.family), cur = famFor.get(k) && variants.get(famFor.get(k))[0];
+      if (!cur || (cur.deprecated && !m.deprecated) || (cur.deprecated === m.deprecated && (m.releaseDate || '') > (cur.releaseDate || ''))) famFor.set(k, m.family);
+    }
+    for (const src of EXT) {
+      const got = new Map(), famsHit = new Set();
+      const rows = src.rows.map((r) => ({ r, fam: famFor.get(famKey(r.fam)) })).filter((x) => x.fam);
+      // A stated effort matches that variant; failing that, the family's only reasoning variant.
+      for (const { r, fam } of rows) if (r.effort) {
+        const vs = variants.get(fam), reasoning = vs.filter((v) => v.effort !== 'non-reasoning');
+        const m = vs.find((v) => v.effort === r.effort) || (r.effort !== 'non-reasoning' && reasoning.length === 1 ? reasoning[0] : null);
+        if (m && !got.has(m.id)) { got.set(m.id, r); famsHit.add(fam); }
+      }
+      // No effort stated (the source ran its default): the family's default variant, unless the family already has a match.
+      for (const { r, fam } of rows) if (!r.effort && !famsHit.has(fam)) {
+        const vs = variants.get(fam).filter((v) => !got.has(v.id));
+        const m = DEFAULT_PICK.map((e) => vs.find((v) => v.effort === e && !v.deprecated) || vs.find((v) => v.effort === e)).find(Boolean);
+        if (m) { got.set(m.id, { ...r, guessed: true }); famsHit.add(fam); }
+      }
+      for (const [id, r] of got) {
+        const m = BY_ID.get(id);
+        m['ext:' + src.key] = r.value; (m.ext ||= {})[src.key] = r;
+        if (src.cost && r.cost != null) m['ext:' + src.cost.key] = r.cost;
+      }
+    }
+  }
+
+  // Any metric can go on either axis; the lists just lead with the usual choice.
+  const Y_GROUPS = Object.keys(GROUPS), X_GROUPS = ['Cost', 'Tokens & speed', ...Y_GROUPS.filter((g) => g !== 'Cost' && g !== 'Tokens & speed')];
+  const RENAMED = { terminalBench: 'terminalBench40' }; // metric keys used by older saved sets
+
+  // Axis scales. Sqrt sits between linear and log (and keeps zero); logit spreads out scores bunched near 0% or 100%.
+  const SCALES = { linear: 'Linear', sqrt: '√', log: 'Log', logit: 'Logit' };
+  const SCALE_TITLE = { linear: 'Linear', sqrt: 'Square root: spreads out the low end, like log but gentler, and keeps zero', log: 'Log', logit: 'Logit: stretches scores near 0% and 100%, so small gains at the top show' };
+  const SCALE_NOTE = { linear: '', sqrt: '√ scale', log: 'log scale', logit: 'logit scale' };
+  const scaleOk = (type, v) => v != null && Number.isFinite(v) && (type === 'log' ? v > 0 : type === 'sqrt' ? v >= 0 : type === 'logit' ? v > 0 && v < 1 : true);
 
   const EFFORTS = ['non-reasoning', 'minimal', 'low', 'medium', 'default', 'high', 'xhigh', 'max'];
   const EFFORT_LABEL = { 'non-reasoning': 'Non-reasoning', minimal: 'Minimal', low: 'Low', medium: 'Medium', default: 'Default', high: 'High', xhigh: 'XHigh', max: 'Max' };
@@ -369,6 +549,7 @@
     DATA = d;
     ALL = d.models.map((m) => ({ ...m, label: m.shortName.replace(/ with fallback\)/, ')') }));
     BY_ID = new Map(ALL.map((m) => [m.id, m]));
+    joinExternal();
     FAMILY.clear();
     const newest = new Map(), labLines = new Map();
     for (const m of ALL) {
@@ -488,13 +669,21 @@
   const theoSelection = () => ALL.filter((m) => THEO_FAMILIES.includes(m.family) && m.effort !== 'non-reasoning').map((m) => m.id);
   const DEFAULT_STATE = {
     x: 'costPerTask', y: 'intelligence', xScale: 'linear', yScale: 'linear',
-    pareto: 'step', fullFrontier: false, guides: 'hover', labels: 'auto', colorBy: 'lab', connect: true, markEffort: 'high', markStyle: 'hash',
+    pareto: 'step', frontStyle: 'shade', fullFrontier: false, guides: 'hover', labels: 'auto', colorBy: 'lab', connect: true, markEffort: 'high', markStyle: 'hash',
     grid: 'normal', axisText: 'normal',
     efforts: EFFORTS.slice(), selected: theoSelection(), pinned: [],
     showDeprecated: false, openOnly: false, addEffort: 'all', theme: 'system', activeSet: '',
   };
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const S = { ...DEFAULT_STATE, ...load(STATE_KEY, {}) };
+  // Axes saved by an older version (or naming a benchmark that's gone) fall back to the defaults.
+  const metricOr = (k, d) => METRICS[RENAMED[k] || k] ? RENAMED[k] || k : d;
+  const scaleFor = (k, s) => !SCALES[s] || (s === 'logit' && !METRICS[k].frac) ? METRICS[k].scale || 'linear' : s;
+  function fixAxes() {
+    S.x = metricOr(S.x, DEFAULT_STATE.x); S.y = metricOr(S.y, DEFAULT_STATE.y);
+    S.xScale = scaleFor(S.x, S.xScale); S.yScale = scaleFor(S.y, S.yScale);
+  }
+  fixAxes();
   S.selected = new Set(S.selected.filter((id) => BY_ID.has(id)));
   S.pinned = new Set(S.pinned.filter((id) => BY_ID.has(id)));
   S.efforts = new Set(S.efforts);
@@ -520,7 +709,17 @@
     '★ Frontier labs — every effort': () => ({ selected: topFamilies(['openai', 'anthropic', 'google', 'spacexai', 'xai'], 2).map((m) => m.id) }),
     '★ Best of each lab (top effort)': () => ({ selected: bestPerLab().map((m) => m.id) }),
     '★ Open weights — top 20': () => ({ selected: ALL.filter((m) => !m.deprecated && m.openWeights).slice(0, 20).map((m) => m.id) }),
+    // How many tokens each effort level burns for its score (Grok 4.7 ships only high and xhigh)
+    '★ Token burn — score vs. tokens per task': () => ({
+      selected: ALL.filter((m) => TOKEN_FAMILIES.includes(m.family) && m.effort !== 'non-reasoning').map((m) => m.id),
+      x: 'tokensPerTask', xScale: 'log', y: 'intelligence', yScale: 'linear', fullFrontier: false,
+    }),
+    ...(METRICS['ext:arcAgi2Cost'] ? { '★ ARC-AGI-2 — score vs. cost per task': () => ({
+      selected: ALL.filter((m) => !m.deprecated && m['ext:arcAgi2'] != null).sort((a, b) => b['ext:arcAgi2'] - a['ext:arcAgi2']).slice(0, 30).map((m) => m.id),
+      x: 'ext:arcAgi2Cost', xScale: 'log', y: 'ext:arcAgi2', yScale: 'linear', pareto: 'step', fullFrontier: true,
+    }) } : {}),
   };
+  const TOKEN_FAMILIES = ['grok-4-7', 'grok-4-6', 'gemini-3-8-flash', 'claude-opus-5-5', 'gpt-6-sol', 'gpt-6-astra', 'claude-fable-5-1'];
   function topFamilies(labs, perLab) {
     const out = [];
     for (const lab of labs) {
@@ -572,6 +771,28 @@
   }
   function makeScale(values, type, range, better) {
     const [r0, r1] = range;
+    if (type === 'logit') {
+      // log-odds: equal steps for 50→75%, 75→90%, 90→96%… so crowded top scores separate
+      const lg = (v) => Math.log(v / (1 - v)), vs = values.filter((v) => v > 0 && v < 1);
+      let l0 = lg(Math.max(1e-3, Math.min(...vs))), l1 = lg(Math.min(1 - 1e-3, Math.max(...vs)));
+      if (l1 - l0 < 0.5) { l0 -= 0.25; l1 += 0.25; }
+      const pad = (l1 - l0) * 0.06; l0 -= pad; l1 += pad;
+      const f = (v) => r0 + ((lg(v) - l0) / (l1 - l0)) * (r1 - r0);
+      const ticks = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.998, 0.999].filter((t) => lg(t) >= l0 && lg(t) <= l1);
+      return { f, ticks, ok: (v) => v > 0 && v < 1 };
+    }
+    if (type === 'sqrt') {
+      const vs = values.filter((v) => v >= 0);
+      let lo = Math.min(...vs), hi = Math.max(...vs);
+      if (lo === hi) { lo = Math.max(0, lo - 1); hi += 1; }
+      const s0 = Math.max(0, Math.sqrt(lo) - (Math.sqrt(hi) - Math.sqrt(lo)) * 0.06), s1 = Math.sqrt(hi) + (Math.sqrt(hi) - Math.sqrt(lo)) * 0.06;
+      const f = (v) => r0 + ((Math.sqrt(v) - s0) / (s1 - s0)) * (r1 - r0);
+      // ticks at nice values, denser near zero where √ spreads things out
+      const ticks = [], a = s0 * s0, b = s1 * s1;
+      for (const t of new Set([0, ...[1, 2, 5].flatMap((k) => [-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7].map((e) => k * 10 ** e)), ...Array.from({ length: 12 }, (_, i) => niceStep(b - a, 6) * i)]))
+        if (t >= a && t <= b) ticks.push(+t.toPrecision(12));
+      return { f, ticks: ticks.sort((x, y) => x - y), ok: (v) => v >= 0 };
+    }
     if (type === 'log') {
       const vs = values.filter((v) => v > 0);
       let lo = Math.min(...vs), hi = Math.max(...vs);
@@ -695,14 +916,14 @@
 
   // ---------- saved sets ----------
   function snapshot() {
-    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText };
+    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText };
   }
   function applySet(snap) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
-    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'fullFrontier', 'guides', 'labels', 'colorBy', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText']) if (snap[k] != null) S[k] = snap[k];
-    syncControls(); save(); renderList(); render();
+    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'colorBy', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText']) if (snap[k] != null) S[k] = snap[k];
+    fixAxes(); syncControls(); save(); renderList(); render();
   }
   let dirty = false;
   function markDirty() { if (S.activeSet && !dirty) { dirty = true; renderSetSelect(); } }
@@ -741,10 +962,18 @@
   });
 
   // ---------- controls ----------
-  $('ySel').innerHTML = Y_METRICS.map((k) => `<option value="${k}">${METRICS[k].label}</option>`).join('');
-  $('xSel').innerHTML = X_METRICS.map((k) => `<option value="${k}">${METRICS[k].label}</option>`).join('');
+  // Axis menus, grouped; benchmarks only some models have say how many.
+  function renderMetricMenus() {
+    const live = ALL.filter((m) => !m.deprecated), half = live.length / 2;
+    const opt = (k) => { const n = live.filter((m) => m[k] != null).length; return `<option value="${k}">${esc(METRICS[k].label)}${n < half ? ` — ${n} models` : ''}</option>`; };
+    const menu = (groups) => groups.filter((g) => GROUPS[g].length).map((g) => `<optgroup label="${g}">${GROUPS[g].map(opt).join('')}</optgroup>`).join('');
+    $('ySel').innerHTML = menu(Y_GROUPS); $('xSel').innerHTML = menu(X_GROUPS);
+    $('ySel').value = S.y; $('xSel').value = S.x;
+  }
+  renderMetricMenus();
+  for (const id of ['xScale', 'yScale']) $(id).innerHTML = Object.entries(SCALES).map(([v, t]) => `<button data-v="${v}" title="${SCALE_TITLE[v]}">${t}</button>`).join('');
   const syncs = [
-    bindSeg('xScale', 'xScale'), bindSeg('yScale', 'yScale'), bindSeg('paretoSeg', 'pareto'),
+    bindSeg('xScale', 'xScale'), bindSeg('yScale', 'yScale'), bindSeg('paretoSeg', 'pareto'), bindSeg('frontStyleSeg', 'frontStyle', markDirty),
     bindSeg('guideSeg', 'guides'), bindSeg('labelSeg', 'labels'), bindSeg('colorSeg', 'colorBy'),
     bindSeg('themeSeg', 'theme', applyTheme), bindSeg('markStyleSeg', 'markStyle', markDirty),
     bindSeg('gridSeg', 'grid', markDirty), bindSeg('axisSeg', 'axisText', markDirty),
@@ -752,6 +981,9 @@
   function syncControls() {
     $('markSel').value = S.markEffort; $('xSel').value = S.x; $('ySel').value = S.y; $('connect').checked = S.connect; $('fullFrontier').checked = S.fullFrontier;
     $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('addEffort').value = S.addEffort;
+    // logit only makes sense for scores that are fractions (0–100%)
+    $('xScale').querySelector('[data-v="logit"]').hidden = !METRICS[S.x].frac;
+    $('yScale').querySelector('[data-v="logit"]').hidden = !METRICS[S.y].frac;
     syncs.forEach((f) => f());
   }
   $('xSel').addEventListener('change', (e) => { S.x = e.target.value; S.xScale = METRICS[S.x].scale || 'linear'; markDirty(); syncControls(); save(); renderList(); render(); });
@@ -791,13 +1023,14 @@
     const narrow = W < 560;
     const H = narrow ? Math.round(Math.max(340, Math.min(W * 1.35, innerHeight * 0.66))) : Math.round(Math.min(760, Math.max(440, W * 0.6)));
     const M = narrow ? { top: 26, right: 12, bottom: 44, left: 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
-    const PW = W - M.left - M.right, PH = H - M.top - M.bottom;
+    let PW = W - M.left - M.right;
+    const PH = H - M.top - M.bottom;
     const X = METRICS[S.x], Y = METRICS[S.y];
     const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
 
     $('chartTitle').textContent = `${Y.label} vs. ${X.label}`;
-    const xDir = X.better === 'low' ? 'lower is better' : 'higher is better';
-    $('chartSub').textContent = `${Y.long} (higher is better) against ${X.long.charAt(0).toLowerCase() + X.long.slice(1)} (${xDir}). ${S.xScale === 'log' ? 'Log' : 'Linear'} x · ${S.yScale === 'log' ? 'log' : 'linear'} y.`;
+    const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
+    $('chartSub').textContent = `${Y.long} (${dir(Y)}) against ${/^[A-Z][a-z]/.test(X.long) ? X.long.charAt(0).toLowerCase() + X.long.slice(1) : X.long} (${dir(X)}). ${word[S.xScale].replace(/^./, (c) => c.toUpperCase())} x · ${word[S.yScale]} y.`;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
     svg.setAttribute('aria-label', $('chartTitle').textContent);
     svg.replaceChildren();
@@ -807,20 +1040,24 @@
     let points = [];
     for (const m of chosen) {
       const xv = m[S.x], yv = m[S.y];
-      const okX = xv != null && (S.xScale !== 'log' || xv > 0), okY = yv != null && (S.yScale !== 'log' || yv > 0);
+      const okX = scaleOk(S.xScale, xv), okY = scaleOk(S.yScale, yv);
       if (okX && okY) points.push({ m, xv, yv }); else missing.push(m);
     }
+    // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
+    if (!narrow) { const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700))); if (yw + 44 > M.left) { M.left = Math.ceil(yw + 44); PW = W - M.left - M.right; } }
     const hiddenByEffort = S.selected.size - chosen.length;
     let note = [];
-    if (missing.length) note.push(`${missing.length} selected model${missing.length > 1 ? 's have' : ' has'} no ${!missing.every((m) => m[S.x] != null) ? X.label.toLowerCase() : Y.label.toLowerCase()} data${S.xScale === 'log' || S.yScale === 'log' ? ' (or a non-positive value on a log axis)' : ''}: ${missing.slice(0, 6).map((m) => m.label).join(', ')}${missing.length > 6 ? '…' : ''}`);
+    if (missing.length) note.push(`${missing.length} selected model${missing.length > 1 ? 's have' : ' has'} no ${!missing.every((m) => m[S.x] != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missing.slice(0, 6).map((m) => m.label).join(', ')}${missing.length > 6 ? '…' : ''}`);
     if (hiddenByEffort) note.push(`${hiddenByEffort} hidden by the effort filter.`);
     $('chartNote').textContent = note.join(' · ');
-    $('chartFoot').innerHTML = `Each dot is one reasoning effort level, low to max${S.markEffort !== 'none' ? `; the ${S.markStyle} marks ${EFFORT_LABEL[S.markEffort]}` : ''}. A lone dot has one setting only. Dashed lines are older versions. ${matchMedia('(hover: none)').matches ? 'Tap a dot for its values; tap again to pin it.' : 'Hover a dot for its values; click to pin it.'}<br>Data: <a href="https://artificialanalysis.ai" style="color:inherit">Artificial Analysis</a>, ${esc(new Date(DATA.scrapedAt).toISOString().slice(0, 10))}`;
+    $('chartFoot').innerHTML = `Each dot is one reasoning effort level, low to max${S.markEffort !== 'none' ? `; the ${S.markStyle} marks ${EFFORT_LABEL[S.markEffort]}` : ''}. A lone dot has one setting only. Dashed lines are older versions. ${matchMedia('(hover: none)').matches ? 'Tap a dot for its values; tap again to pin it.' : 'Hover a dot for its values; click to pin it.'}<br>Data: <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">Artificial Analysis</a>, ${esc(new Date(DATA.scrapedAt).toISOString().slice(0, 10))}` +
+      [...new Set([X.ext, Y.ext].filter(Boolean))].map((e) => ` · ${esc(e.label)}: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.by)}</a>, ${esc((e.updated || e.fetchedAt || '').slice(0, 10))}${e.stale ? ' (couldn\'t refresh; last good copy)' : ''}. Matched to Artificial Analysis models by name; where the source doesn't say which effort it ran, it's shown on the model's default one.`).join('');
 
     // background
     svg.append(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: C.surface }));
     if (!points.length) {
-      svg.append(svgEl('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', fill: C.muted, 'font-size': 14 }, 'Select models in the sidebar to plot them.'));
+      const why = !chosen.length ? 'Select models in the sidebar to plot them.' : `None of the selected models have ${[S.x, S.y].filter((k) => chosen.every((m) => !scaleOk(k === S.x ? S.xScale : S.yScale, m[k]))).map((k) => METRICS[k].label).join(' or ') || `both ${X.label} and ${Y.label}`} data — add some that do.`;
+      svg.append(svgEl('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', fill: C.muted, 'font-size': 14 }, why));
       $('legend').innerHTML = ''; renderTable([], new Set()); lastPoints = []; lastGhosts = []; return;
     }
 
@@ -832,7 +1069,7 @@
         const shown = new Set(points.map((p) => p.m.id));
         const pool = points.concat(ALL.filter((m) => !shown.has(m.id) && (S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights) && S.efforts.has(m.effort))
           .map((m) => ({ m, xv: m[S.x], yv: m[S.y], ghost: true }))
-          .filter((p) => p.xv != null && p.yv != null && (S.xScale !== 'log' || p.xv > 0) && (S.yScale !== 'log' || p.yv > 0)));
+          .filter((p) => scaleOk(S.xScale, p.xv) && scaleOk(S.yScale, p.yv)));
         front = paretoFront(pool);
         ghosts = front.filter((p) => p.ghost);
         const ys = points.map((p) => p.yv), yLow = Y.better === 'low';
@@ -853,24 +1090,28 @@
     const g = svgEl('g');
     const gridAttrs = { stroke: C.grid, 'stroke-width': 1, 'stroke-opacity': S.grid === 'faint' ? 0.4 : 1 };
     const axisText = S.axisText === 'faint' ? { opacity: 0.45 } : {};
+    const tickEls = { x: [], y: [] }; // label + span, so value chips on the axes can hide what they overlap
     for (const t of sy.ticks) {
       const y = sy.f(t);
       if (S.grid !== 'off') g.append(svgEl('line', { ...gridAttrs, x1: M.left, x2: M.left + PW, y1: y, y2: y }));
-      g.append(svgEl('text', { ...axisText, x: M.left - 8, y: y + 4, 'text-anchor': 'end', fill: C.muted, 'font-size': 11, style: 'font-variant-numeric:tabular-nums' }, Y.fmt(t)));
+      const el = svgEl('text', { ...axisText, x: M.left - 8, y: y + 4, 'text-anchor': 'end', fill: C.muted, 'font-size': 11, style: 'font-variant-numeric:tabular-nums' }, Y.fmt(t));
+      g.append(el); tickEls.y.push([el, y - 7, y + 7]);
     }
     for (const t of sx.ticks) {
       const x = sx.f(t);
       if (S.grid !== 'off') g.append(svgEl('line', { ...gridAttrs, x1: x, x2: x, y1: M.top, y2: M.top + PH }));
-      g.append(svgEl('text', { ...axisText, x, y: M.top + PH + 18, 'text-anchor': 'middle', fill: C.muted, 'font-size': 11, style: 'font-variant-numeric:tabular-nums' }, X.fmt(t)));
+      const el = svgEl('text', { ...axisText, x, y: M.top + PH + 18, 'text-anchor': 'middle', fill: C.muted, 'font-size': 11, style: 'font-variant-numeric:tabular-nums' }, X.fmt(t)), tw = textW(X.fmt(t), 11) / 2;
+      g.append(el); tickEls.x.push([el, x - tw, x + tw]);
     }
     g.append(svgEl('line', { x1: M.left, x2: M.left + PW, y1: M.top + PH, y2: M.top + PH, stroke: C.axis }));
     g.append(svgEl('line', { x1: M.left, x2: M.left, y1: M.top, y2: M.top + PH, stroke: C.axis }));
-    g.append(svgEl('text', { ...axisText, x: M.left + PW / 2, y: H - (narrow ? 8 : 12), 'text-anchor': 'middle', fill: C.ink2, 'font-size': narrow ? 11 : 12, 'font-weight': 500 }, `${narrow ? X.label : X.long}${S.xScale === 'log' ? (narrow ? ' (log)' : ' · log scale') : ''}  ${X.better === 'low' ? '← better' : 'better →'}`));
-    if (narrow) g.append(svgEl('text', { ...axisText, x: 4, y: 12, fill: C.ink2, 'font-size': 11, 'font-weight': 500 }, `${Y.label}${S.yScale === 'log' ? ' (log)' : ''}  ↑ better`));
-    else g.append(svgEl('text', { ...axisText, x: 0, y: 0, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 12, 'font-weight': 500, transform: `translate(18 ${M.top + PH / 2}) rotate(-90)` }, `${Y.long}${S.yScale === 'log' ? ' · log scale' : ''}  better →`));
+    const scaleTag = (s) => s === 'linear' ? '' : narrow ? ` (${word[s]})` : ` · ${SCALE_NOTE[s]}`, yLow = Y.better === 'low';
+    g.append(svgEl('text', { ...axisText, x: M.left + PW / 2, y: H - (narrow ? 8 : 12), 'text-anchor': 'middle', fill: C.ink2, 'font-size': narrow ? 11 : 12, 'font-weight': 500 }, `${narrow ? X.label : X.long}${scaleTag(S.xScale)}  ${X.better === 'low' ? '← better' : 'better →'}`));
+    if (narrow) g.append(svgEl('text', { ...axisText, x: 4, y: 12, fill: C.ink2, 'font-size': 11, 'font-weight': 500 }, `${Y.label}${scaleTag(S.yScale)}  ${yLow ? '↓' : '↑'} better`));
+    else g.append(svgEl('text', { ...axisText, x: 0, y: 0, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 12, 'font-weight': 500, transform: `translate(18 ${M.top + PH / 2}) rotate(-90)` }, `${Y.long}${scaleTag(S.yScale)}  ${yLow ? '← better' : 'better →'}`));
     // "most attractive quadrant" hint
     const qx = X.better === 'low' ? M.left + 10 : M.left + PW - 10;
-    if (!narrow) g.append(svgEl('text', { ...axisText, x: qx, y: M.top + 14, 'text-anchor': X.better === 'low' ? 'start' : 'end', fill: C.muted, 'font-size': 11 }, 'Most attractive quadrant'));
+    if (!narrow) g.append(svgEl('text', { ...axisText, x: qx, y: yLow ? M.top + PH - 8 : M.top + 14, 'text-anchor': X.better === 'low' ? 'start' : 'end', fill: C.muted, 'font-size': 11 }, 'Most attractive quadrant'));
     svg.append(g);
 
     const plot = svgEl('g'); svg.append(plot);
@@ -890,8 +1131,17 @@
       }
       const nums = d.match(/-?[\d.]+/g).map(Number);
       for (let i = 2; i + 1 < nums.length; i += 2) segs.push([nums[i - 2], nums[i - 1], nums[i], nums[i + 1]]);
-      lineLayer.append(svgEl('path', { d, fill: 'none', stroke: C.ink, 'stroke-width': 1.25, 'stroke-opacity': 0.35, 'stroke-linejoin': 'round' }));
+      const shade = S.frontStyle === 'shade';
+      if (shade) {
+        // Shade everything the frontier beats: from the first frontier model, along the frontier, out to the worse corner.
+        // The frontier models sit on the edge of the shading, so they need no extra marks.
+        const xWorse = X.better === 'low' ? M.left + PW : M.left, yWorse = Y.better === 'low' ? M.top : M.top + PH, last = front[front.length - 1];
+        const area = `M${front[0].px},${yWorse} L${d.slice(1)} L${xWorse},${last.py} L${xWorse},${yWorse} Z`;
+        lineLayer.append(svgEl('path', { d: area, fill: C.ink, 'fill-opacity': 0.045, stroke: 'none' }));
+      }
+      lineLayer.append(svgEl('path', { d, fill: 'none', stroke: C.ink, 'stroke-width': shade ? 1.5 : 1.25, 'stroke-opacity': shade ? 0.5 : 0.35, 'stroke-linejoin': 'round' }));
     }
+    const fade = S.frontStyle === 'fade' && front.length > 0;
 
     // one line per model: its reasoning effort levels, low -> max (non-reasoning stays a lone dot)
     const series = new Map();
@@ -905,7 +1155,7 @@
       if (!S.connect || ps.length < 2) continue;
       for (let i = 1; i < ps.length; i++) segs.push([ps[i - 1].px, ps[i - 1].py, ps[i].px, ps[i].py]);
       const older = FAMILY.get(ps[0].m.family)?.older;
-      lineLayer.append(svgEl('polyline', { 'data-fam': ps[0].m.family, points: ps.map((p) => `${p.px},${p.py}`).join(' '), fill: 'none', stroke: S.colorBy === 'lab' ? ps[0].color : C.muted, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': older ? '6 5' : null, 'stroke-opacity': S.colorBy === 'lab' ? 0.95 : 0.5 }));
+      lineLayer.append(svgEl('polyline', { 'data-fam': ps[0].m.family, points: ps.map((p) => `${p.px},${p.py}`).join(' '), fill: 'none', stroke: S.colorBy === 'lab' ? ps[0].color : C.muted, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': older ? '6 5' : null, 'stroke-opacity': (S.colorBy === 'lab' ? 0.95 : 0.5) * (fade ? 0.4 : 1) }));
     }
 
     // guides ("intersecting squares")
@@ -915,7 +1165,12 @@
       S.guides === 'pinned' || S.guides === 'hover' ? [...S.pinned] : []);
     const chipLayer = svgEl('g');
     const guidePts = points.filter((p) => guideIds.has(p.m.id));
-    for (const p of guidePts) drawGuide(p, guideLayer, guidePts.length <= 12 ? chipLayer : null, S.pinned.has(p.m.id) ? 0.9 : 0.5);
+    // Only pinned guides get the tinted rectangle: with a whole frontier of them, the overlapping fills turn to mud.
+    // Value chips on the axes skip any that would overlap one already there; pinned ones go first.
+    const taken = { x: [], y: [] };
+    guidePts.sort((a, b) => S.pinned.has(b.m.id) - S.pinned.has(a.m.id));
+    for (const p of guidePts) drawGuide(p, guideLayer, chipLayer, S.pinned.has(p.m.id) ? 0.9 : 0.45, S.pinned.has(p.m.id), taken);
+    for (const k of ['x', 'y']) for (const [el, a, b] of tickEls[k]) if (taken[k].some(([c, d]) => a < d && b > c)) el.remove();
 
     // points: frontier + pinned drawn last (on top)
     const dotLayer = svgEl('g'); plot.append(dotLayer);
@@ -940,10 +1195,12 @@
     const ghostLayer = svgEl('g', { 'clip-path': `url(#${clipId})` }); dotLayer.append(ghostLayer);
     for (const p of ghosts) ghostLayer.append(svgEl('circle', { cx: p.px, cy: p.py, r: 4.5, fill: p.color, 'fill-opacity': 0.4, stroke: p.color, 'stroke-opacity': 0.7, 'stroke-width': 1.25 }));
     const order = points.slice().sort((a, b) => (frontSet.has(a.m.id) + S.pinned.has(a.m.id) * 2) - (frontSet.has(b.m.id) + S.pinned.has(b.m.id) * 2));
+    const fadeLayer = svgEl('g', { opacity: 0.3 }); dotLayer.append(fadeLayer);
     for (const p of order) {
-      const r = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25;
-      if (frontSet.has(p.m.id)) dotLayer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r: r + 3.5, fill: 'none', stroke: C.ink, 'stroke-width': 1, 'stroke-opacity': 0.45 }));
-      dotLayer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r, fill: p.color, stroke: C.surface, 'stroke-width': 2, 'fill-opacity': p.m.estimated ? 0.45 : 1 }));
+      const r = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25, onFront = frontSet.has(p.m.id);
+      const layer = fade && !onFront && !S.pinned.has(p.m.id) ? fadeLayer : dotLayer;
+      if (onFront && S.frontStyle === 'rings') layer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r: r + 3.5, fill: 'none', stroke: C.ink, 'stroke-width': 1, 'stroke-opacity': 0.45 }));
+      layer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r, fill: p.color, stroke: C.surface, 'stroke-width': 2, 'fill-opacity': p.m.estimated ? 0.45 : 1 }));
     }
     plot.append(chipLayer);
 
@@ -961,10 +1218,10 @@
 
   // The "intersecting square": dashed lines from the dot to both axes, meeting at the dot,
   // with the exact values written onto the axes in the model's color.
-  function drawGuide(p, layer, chips, strength = 1) {
+  function drawGuide(p, layer, chips, strength = 1, fill = true, taken = null) {
     const { M, PW, PH } = lastGeom, X = METRICS[S.x], Y = METRICS[S.y];
     const surface = css('--surface'), x0 = M.left, y0 = M.top + PH;
-    layer.append(svgEl('rect', { x: Math.min(x0, p.px), y: Math.min(p.py, y0), width: Math.abs(p.px - x0), height: Math.abs(y0 - p.py), fill: p.color, 'fill-opacity': 0.05 * strength }));
+    if (fill) layer.append(svgEl('rect', { x: Math.min(x0, p.px), y: Math.min(p.py, y0), width: Math.abs(p.px - x0), height: Math.abs(y0 - p.py), fill: p.color, 'fill-opacity': 0.05 * strength }));
     const line = { stroke: p.color, 'stroke-width': 1.25, 'stroke-dasharray': '4 4', 'stroke-opacity': strength };
     layer.append(svgEl('line', { ...line, x1: p.px, x2: p.px, y1: p.py, y2: y0 }));
     layer.append(svgEl('line', { ...line, x1: x0, x2: p.px, y1: p.py, y2: p.py }));
@@ -972,11 +1229,18 @@
     const xt = X.fmt(p.xv), yt = Y.fmt(p.yv), font = { 'font-size': 12, 'font-weight': 700, fill: p.color, style: 'font-variant-numeric:tabular-nums' };
     const xw = textW(xt, 12, 700) + 12, yw = textW(yt, 12, 700) + 10;
     const cx = Math.max(M.left + xw / 2, Math.min(M.left + PW - xw / 2, p.px));
+    const free = (list, a, b) => !taken || !list.some(([c, d]) => a < d && b > c);
     // surface-colored backing hides the tick label underneath
-    chips.append(svgEl('rect', { x: cx - xw / 2, y: y0 + 5, width: xw, height: 18, fill: surface }));
-    chips.append(svgEl('text', { ...font, x: cx, y: y0 + 18, 'text-anchor': 'middle' }, xt));
-    chips.append(svgEl('rect', { x: M.left - yw - 6, y: p.py - 9, width: yw + 4, height: 18, fill: surface }));
-    chips.append(svgEl('text', { ...font, x: M.left - 8, y: p.py + 4, 'text-anchor': 'end' }, yt));
+    if (free(taken?.x, cx - xw / 2 - 2, cx + xw / 2 + 2)) {
+      taken?.x.push([cx - xw / 2 - 2, cx + xw / 2 + 2]);
+      chips.append(svgEl('rect', { x: cx - xw / 2, y: y0 + 5, width: xw, height: 18, fill: surface }));
+      chips.append(svgEl('text', { ...font, x: cx, y: y0 + 18, 'text-anchor': 'middle' }, xt));
+    }
+    if (free(taken?.y, p.py - 9, p.py + 9)) {
+      taken?.y.push([p.py - 9, p.py + 9]);
+      chips.append(svgEl('rect', { x: M.left - yw - 6, y: p.py - 9, width: yw + 4, height: 18, fill: surface }));
+      chips.append(svgEl('text', { ...font, x: M.left - 8, y: p.py + 4, 'text-anchor': 'end' }, yt));
+    }
   }
 
   function placeLabels(points, frontSet, layer, { M, PW, PH, C, segs, ghosts = [] }) {
@@ -1024,7 +1288,9 @@
       if (!placed) continue;
       if (placed.b) boxes.push(placed.b);
       const tx = p.px + placed.dx, ty = p.py + placed.dy + 11;
-      const attrs = { 'data-fam': p.m.family, x: tx, y: ty, fill: tag ? C.muted : asSeries && S.colorBy === 'lab' ? p.color : S.pinned.has(p.m.id) ? C.ink : C.ink2, 'font-size': size, 'font-weight': weight, stroke: C.surface, 'stroke-width': 3.5, 'paint-order': 'stroke', 'stroke-linejoin': 'round' };
+      // "Fade" frontier style: names of models nowhere on the frontier fade with their dots
+      const dim = S.frontStyle === 'fade' && frontSet.size && !S.pinned.has(p.m.id) && !(asSeries ? p.series || [p] : [p]).some((q) => frontSet.has(q.m.id));
+      const attrs = { 'data-fam': p.m.family, opacity: dim ? 0.4 : null, x: tx, y: ty, fill: tag ? C.muted : asSeries && S.colorBy === 'lab' ? p.color : S.pinned.has(p.m.id) ? C.ink : C.ink2, 'font-size': size, 'font-weight': weight, stroke: C.surface, 'stroke-width': 3.5, 'paint-order': 'stroke', 'stroke-linejoin': 'round' };
       const el = svgEl('text', attrs, suffix ? null : t);
       if (suffix) el.append(svgEl('tspan', {}, t), svgEl('tspan', { dx: SUF.gap, fill: C.muted, 'font-size': SUF.size, 'font-weight': 500 }, suffix));
       layer.append(el);
@@ -1067,7 +1333,10 @@
       extras.push(`<span><svg width="22" height="14"><line x1="1" x2="21" y1="7" y2="7" stroke="${k}" stroke-width="2"/>${mark}<circle cx="11" cy="7" r="3.5" fill="${k}"/></svg>${EFFORT_LABEL[S.markEffort]} effort</span>`);
     }
     if (points.some((p) => FAMILY.get(p.m.family)?.older)) extras.push(`<span><svg width="22" height="10"><line x1="1" x2="21" y1="5" y2="5" stroke="${css('--ink-2')}" stroke-width="2" stroke-dasharray="4 3"/></svg>Older version</span>`);
-    if (S.pareto !== 'off') extras.push(`<span><svg width="22" height="10"><path d="M1 9 L1 5 L11 5 L11 1 L21 1" fill="none" stroke="${css('--ink')}" stroke-opacity=".55" stroke-width="1.5"/></svg>Pareto frontier (ringed points)</span>`);
+    if (S.pareto !== 'off') {
+      const k = css('--ink'), how = { shade: 'shading: what it beats', fade: 'other models faded', rings: 'ringed points' }[S.frontStyle];
+      extras.push(`<span><svg width="22" height="12"><path d="M1 12 L1 7 L11 7 L11 2 L21 2 L21 12 Z" fill="${k}" fill-opacity="${S.frontStyle === 'shade' ? 0.09 : 0}"/><path d="M1 11 L1 7 L11 7 L11 2 L21 2" fill="none" stroke="${k}" stroke-opacity=".55" stroke-width="1.5"/></svg>Pareto frontier (${how})</span>`);
+    }
     if (ghosts) extras.push(`<span><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="${css('--ink-2')}" fill-opacity=".3" stroke="${css('--ink-2')}" stroke-opacity=".55"/></svg>Frontier model not selected</span>`);
     if (points.some((p) => p.m.estimated)) extras.push(`<span><i style="background:${css('--muted')};opacity:.45"></i>Estimated score</span>`);
     $('legend').innerHTML = items.map((i) => `<span><i style="background:${i.color}"></i>${esc(i.name)}</span>`).join('') + extras.join('');
@@ -1126,12 +1395,12 @@
     svg.querySelectorAll('[data-fam]').forEach((el) => el.setAttribute('opacity', el.dataset.fam === p.m.family ? 1 : 0.28));
 
     const m = p.m;
-    const rows = [S.y, S.x, ...['intelligence', 'costPerTask', 'costToRun', 'priceBlended', 'outputSpeed', 'outputTokens', 'e2e'].filter((k) => k !== S.x && k !== S.y)]
+    const rows = [S.y, S.x, ...['intelligence', 'costPerTask', 'costToRun', 'priceBlended', 'tokensPerTask', 'outputSpeed', 'e2e'].filter((k) => k !== S.x && k !== S.y)]
       .filter((k) => m[k] != null)
       .map((k) => `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${METRICS[k].label}</td><td>${METRICS[k].fmt(m[k])}</td></tr>`).join('');
     tip.innerHTML = `<div class="t-name"><i style="background:${p.color}"></i>${esc(m.label)}</div>
       <div class="t-sub">${esc(m.creator)} · ${EFFORT_LABEL[m.effort]} effort · ${m.openWeights ? 'open weights' : 'proprietary'}${m.releaseDate ? ' · ' + m.releaseDate : ''}${m.estimated ? ' · estimated' : ''}</div>
-      <table>${rows}</table><div class="t-foot">${p.ghost ? `On the frontier but not selected · ${touch ? 'tap again' : 'click'} to add it` : `${touch ? 'Tap again' : 'Click'} to ${S.pinned.has(m.id) ? 'unpin' : 'pin'}`}</div>`;
+      <table>${rows}</table>${[...new Set([S.y, S.x].map((k) => METRICS[k].ext).filter(Boolean))].map((e) => { const r = m.ext?.[e.key]; return r ? `<div class="t-foot">${esc(e.label)} lists it as “${esc(r.name)}”${r.guessed ? ' (effort not stated)' : ''}</div>` : ''; }).join('')}<div class="t-foot">${p.ghost ? `On the frontier but not selected · ${touch ? 'tap again' : 'click'} to add it` : `${touch ? 'Tap again' : 'Click'} to ${S.pinned.has(m.id) ? 'unpin' : 'pin'}`}</div>`;
     tip.classList.toggle('docked', touch);
     tip.style.display = 'block';
     const r = tip.getBoundingClientRect();
@@ -1178,6 +1447,125 @@
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString());
   });
 
+  // ---------- what's new: Artificial Analysis' own changelog ----------
+  // New entries (compared with what this device has seen) set off a celebration, once; they stay highlighted for the visit.
+  const AA_URL = 'https://artificialanalysis.ai', SEEN_KEY = 'aa-charts:feed-seen';
+  const FEED_KIND = { modelAdded: 'model', articlePublished: 'article' };
+  const feedFresh = new Set();
+  let feedAll = false, pendingCelebration = null, toastTimer = null;
+  const feedModel = (c, slugs) => c.type === 'modelAdded' ? slugs.get(c.url?.match(/^\/models\/([^/?#]+)/)?.[1]) : null;
+  const feedHref = (u) => /^https:\/\//.test(u || '') ? u : AA_URL + (String(u || '/').startsWith('/') ? u || '/' : '/' + u);
+  function renderFeed() {
+    const list = DATA.changelog || [], slugs = new Map(ALL.map((m) => [m.slug, m]));
+    $('feedCard').hidden = !list.length;
+    const day = (d) => new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    $('feed').innerHTML = (feedAll ? list : list.slice(0, 10)).map((c) => {
+      const m = feedModel(c, slugs), fresh = feedFresh.has(c.id);
+      const dot = m ? `<i class="dot" style="background:${familyColor(m)}"></i>` : '<i class="dot" style="box-shadow:inset 0 0 0 1.5px var(--muted)"></i>';
+      const end = m ? `<span class="score" title="Intelligence Index">${m.intelligence.toFixed(1)}</span><button class="chip add" data-id="${m.id}" aria-pressed="${S.selected.has(m.id)}" title="${S.selected.has(m.id) ? 'Remove from' : 'Add to'} the chart">${S.selected.has(m.id) ? 'On chart' : '+ Chart'}</button>`
+        : `<span class="kind">${esc(FEED_KIND[c.type] || String(c.type).replace(/([A-Z])/g, ' $1').toLowerCase())}</span>`;
+      return `<li class="${fresh ? 'fresh' : ''}"><span class="when">${esc(day(c.date))}</span>${dot}<a class="title" href="${esc(feedHref(c.url))}" target="_blank" rel="noopener" title="${esc(c.title)}">${esc(m ? m.label : c.title)}</a>${fresh ? '<span class="pill-new">NEW</span>' : ''}${end}</li>`;
+    }).join('');
+    $('feedMore').hidden = list.length <= 10;
+    $('feedMore').textContent = feedAll ? 'Show fewer' : `Show all ${list.length}`;
+    $('feedNote').textContent = list.length ? `checked ${ago(DATA.scrapedAt)}` : '';
+    $('newBadge').hidden = !feedFresh.size || $('newBadge').dataset.cleared === '1';
+    $('newBadge').textContent = feedFresh.size;
+  }
+  $('feedMore').addEventListener('click', () => { feedAll = !feedAll; renderFeed(); });
+  $('feed').addEventListener('click', (e) => {
+    const b = e.target.closest('.add'); if (!b) return;
+    const id = b.dataset.id; S.selected.has(id) ? S.selected.delete(id) : S.selected.add(id);
+    markDirty(); save(); renderList(); render(); renderFeed();
+  });
+  function showFeed() {
+    $('newBadge').dataset.cleared = '1'; $('newBadge').hidden = true;
+    $('feedCard').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  }
+  $('whatsNew').addEventListener('click', showFeed);
+  function checkFeed(demo = false) {
+    const list = DATA.changelog || []; if (!list.length) return;
+    let seen = null; try { seen = JSON.parse(localStorage.getItem(SEEN_KEY)); } catch {}
+    const ids = list.map((c) => c.id);
+    if (!Array.isArray(seen) && !demo) { store(SEEN_KEY, JSON.stringify(ids)); renderFeed(); return; } // first visit: this is the baseline
+    const fresh = demo ? list.slice(0, 3) : list.filter((c) => !seen.includes(c.id));
+    if (!fresh.length) { renderFeed(); return; }
+    fresh.forEach((c) => feedFresh.add(c.id));
+    delete $('newBadge').dataset.cleared;
+    store(SEEN_KEY, JSON.stringify([...new Set([...ids, ...(seen || [])])].slice(0, 300)));
+    renderFeed(); celebrate(fresh);
+  }
+  function celebrate(items) {
+    if (document.hidden) { pendingCelebration = items; return; } // wait until someone's looking
+    const slugs = new Map(ALL.map((m) => [m.slug, m]));
+    const names = items.map((c) => feedModel(c, slugs)?.label || c.title);
+    const t = $('toast');
+    t.innerHTML = `<span aria-hidden="true" style="font-size:22px">🎉</span><div class="msg"><b>${items.length === 1 ? 'New' : items.length + ' new'} on Artificial Analysis</b><span>${esc(names.slice(0, 4).join(' · '))}${names.length > 4 ? ' …' : ''}</span></div><button class="go"><span class="desk-only">See what's new</span><span class="mobile-only">View</span></button><button class="x" aria-label="Dismiss">✕</button>`;
+    t.querySelector('.go').onclick = () => { hideToast(); showFeed(); };
+    t.querySelector('.x').onclick = hideToast;
+    requestAnimationFrame(() => t.classList.add('show'));
+    clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 10000);
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) confetti();
+  }
+  function hideToast() { $('toast').classList.remove('show'); }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && pendingCelebration) { const p = pendingCelebration; pendingCelebration = null; setTimeout(() => celebrate(p), 400); } });
+  function confetti() {
+    const cv = $('confetti'), ctx = cv.getContext('2d'), colors = [1, 2, 3, 4, 5, 7, 8].map((i) => css('--s' + i)), parts = [];
+    cv.hidden = false;
+    let w = 0, h = 0, t0 = 0, last = 0, tries = 0;
+    const LIFE = 4200;
+    // Size from the canvas's laid-out box each frame: at page load (or in a background tab) the viewport can still be 0×0.
+    const fit = () => {
+      const dpr = devicePixelRatio || 1, cw = cv.clientWidth || innerWidth, ch = cv.clientHeight || innerHeight;
+      if (cw === w && ch === h) return;
+      w = cw; h = ch; cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    // two cannons in the bottom corners, aimed up and inwards
+    const cannon = (x, angle) => { for (let i = 0; i < 110; i++) {
+      const a = angle + (Math.random() - 0.5) * 0.8, v = Math.min(22, h / 38) * (0.6 + Math.random() * 0.6);
+      parts.push({ x, y: h * 0.9, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 6 + Math.random() * 6, h: 4 + Math.random() * 5, r: Math.random() * 6.3, vr: (Math.random() - 0.5) * 0.35, wob: Math.random() * 6.3, c: colors[i % colors.length], round: Math.random() < 0.2 });
+    } };
+    requestAnimationFrame(function frame(now) {
+      fit();
+      if (!w || !h) { if (++tries < 120) requestAnimationFrame(frame); else cv.hidden = true; return; }
+      if (!t0) { t0 = last = now; cannon(0, -Math.PI / 2.9); cannon(w, -Math.PI + Math.PI / 2.9); }
+      const k = Math.min(3, (now - last) / 16.7), age = now - t0; last = now;
+      ctx.clearRect(0, 0, w, h); ctx.globalAlpha = Math.max(0, Math.min(1, (LIFE - age) / 1000));
+      for (const p of parts) {
+        p.vy += 0.34 * k; p.vx *= 0.988 ** k; p.vy *= 0.988 ** k; p.x += p.vx * k; p.y += p.vy * k; p.r += p.vr * k; p.wob += 0.12 * k;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
+        if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.h / 1.6, 0, 6.3); ctx.fill(); } else { const s = Math.abs(Math.cos(p.wob)); ctx.fillRect(-p.w / 2, -p.h * s / 2, p.w, p.h * s + 0.6); }
+        ctx.restore();
+      }
+      if (age < LIFE) requestAnimationFrame(frame); else { ctx.clearRect(0, 0, w, h); cv.hidden = true; }
+    });
+  }
+
+  // ---------- coding agents (harness + model) ----------
+  let agentSort = { key: 'index', dir: -1 };
+  const mins = (v) => v >= 5400 ? (v / 3600).toFixed(1) + ' h' : Math.round(v / 60) + ' min';
+  function renderAgents() {
+    const list = DATA.codingAgents || [];
+    $('agentsCard').hidden = !list.length; if (!list.length) return;
+    const evals = [...new Set(list.flatMap((a) => Object.keys(a.evals || {})))];
+    const cols = [['agent', 'Agent'], ['model', 'Model'], ['index', 'Coding Agent Index', pct, true], ...evals.map((n) => ['e:' + n, n, pct, true]),
+      ['costPerTask', 'Cost / task', money], ['timePerTask', 'Time / task', mins], ['tokensPerTask', 'Tokens / task', compact]];
+    const val = (a, k) => k.startsWith('e:') ? a.evals?.[k.slice(2)] : a[k];
+    const rows = list.slice().sort((a, b) => { const va = val(a, agentSort.key) ?? -Infinity, vb = val(b, agentSort.key) ?? -Infinity; return (va > vb ? 1 : va < vb ? -1 : 0) * agentSort.dir; });
+    const max = Object.fromEntries(cols.filter((c) => c[3]).map(([k]) => [k, Math.max(...list.map((a) => val(a, k) ?? 0))]));
+    $('agentsTable').innerHTML = `<thead><tr>${cols.map(([k, t]) => `<th data-k="${esc(k)}">${esc(t)}${agentSort.key === k ? (agentSort.dir > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('')}</tr></thead><tbody>` +
+      rows.map((a) => `<tr>${cols.map(([k, , fmt, bar]) => {
+        const v = val(a, k);
+        if (!fmt) return `<td>${esc(v ?? '')}</td>`;
+        return `<td class="n${bar ? ' bar' : ''}">${bar && v != null ? `<span style="width:${(100 * v / max[k]).toFixed(1)}%"></span>` : ''}${v != null ? fmt(v) : '—'}</td>`;
+      }).join('')}</tr>`).join('') + '</tbody>';
+  }
+  $('agentsTable').addEventListener('click', (e) => {
+    const k = e.target.closest('th')?.dataset.k; if (!k) return;
+    agentSort = { key: k, dir: agentSort.key === k ? -agentSort.dir : k === 'agent' || k === 'model' || k === 'costPerTask' || k === 'timePerTask' || k === 'tokensPerTask' ? 1 : -1 };
+    renderAgents();
+  });
+
   // ---------- data updates ----------
   const STALE_MS = 12 * 3600e3;
   let updating = false;
@@ -1206,7 +1594,7 @@
       S.selected = new Set([...S.selected].filter((id) => BY_ID.has(id)));
       S.pinned = new Set([...S.pinned].filter((id) => BY_ID.has(id)));
       if (!S.selected.size) S.selected = new Set(theoSelection());
-      save(); renderList(); render();
+      save(); renderMetricMenus(); renderList(); render(); renderAgents(); checkFeed();
       showMeta(before.size && added ? `updated · ${added} new model${added > 1 ? 's' : ''}` : 'updated');
     } catch (err) {
       showMeta(`update failed (${err.message}) — still showing the previous data`, true);
@@ -1219,7 +1607,7 @@
   // pick up changes made on another device when you come back to this tab
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); });
   // Keep itself current: update when opened if the data is stale, and re-check hourly while left open.
-  const autoUpdate = () => { if (Date.now() - new Date(DATA.scrapedAt) > STALE_MS) updateData(); else showMeta(); };
+  const autoUpdate = () => { if (Date.now() - new Date(DATA.scrapedAt) > STALE_MS || !currentShape(DATA)) updateData(); else showMeta(); };
   setInterval(autoUpdate, 3600e3);
 
   // ---------- boot ----------
@@ -1229,7 +1617,8 @@
   for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'colorBy', 'markEffort', 'markStyle', 'grid', 'axisText']) if (qp.get(k)) S[k] = qp.get(k);
   if (qp.get('fullFrontier')) S.fullFrontier = qp.get('fullFrontier') === '1';
   if (qp.get('pin')) S.pinned = new Set(qp.get('pin').split(',').map((t) => { const [fam, eff] = t.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff)?.id; }).filter(Boolean));
-  syncControls(); applyTheme(); renderSetSelect(); renderList(); render();
+  fixAxes(); syncControls(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
+  checkFeed(qp.has('celebrate')); // ?celebrate previews the new-entries celebration
   autoUpdate();
   pull();
   let lastW = 0;

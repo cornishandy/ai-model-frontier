@@ -1,5 +1,5 @@
-// Refreshes the built-in data and publishes the site: commits and pushes to GitHub, and
-// GitHub Pages serves index.html at https://cornishandy.github.io/ai-model-frontier/
+// Refreshes the built-in data and publishes the site: commits and pushes to GitHub, and the
+// "Deploy site" workflow deploys it to https://cornishandy.github.io/ai-model-frontier/
 // Run: node publish.mjs   (commit your own edits first, or they go out in the same commit)
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
