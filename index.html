@@ -28,7 +28,7 @@
     --e-high: #1c5cab; --e-xhigh: #104281; --e-max: #0d366b; --e-none: #c3c2b7;
   }
   @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) {
+    :root:where(:not([data-theme="light"]):not([data-theme="white"]):not([data-theme="sepia"])) {
       color-scheme: dark;
       --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
       --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --hover: rgba(255, 255, 255, 0.06);
@@ -39,7 +39,7 @@
       --e-high: #5598e7; --e-xhigh: #86b6ef; --e-max: #b7d3f6; --e-none: #52514e;
     }
   }
-  :root[data-theme="dark"] {
+  :root[data-theme="dark"], :root[data-theme="midnight"], :root[data-theme="black"] {
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --hover: rgba(255, 255, 255, 0.06);
@@ -48,6 +48,22 @@
     --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --other: #6b6a65;
     --e-minimal: #184f95; --e-low: #1c5cab; --e-medium: #2a78d6; --e-default: #3987e5;
     --e-high: #5598e7; --e-xhigh: #86b6ef; --e-max: #b7d3f6; --e-none: #52514e;
+  }
+  /* Theme variants: surfaces and text only. Series colors come from the light or dark set above. */
+  :root[data-theme="white"] {
+    --page: #f3f4f6; --surface: #ffffff; --ink: #111418; --ink-2: #4b5059; --muted: #868b94;
+    --grid: #e5e7eb; --axis: #c8cbd1; --border: rgba(17, 20, 24, 0.1); --hover: rgba(17, 20, 24, 0.05);
+  }
+  :root[data-theme="sepia"] {
+    --page: #efe7d6; --surface: #f8f2e5; --ink: #2a2217; --ink-2: #5c4f3c; --muted: #8e8069;
+    --grid: #e4d9c2; --axis: #c9ba9b; --border: rgba(42, 34, 23, 0.12); --hover: rgba(42, 34, 23, 0.06); --other: #a99d86;
+  }
+  :root[data-theme="midnight"] {
+    --page: #0b1120; --surface: #111a2e; --ink: #f1f5f9; --ink-2: #c3cad6; --muted: #8792a6;
+    --grid: #1e2a42; --axis: #2c3a55; --border: rgba(226, 232, 240, 0.1); --hover: rgba(226, 232, 240, 0.06); --other: #5f6b80;
+  }
+  :root[data-theme="black"] {
+    --page: #000000; --surface: #000000; --grid: #1f1f1f; --axis: #2e2e2e; --border: rgba(255, 255, 255, 0.12);
   }
 
   * { box-sizing: border-box; }
@@ -110,7 +126,13 @@
   .lab { border-top: 1px solid var(--border); padding-top: 8px; }
   .lab-head { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; user-select: none; }
   .lab-head .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
-  .lab-head .count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+  .lab-head .count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; border: 0; background: none; padding: 1px 4px; }
+  .lab-head .count:hover { color: var(--ink); background: var(--hover); }
+  .lab-head .tw { width: 10px; flex: none; color: var(--muted); font-size: 10px; transition: transform .12s; }
+  .lab:not(.collapsed) > .lab-head .tw { transform: rotate(90deg); }
+  .lab.collapsed > .lab-body { display: none; }
+  .lab.sub { border-top: 0; padding: 6px 0 0 18px; }
+  .lab.sub > .lab-head { font-weight: 500; }
   .fam { display: grid; grid-template-columns: 1fr; gap: 3px; padding: 5px 0 5px 18px; }
   .fam-name { cursor: pointer; color: var(--ink-2); display: flex; gap: 6px; align-items: baseline; }
   .fam-name:hover { color: var(--ink); }
@@ -270,9 +292,6 @@
   <button id="updateData" class="primary" title="Download the latest numbers from artificialanalysis.ai">Update<span class="desk-only"> data</span></button>
   <button id="downloadSvg" class="desk-only" title="Download chart as SVG">SVG</button>
   <button id="downloadPng" class="desk-only" title="Download chart as PNG">PNG</button>
-  <div class="seg desk-only" id="themeSeg">
-    <button data-v="system">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button>
-  </div>
 </header>
 
 <aside id="sidebar">
@@ -322,6 +341,7 @@
     <div class="row" style="margin-top:6px">
       <label class="inline"><input type="checkbox" id="showDeprecated" /> Include deprecated</label>
       <label class="inline"><input type="checkbox" id="openOnly" /> Open weights only</label>
+      <label class="inline" title="Leave out a model once a newer version of it is out, e.g. Claude Opus 5 once Opus 5.5 is. They stay selected, so turning this off brings them back."><input type="checkbox" id="hideOlder" /> Hide older versions</label>
     </div>
     <div class="note" id="selCount" style="margin-top:6px"></div>
     <div id="modelList" style="margin-top:8px"></div>
@@ -346,6 +366,12 @@
   <div class="toolbar opts">
     <div class="group"><span>Grid</span><div class="seg" id="gridSeg"><button data-v="normal">Normal</button><button data-v="faint">Faint</button><button data-v="off">Off</button></div></div>
     <div class="group"><span>Axis text</span><div class="seg" id="axisSeg"><button data-v="normal">Normal</button><button data-v="faint">Faint</button></div></div>
+    <div class="group"><span>Glow</span><div class="seg" id="glowSeg" title="A soft glow around the dots and lines, in each model's color"><button data-v="off">Off</button><button data-v="on">On</button></div></div>
+    <div class="group"><span>Theme</span><select id="themeSel">
+      <option value="system">Auto (match device)</option>
+      <optgroup label="Light"><option value="light">Paper</option><option value="white">White</option><option value="sepia">Sepia</option></optgroup>
+      <optgroup label="Dark"><option value="dark">Graphite</option><option value="midnight">Midnight</option><option value="black">Black</option></optgroup>
+    </select></div>
   </div>
 
   <div class="card" id="chartCard">
@@ -539,8 +565,11 @@
   const EFFORT_LABEL = { 'non-reasoning': 'Non-reasoning', minimal: 'Minimal', low: 'Low', medium: 'Medium', default: 'Default', high: 'High', xhigh: 'XHigh', max: 'Max' };
   const EFFORT_VAR = { 'non-reasoning': '--e-none', minimal: '--e-minimal', low: '--e-low', medium: '--e-medium', default: '--e-default', high: '--e-high', xhigh: '--e-xhigh', max: '--e-max' };
   // Color follows the lab (entity), fixed slot per lab; everyone else is "Other".
+  // OpenAI is the text color: black on light themes, white on dark ones.
   const LAB_SLOT = { openai: 'ink', anthropic: 2, google: 1, xai: 3, spacexai: 3, meta: 5, alibaba: 4, deepseek: 7, zai: 6, xiaomi: 8 };
   const labBase = (slug) => { const s = LAB_SLOT[slug]; return s === 'ink' ? css('--ink') : s ? css('--s' + s) : css('--other'); };
+  // The big labs: listed first (sidebar and legend) and open in the sidebar by default. xAI's models are Grok.
+  const TOP_LABS = ['anthropic', 'openai', 'google', 'xai', 'spacexai'];
 
   // A "line" is a model family across versions (GPT-6 Sol and GPT-5.6 Sol are both "GPT Sol").
   // The newest version of a line is drawn solid; older versions are dashed, in the same color.
@@ -576,11 +605,16 @@
     const [x, y] = [p(a), p(b)];
     return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
   }
-  const SHADES = [0, 0.36, 0.56, 0.7];
+  // A lab's lines step away from its base color, alternating toward the text color (+) and the background (-),
+  // gently enough that every line keeps the lab's hue and stays readable.
+  // OpenAI's black (or white) can only step toward the background, so its steps are small enough that no line
+  // fades to a hard-to-see grey.
+  const SHADES = [0, 0.28, -0.3, 0.42], INK_SHADES = [0, 0.15, 0.3, 0.45];
   function familyColor(m) {
-    const base = labBase(m.creatorSlug), shade = SHADES[(FAMILY.get(m.family)?.shade || 0) % SHADES.length];
-    // step lighter/darker within the lab's hue: toward the surface for the ink-based lab, toward ink otherwise
-    return shade ? mix(base, LAB_SLOT[m.creatorSlug] === 'ink' ? css('--surface') : css('--ink'), shade) : base;
+    const base = labBase(m.creatorSlug), i = FAMILY.get(m.family)?.shade || 0;
+    if (LAB_SLOT[m.creatorSlug] === 'ink') return mix(base, css('--surface'), INK_SHADES[i % INK_SHADES.length]);
+    const shade = SHADES[i % SHADES.length];
+    return shade ? mix(base, css(shade > 0 ? '--ink' : '--surface'), Math.abs(shade)) : base;
   }
 
   // ---------- sync ----------
@@ -693,7 +727,7 @@
     pareto: 'step', frontStyle: 'shade', fullFrontier: false, guides: 'hover', labels: 'auto', colorBy: 'lab', connect: true, markEffort: 'high', markStyle: 'hash',
     grid: 'normal', axisText: 'normal',
     efforts: EFFORTS.slice(), selected: theoSelection(), pinned: [],
-    showDeprecated: false, openOnly: false, addEffort: 'all', theme: 'system', activeSet: '',
+    showDeprecated: false, openOnly: false, hideOlder: false, addEffort: 'all', theme: 'system', glow: 'off', activeSet: '',
   };
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const S = { ...DEFAULT_STATE, ...load(STATE_KEY, {}) };
@@ -851,10 +885,12 @@
   // ---------- sidebar ----------
   // Families with anything selected stay listed even when the filters would hide them (e.g. deprecated),
   // so whatever is on the chart can always be switched off here.
+  // "Hide older versions": a model whose line has a newer version (Opus 5 once Opus 5.5 is out) is left out of the list and chart.
+  const superseded = (m) => S.hideOlder && FAMILY.get(m.family)?.older;
   function visibleCatalog({ keepSelected = true } = {}) {
     const q = search.trim().toLowerCase();
     const onChart = new Set(keepSelected ? [...S.selected].map((id) => BY_ID.get(id)?.family) : []);
-    return ALL.filter((m) => (onChart.has(m.family) || ((S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights))) &&
+    return ALL.filter((m) => !superseded(m) && (onChart.has(m.family) || ((S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights))) &&
       (!q || m.name.toLowerCase().includes(q) || m.creator.toLowerCase().includes(q) || m.familyName.toLowerCase().includes(q)));
   }
   function renderEffortChips() {
@@ -870,6 +906,11 @@
     save(); renderEffortChips(); render();
   });
 
+  // Sidebar groups: the big labs first, open by default; every other lab inside a collapsed "Other labs" group.
+  // Open/closed is remembered on this device. While searching, everything opens so matches show.
+  const OPEN_KEY = 'aa-charts:open-groups';
+  const openGroups = load(OPEN_KEY, {});
+  const isOpen = (key) => search.trim() ? true : openGroups[key] ?? TOP_LABS.includes(key);
   function renderList() {
     const cat = visibleCatalog();
     const labs = new Map();
@@ -879,12 +920,11 @@
       if (!fams.has(m.family)) fams.set(m.family, { name: m.familyName, models: [] });
       fams.get(m.family).models.push(m);
     }
-    const labColor = labBase;
-    let html = '';
-    for (const lab of labs.values()) {
-      const ids = [...lab.fams.values()].flatMap((f) => f.models.map((m) => m.id));
-      const nSel = ids.filter((id) => S.selected.has(id)).length;
-      html += `<div class="lab"><div class="lab-head" data-lab="${lab.slug}"><span class="swatch" style="background:${labColor(lab.slug)}"></span>${esc(lab.name)}<span class="count">${nSel}/${ids.length}</span></div>`;
+    const labIds = (lab) => [...lab.fams.values()].flatMap((f) => f.models.map((m) => m.id));
+    const tw = '<span class="tw" aria-hidden="true">▶</span>';
+    const labHtml = (lab, sub) => {
+      const ids = labIds(lab), nSel = ids.filter((id) => S.selected.has(id)).length;
+      let html = `<div class="lab ${sub ? 'sub' : ''} ${isOpen(lab.slug) ? '' : 'collapsed'}"><div class="lab-head" data-group="${lab.slug}">${tw}<span class="swatch" style="background:${labBase(lab.slug)}"></span>${esc(lab.name)}<button class="count" data-lab="${lab.slug}" title="Select or clear all of ${esc(lab.name)}">${nSel}/${ids.length}</button></div><div class="lab-body">`;
       for (const [fid, f] of lab.fams) {
         f.models.sort((a, b) => a.effortLevel - b.effortLevel);
         const any = f.models.some((m) => S.selected.has(m.id));
@@ -904,7 +944,14 @@
         }
         html += '</div>';
       }
-      html += '</div>';
+      return html + '</div></div>';
+    };
+    const top = TOP_LABS.map((k) => labs.get(k)).filter(Boolean), rest = [...labs.values()].filter((l) => !TOP_LABS.includes(l.slug));
+    let html = top.map((l) => labHtml(l, false)).join('');
+    if (rest.length) {
+      const ids = rest.flatMap(labIds), nSel = ids.filter((id) => S.selected.has(id)).length;
+      html += `<div class="lab ${isOpen('__other') ? '' : 'collapsed'}"><div class="lab-head" data-group="__other">${tw}<span class="swatch" style="background:${css('--other')}"></span>Other labs<span class="count">${nSel}/${ids.length}</span></div><div class="lab-body">` +
+        rest.map((l) => labHtml(l, true)).join('') + '</div></div>';
     }
     $('modelList').innerHTML = html || '<div class="note">No models match.</div>';
     $('selCount').textContent = `${S.selected.size} selected · ${cat.length} in list`;
@@ -913,7 +960,13 @@
   $('modelList').addEventListener('click', (e) => {
     const chip = e.target.closest('.chip[data-id]');
     const fam = e.target.closest('.fam-name');
-    const lab = e.target.closest('.lab-head');
+    const lab = e.target.closest('.count[data-lab]');
+    const head = e.target.closest('.lab-head');
+    if (!chip && !fam && !lab && head) {
+      const key = head.dataset.group, open = head.parentElement.classList.toggle('collapsed') === false;
+      openGroups[key] = open; store(OPEN_KEY, JSON.stringify(openGroups));
+      return;
+    }
     const cat = visibleCatalog();
     const toggleGroup = (models) => {
       const on = models.some((m) => S.selected.has(m.id));
@@ -937,13 +990,13 @@
 
   // ---------- saved sets ----------
   function snapshot() {
-    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText };
+    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder };
   }
   function applySet(snap) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
-    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'colorBy', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText']) if (snap[k] != null) S[k] = snap[k];
+    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'colorBy', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder']) if (snap[k] != null) S[k] = snap[k];
     fixAxes(); syncControls(); save(); renderList(); render();
   }
   let dirty = false;
@@ -996,12 +1049,12 @@
   const syncs = [
     bindSeg('xScale', 'xScale'), bindSeg('yScale', 'yScale'), bindSeg('paretoSeg', 'pareto'), bindSeg('frontStyleSeg', 'frontStyle', markDirty),
     bindSeg('guideSeg', 'guides'), bindSeg('labelSeg', 'labels'), bindSeg('colorSeg', 'colorBy'),
-    bindSeg('themeSeg', 'theme', applyTheme), bindSeg('markStyleSeg', 'markStyle', markDirty),
-    bindSeg('gridSeg', 'grid', markDirty), bindSeg('axisSeg', 'axisText', markDirty),
+    bindSeg('markStyleSeg', 'markStyle', markDirty),
+    bindSeg('gridSeg', 'grid', markDirty), bindSeg('axisSeg', 'axisText', markDirty), bindSeg('glowSeg', 'glow', markDirty),
   ];
   function syncControls() {
     $('markSel').value = S.markEffort; $('xSel').value = S.x; $('ySel').value = S.y; $('connect').checked = S.connect; $('fullFrontier').checked = S.fullFrontier;
-    $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('addEffort').value = S.addEffort;
+    $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('hideOlder').checked = S.hideOlder; $('addEffort').value = S.addEffort; $('themeSel').value = S.theme;
     // logit only makes sense for scores that are fractions (0–100%)
     for (const [id, k] of [['xScale', S.x], ['yScale', S.y]]) {
       const b = $(id).querySelector('[data-v="logit"]');
@@ -1017,7 +1070,9 @@
   $('fullFrontier').addEventListener('change', (e) => { S.fullFrontier = e.target.checked; if (S.fullFrontier && S.pareto === 'off') { S.pareto = 'step'; syncControls(); } markDirty(); save(); render(); });
   $('showDeprecated').addEventListener('change', (e) => { S.showDeprecated = e.target.checked; save(); renderList(); });
   $('openOnly').addEventListener('change', (e) => { S.openOnly = e.target.checked; save(); renderList(); });
+  $('hideOlder').addEventListener('change', (e) => { S.hideOlder = e.target.checked; markDirty(); save(); renderList(); render(); });
   $('addEffort').addEventListener('change', (e) => { S.addEffort = e.target.value; save(); });
+  $('themeSel').addEventListener('change', (e) => { S.theme = e.target.value; applyTheme(); save(); render(); });
   $('search').addEventListener('input', (e) => { search = e.target.value; renderList(); });
   $('selDefaults').addEventListener('click', () => { S.selected = new Set(defaultSelection()); markDirty(); save(); renderList(); render(); });
   $('selTop').addEventListener('click', () => { S.selected = new Set(visibleCatalog({ keepSelected: false }).slice(0, 20).map((m) => m.id)); markDirty(); save(); renderList(); render(); });
@@ -1058,7 +1113,7 @@
     svg.setAttribute('aria-label', $('chartTitle').textContent);
     svg.replaceChildren();
 
-    const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort));
+    const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort) && !superseded(m));
     const missing = [];
     let points = [];
     for (const m of chosen) {
@@ -1090,7 +1145,7 @@
     if (S.pareto !== 'off') {
       if (S.fullFrontier) {
         const shown = new Set(points.map((p) => p.m.id));
-        const pool = points.concat(ALL.filter((m) => !shown.has(m.id) && (S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights) && S.efforts.has(m.effort))
+        const pool = points.concat(ALL.filter((m) => !shown.has(m.id) && !superseded(m) && (S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights) && S.efforts.has(m.effort))
           .map((m) => ({ m, xv: m[S.x], yv: m[S.y], ghost: true }))
           .filter((p) => scaleOk(S.xScale, p.xv) && scaleOk(S.yScale, p.yv)));
         front = paretoFront(pool);
@@ -1145,6 +1200,14 @@
     const segs = []; // line segments labels should avoid
     const frontSet = new Set(front.map((p) => p.m.id));
     const guideLayer = svgEl('g', { 'clip-path': `url(#${clipId})` }); plot.append(guideLayer);
+    // Glow: blurred copies of the lines and dots, underneath the real ones
+    const glow = S.glow === 'on', glowLayer = svgEl('g', { 'clip-path': `url(#${clipId})` });
+    if (glow) {
+      const f = svgEl('filter', { id: 'glow', filterUnits: 'userSpaceOnUse', x: M.left, y: M.top, width: PW, height: PH });
+      f.append(svgEl('feGaussianBlur', { stdDeviation: 4 })); defs.append(f);
+      const inner = svgEl('g', { filter: 'url(#glow)', opacity: parseInt(C.surface.slice(1, 3), 16) < 128 ? 0.9 : 0.6 });
+      glowLayer.append(inner); plot.append(glowLayer);
+    }
     const lineLayer = svgEl('g', { 'clip-path': `url(#${clipId})` }); plot.append(lineLayer);
     if (front.length) {
       let d = `M${front[0].px},${front[0].py}`;
@@ -1178,6 +1241,7 @@
       if (!S.connect || ps.length < 2) continue;
       for (let i = 1; i < ps.length; i++) segs.push([ps[i - 1].px, ps[i - 1].py, ps[i].px, ps[i].py]);
       const older = FAMILY.get(ps[0].m.family)?.older;
+      if (glow && S.colorBy === 'lab') glowLayer.firstChild.append(svgEl('polyline', { points: ps.map((p) => `${p.px},${p.py}`).join(' '), fill: 'none', stroke: ps[0].color, 'stroke-width': 6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
       lineLayer.append(svgEl('polyline', { 'data-fam': ps[0].m.family, points: ps.map((p) => `${p.px},${p.py}`).join(' '), fill: 'none', stroke: S.colorBy === 'lab' ? ps[0].color : C.muted, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': older ? '6 5' : null, 'stroke-opacity': (S.colorBy === 'lab' ? 0.95 : 0.5) * (fade ? 0.4 : 1) }));
     }
 
@@ -1219,6 +1283,7 @@
     for (const p of ghosts) ghostLayer.append(svgEl('circle', { cx: p.px, cy: p.py, r: 4.5, fill: p.color, 'fill-opacity': 0.4, stroke: p.color, 'stroke-opacity': 0.7, 'stroke-width': 1.25 }));
     const order = points.slice().sort((a, b) => (frontSet.has(a.m.id) + S.pinned.has(a.m.id) * 2) - (frontSet.has(b.m.id) + S.pinned.has(b.m.id) * 2));
     const fadeLayer = svgEl('g', { opacity: 0.3 }); dotLayer.append(fadeLayer);
+    if (glow) for (const p of points) if (!fade || frontSet.has(p.m.id) || S.pinned.has(p.m.id)) glowLayer.firstChild.append(svgEl('circle', { cx: p.px, cy: p.py, r: (p.isEnd ? 5.5 : 4.25) + 3, fill: p.color }));
     for (const p of order) {
       const r = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25, onFront = frontSet.has(p.m.id);
       const layer = fade && !onFront && !S.pinned.has(p.m.id) ? fadeLayer : dotLayer;
@@ -1338,7 +1403,8 @@
       const seen = new Map();
       for (const p of points) {
         const key = LAB_SLOT[p.m.creatorSlug] ? p.m.creatorSlug : '__other';
-        if (!seen.has(key)) seen.set(key, { name: key === '__other' ? 'Other labs' : p.m.creator, color: p.color, slot: LAB_SLOT[p.m.creatorSlug] || 99 });
+        const top = TOP_LABS.indexOf(key);
+        if (!seen.has(key)) seen.set(key, { name: key === '__other' ? 'Other labs' : p.m.creator, color: p.color, slot: top >= 0 ? top : key === '__other' ? 99 : 10 + LAB_SLOT[key] });
       }
       items = [...seen.values()].sort((a, b) => a.slot - b.slot);
     } else if (S.colorBy === 'effort') {
