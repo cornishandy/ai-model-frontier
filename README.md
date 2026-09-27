@@ -53,6 +53,19 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   DeepSeek, Xiaomi; other labs grey.
 - **Hide older versions** (under the models list): leaves out a model once a newer version of it is out, e.g. Claude Opus 5
   once Opus 5.5 is. They stay selected, so unticking brings them back. Saved with sets.
+- **Axis pickers**: searchable lists; hover a metric to see what it measures (from Artificial Analysis' evaluation pages,
+  or the independent source's own page), how many models have it, and its current top 3. The chosen benchmark's
+  description also sits under the chart title. On touch screens the description shows under each entry.
+- **Who leads what**: every benchmark grouped by the model (or lab) that leads it among current models, with the top
+  score and the lead over #2; hover for the top 3, click to chart it. Respects "Open weights only".
+- **Good zone**: shades one reading of "good" for the trade-off. **Quadrant** (better than the median model shown on
+  both axes), **Near frontier** (within 3 points, or 5%, of the best score at that cost or less), **Top tier** (within
+  10% of the best score; the cheapest one is ringed), **Sweet spot** (the frontier's knee: the frontier model furthest
+  above the straight line between its two ends; past it, extra spend buys less), **Beats pinned** (everything better
+  than your pinned model on both axes), **Diagonal** (bands toward the better-on-both corner). Styles: Tint, Hatch,
+  Outline, Gradient. The legend says how many models are in the zone.
+- **Shape: Diamond** turns the chart 45° (like dunksandthrees' EPM charts): better on both is straight up, the left
+  corner is best on X, the right corner best on Y. Ticks and axis titles run along the two lower edges.
 - **Guides**: hover (or pin by clicking) draws the rectangle from the point to both axes
   with the exact values chipped on each axis. Modes: hover / pinned / frontier / all.
 - **Saved sets**: models + efforts + axes + display options, stored in localStorage;
