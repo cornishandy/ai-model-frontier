@@ -292,7 +292,8 @@
     </div>
     <div class="row" style="margin-top:8px">
       <span class="note" id="syncStatus" style="flex:1;min-width:0"></span>
-      <button id="syncBtn" title="Saved sets and the current view sync between your devices through a private GitHub gist"></button>
+      <button id="tokenShare" hidden title="Send a link that lets another device (e.g. your phone) save to GitHub too">Send to phone</button>
+      <button id="syncBtn" title="Sync saved sets with your other devices through a private GitHub gist: downloads theirs and uploads this device's changes">Sync</button>
     </div>
   </section>
 
@@ -583,83 +584,103 @@
   }
 
   // ---------- sync ----------
-  // Saved sets + the current view live in a private (secret) GitHub gist, so every device opens with the same
-  // settings. Reading needs nothing; saving back needs a GitHub token with only the "gist" permission, once per device.
+  // Saved sets live in a private (secret) GitHub gist so every device has the same list. The page reads it once when it
+  // opens; after that nothing happens until you press Sync. Reading needs nothing; saving back needs a GitHub token with
+  // only the "gist" permission, once per device ("Send to phone" hands this device's token to another one).
   const SYNC_GIST = 'a339af8bc76faf44020b123eed68f4f1', SYNC_FILE = 'aa-charts-sync.json';
-  const TOKEN_KEY = 'aa-charts:gh-token', SYNCED_KEY = 'aa-charts:synced-at';
+  const TOKEN_KEY = 'aa-charts:gh-token', BASE_KEY = 'aa-charts:synced-sets';
   const TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=gist&description=AI%20Model%20Frontier%20sync';
   const readKey = (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
   let token = readKey(TOKEN_KEY);
-  let syncedAt = readKey(SYNCED_KEY); // updatedAt of the last state this device pulled or pushed
-  let syncReady = false, syncPending = false, applyingRemote = false, pushTimer = null, lastSyncOk = null;
+  // the saved sets as of the last sync; sets that differ from it are this device's own changes
+  let base = (() => { try { return JSON.parse(readKey(BASE_KEY)); } catch { return null; } })();
+  let syncing = false, lastSyncOk = null;
+  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  const unsynced = () => !same(sets, base);
   const gist = (method, body) => fetch(`https://api.github.com/gists/${SYNC_GIST}${method === 'GET' ? '?t=' + Date.now() : ''}`, {
     method, cache: 'no-store', body: body && JSON.stringify(body),
-    headers: { Accept: 'application/vnd.github+json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    // reads go without the token, so a revoked one can't block them; only saving needs it
+    headers: { Accept: 'application/vnd.github+json', ...(body ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : {}) },
   });
   function setSync(state, detail = '') {
     const el = $('syncStatus');
+    if (!state) state = unsynced() ? 'unsynced' : 'synced';
     el.textContent = {
-      loading: 'Sync: loading…', saving: 'Sync: saving…',
-      synced: `Synced with GitHub${lastSyncOk ? ' · ' + ago(lastSyncOk) : ''}`,
-      readonly: syncPending ? 'Changes here aren\'t synced — allow saving to sync them' : 'Synced from GitHub · read-only on this device',
+      loading: 'Sync: checking GitHub…', saving: 'Sync: saving…',
+      synced: `Saved sets match GitHub${lastSyncOk ? ' · checked ' + ago(lastSyncOk) : ''}`,
+      unsynced: token ? 'Changes not synced yet — press Sync' : 'Changes not synced — press Sync to allow saving from this device',
       offline: `Sync unavailable (${detail}) — using this device's copy`,
       error: `Sync failed: ${detail}`,
     }[state];
     el.classList.toggle('error', state === 'offline' || state === 'error');
-    $('syncBtn').textContent = token ? 'Sync now' : 'Allow saving…';
+    $('syncBtn').disabled = syncing;
+    $('tokenShare').hidden = !token;
   }
-  async function pull() {
-    setSync('loading');
+  // Three-way merge by set name: a set this device changed (vs. the last sync) keeps its version, anything else takes
+  // GitHub's, deletions included. A device that has never synced keeps its own sets only where GitHub has no set by that name.
+  function merge(remote) {
+    if (!base) return { ...sets, ...remote };
+    const out = {};
+    for (const n of new Set([...Object.keys(base), ...Object.keys(sets), ...Object.keys(remote)])) {
+      const v = same(sets[n], base[n]) ? remote[n] : sets[n];
+      if (v) out[n] = v;
+    }
+    return out;
+  }
+  function useSets(next) {
+    if (same(next, sets)) return;
+    sets = next; store(SETS_KEY, JSON.stringify(sets));
+    if (S.activeSet && !sets[S.activeSet] && !BUILTIN_SETS[S.activeSet]) { S.activeSet = ''; save(); }
+    renderSetSelect();
+  }
+  // upload = false: the read when the page opens. true: the Sync button, which also saves this device's changes.
+  async function sync(upload) {
+    if (syncing) return;
+    syncing = true; setSync('loading');
     try {
       const res = await gist('GET');
       if (!res.ok) throw new Error(res.status === 404 ? 'gist not found' : 'HTTP ' + res.status);
-      const remote = JSON.parse((await res.json()).files?.[SYNC_FILE]?.content || '{}');
-      if (remote.updatedAt && remote.updatedAt > syncedAt) applyRemote(remote);
-      else if (!remote.updatedAt) syncPending = true; // empty gist: seed it from this device
-      syncReady = true; lastSyncOk = new Date().toISOString();
-      if (syncPending) schedulePush(); else setSync(token ? 'synced' : 'readonly');
-    } catch (err) { setSync('offline', err.message); }
+      const remote = JSON.parse((await res.json()).files?.[SYNC_FILE]?.content || '{}').sets || {};
+      useSets(merge(remote));
+      base = remote; store(BASE_KEY, JSON.stringify(base)); lastSyncOk = new Date().toISOString();
+      if (upload && unsynced() && token) {
+        setSync('saving');
+        const content = JSON.stringify({ version: 2, updatedAt: new Date().toISOString(), sets }, null, 1);
+        const put = await gist('PATCH', { files: { [SYNC_FILE]: { content } } });
+        // 404 here means the token can't write gists (e.g. a fine-grained token without the Gists permission)
+        if ([401, 403, 404].includes(put.status)) {
+          token = ''; try { localStorage.removeItem(TOKEN_KEY); } catch {}
+          throw new Error(`GitHub rejected the token (HTTP ${put.status}); it needs the "gist" permission. Press Sync to enter a new one`);
+        }
+        if (!put.ok) throw new Error('HTTP ' + put.status);
+        base = JSON.parse(JSON.stringify(sets)); store(BASE_KEY, JSON.stringify(base));
+      }
+      syncing = false; setSync();
+    } catch (err) { syncing = false; setSync(upload ? 'error' : 'offline', err.message); }
   }
-  function applyRemote(remote) {
-    // First sync on this device: keep any local sets the gist doesn't have yet (they get pushed up).
-    const extra = syncedAt ? {} : Object.fromEntries(Object.entries(sets).filter(([n]) => !(remote.sets || {})[n]));
-    sets = { ...(remote.sets || {}), ...extra };
-    applyingRemote = true;
-    try {
-      store(SETS_KEY, JSON.stringify(sets));
-      if (remote.view) { S.activeSet = remote.view.activeSet || ''; dirty = false; applySet(remote.view); }
-      renderSetSelect();
-    } finally { applyingRemote = false; }
-    syncedAt = remote.updatedAt; store(SYNCED_KEY, syncedAt);
-    syncPending = Object.keys(extra).length > 0;
-  }
-  function schedulePush() {
-    if (applyingRemote) return;
-    syncPending = true;
-    if (!syncReady) return; // wait for the first pull, so a stale device can't overwrite newer settings
-    if (!token) { setSync('readonly'); return; }
-    setSync('saving');
-    clearTimeout(pushTimer); pushTimer = setTimeout(push, 1200);
-  }
-  async function push() {
-    const updatedAt = new Date().toISOString();
-    const content = JSON.stringify({ version: 1, updatedAt, sets, view: { ...snapshot(), activeSet: S.activeSet } }, null, 1);
-    try {
-      const res = await gist('PATCH', { files: { [SYNC_FILE]: { content } } });
-      if (res.status === 401 || res.status === 403) { token = ''; try { localStorage.removeItem(TOKEN_KEY); } catch {} throw new Error('GitHub rejected the token — tap "Allow saving…" to enter a new one'); }
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      syncedAt = updatedAt; store(SYNCED_KEY, syncedAt); syncPending = false; lastSyncOk = updatedAt;
-      setSync('synced');
-    } catch (err) { setSync('error', err.message); }
-  }
-  async function syncButton() {
-    if (token) { await pull(); return; }
+  function askToken() {
     if (confirm('To save changes from this device, create a GitHub token with only the "gist" permission (no expiration is easiest), then paste it on the next screen.\n\nOpen GitHub to create one now?')) window.open(TOKEN_URL, '_blank');
     const t = prompt('Paste your GitHub token (starts with ghp_ or github_pat_):')?.trim();
-    if (!t) return;
-    token = t; store(TOKEN_KEY, t);
-    await pull();
-    if (syncReady) { syncPending = true; schedulePush(); }
+    if (t) { token = t; store(TOKEN_KEY, t); }
+    return !!t;
+  }
+  async function syncButton() {
+    if (!token && unsynced() && !askToken()) return;
+    await sync(true);
+  }
+  // Hand this device's token to another one as a link (#sync-token=…). The part after # never leaves the browser.
+  async function shareToken() {
+    const url = `${location.origin}${location.pathname}#sync-token=${encodeURIComponent(token)}`;
+    const text = 'Open this link on your other device to let it save saved sets to GitHub. It contains your gist token, so only send it to yourself.';
+    if (navigator.share) { try { await navigator.share({ title: 'AI Model Frontier sync', text, url }); return; } catch (err) { if (err.name === 'AbortError') return; } }
+    try { await navigator.clipboard.writeText(url); alert('Link copied. Paste it into a message to yourself and open it on the other device.\n\nIt contains your gist token, so only send it to yourself.'); }
+    catch { prompt('Copy this link and open it on the other device (it contains your gist token):', url); }
+  }
+  const handoff = new URLSearchParams(location.hash.slice(1)).get('sync-token');
+  if (handoff) {
+    token = handoff; store(TOKEN_KEY, token);
+    history.replaceState(null, '', location.pathname + location.search);
+    setTimeout(() => alert('Saving is now allowed on this device. Press Sync after changing a saved set.'), 300);
   }
 
   // ---------- state ----------
@@ -689,7 +710,7 @@
   S.efforts = new Set(S.efforts);
   let sets = load(SETS_KEY, {});
   let search = '';
-  const save = () => { store(STATE_KEY, JSON.stringify({ ...S, selected: [...S.selected], pinned: [...S.pinned], efforts: [...S.efforts] })); schedulePush(); };
+  const save = () => store(STATE_KEY, JSON.stringify({ ...S, selected: [...S.selected], pinned: [...S.pinned], efforts: [...S.efforts] }));
   // An earlier version kept the view under 'aa-charts:state'. Bring it back once, and keep it as a saved set.
   // (Don't rename STATE_KEY again: new settings get their defaults from DEFAULT_STATE instead.)
   const LEGACY_KEY = 'aa-charts:state', legacy = load(LEGACY_KEY, null);
@@ -935,7 +956,7 @@
       `<optgroup label="Presets">${Object.keys(BUILTIN_SETS).map(opt).join('')}</optgroup>`;
     $('setUpdate').disabled = $('setDelete').disabled = !sets[S.activeSet];
   }
-  const persistSets = () => { store(SETS_KEY, JSON.stringify(sets)); schedulePush(); };
+  const persistSets = () => { store(SETS_KEY, JSON.stringify(sets)); setSync(); };
   $('setSelect').addEventListener('change', (e) => {
     const n = e.target.value; S.activeSet = n; dirty = false;
     if (sets[n]) applySet(sets[n]); else if (BUILTIN_SETS[n]) applySet(BUILTIN_SETS[n]());
@@ -982,8 +1003,10 @@
     $('markSel').value = S.markEffort; $('xSel').value = S.x; $('ySel').value = S.y; $('connect').checked = S.connect; $('fullFrontier').checked = S.fullFrontier;
     $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('addEffort').value = S.addEffort;
     // logit only makes sense for scores that are fractions (0–100%)
-    $('xScale').querySelector('[data-v="logit"]').hidden = !METRICS[S.x].frac;
-    $('yScale').querySelector('[data-v="logit"]').hidden = !METRICS[S.y].frac;
+    for (const [id, k] of [['xScale', S.x], ['yScale', S.y]]) {
+      const b = $(id).querySelector('[data-v="logit"]');
+      b.disabled = !METRICS[k].frac; b.title = b.disabled ? 'Logit needs a percentage benchmark on this axis' : SCALE_TITLE.logit;
+    }
     syncs.forEach((f) => f());
   }
   $('xSel').addEventListener('change', (e) => { S.x = e.target.value; S.xScale = METRICS[S.x].scale || 'linear'; markDirty(); syncControls(); save(); renderList(); render(); });
@@ -1567,7 +1590,6 @@
   });
 
   // ---------- data updates ----------
-  const STALE_MS = 12 * 3600e3;
   let updating = false;
   function ago(iso) {
     const mins = Math.round((Date.now() - new Date(iso)) / 60000);
@@ -1604,11 +1626,7 @@
   }
   $('updateData').addEventListener('click', updateData);
   $('syncBtn').addEventListener('click', syncButton);
-  // pick up changes made on another device when you come back to this tab
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); });
-  // Keep itself current: update when opened if the data is stale, and re-check hourly while left open.
-  const autoUpdate = () => { if (Date.now() - new Date(DATA.scrapedAt) > STALE_MS || !currentShape(DATA)) updateData(); else showMeta(); };
-  setInterval(autoUpdate, 3600e3);
+  $('tokenShare').addEventListener('click', shareToken);
 
   // ---------- boot ----------
   showMeta();
@@ -1619,8 +1637,7 @@
   if (qp.get('pin')) S.pinned = new Set(qp.get('pin').split(',').map((t) => { const [fam, eff] = t.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff)?.id; }).filter(Boolean));
   fixAxes(); syncControls(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
   checkFeed(qp.has('celebrate')); // ?celebrate previews the new-entries celebration
-  autoUpdate();
-  pull();
+  sync(false);
   let lastW = 0;
   new ResizeObserver(() => { const w = $('chartCard').clientWidth; if (w !== lastW) { lastW = w; render(); } }).observe($('chartCard'));
 })();
