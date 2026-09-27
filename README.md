@@ -10,8 +10,7 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   Run it by hand from the repo's Actions tab ("Deploy site" → Run workflow).
   GitHub pauses scheduled workflows after 60 days without repo activity; re-enable it in the Actions tab if that happens.
 - **Update data** button (top right) pulls the latest numbers straight from artificialanalysis.ai
-  in the browser and saves them locally. It also updates automatically when opened if the data is
-  more than 12 hours old, and re-checks hourly while left open.
+  in the browser and saves them locally. It only runs when you press it (the deployed site already refreshes every 12 hours).
 - `node scrape.mjs` refreshes the built-in data (`data/models.js`, `data/external.js`) and builds `AI Model Frontier.html`,
   a single self-contained copy that works offline. The Artificial Analysis scraper lives in `aa-data.js` (shared with the
   page), the independent benchmarks in `external.mjs`.
@@ -25,7 +24,8 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - **Axes**: any metric on either axis: the Intelligence Index, every per-model benchmark Artificial Analysis publishes
   (knowledge & reasoning, coding & terminal, agents & tool use, work & documents), the independent benchmarks below,
   cost, price, tokens per task, speed, latency. Scales: linear, square root (spreads out the cheap end without log's
-  distortion), log, and logit for percentage benchmarks (stretches the top end, where frontier models bunch up near 100%).
+  distortion), log, and logit for percentage benchmarks (stretches the top end, where frontier models bunch up near 100%;
+  greyed out on an axis showing anything else).
 - **Independent benchmarks** (`external.mjs`, matched to Artificial Analysis models by name; where a source doesn't say
   which reasoning effort it ran, the value goes on the model's default effort and the tooltip says so):
   [WeirdML v3 and v2](https://htihle.github.io/weirdml.html) (Håvard Tveit Ihle),
@@ -54,10 +54,15 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 
 ## Syncing between devices
 
-Saved sets and the current view sync through a private (secret) GitHub gist:
+Saved sets (not the current view or theme) sync through a private (secret) GitHub gist:
 https://gist.github.com/cornishandy/a339af8bc76faf44020b123eed68f4f1 (its ID is `SYNC_GIST` in `index.html`).
+GitHub Pages can't store anything, so the gist is the shared copy every device reads from and saves to.
 
-- Every device reads it automatically when the page opens, and again whenever you switch back to the tab.
-- To save changes from a device, click **Allow saving…** under Saved sets and paste a GitHub token that has only
-  the `gist` permission (https://github.com/settings/tokens/new?scopes=gist). Without one, the device is read-only.
-- The newest save wins. The theme isn't synced.
+- The page reads the gist once when it opens. After that nothing happens until you press **Sync**, which downloads
+  the other devices' changes and uploads this device's. A note beside it says when this device has unsynced changes.
+- Merging is per set: a set you changed on this device since its last sync keeps your version; everything else
+  (including sets deleted elsewhere) follows the gist.
+- Saving needs a GitHub token with only the `gist` permission (https://github.com/settings/tokens/new?scopes=gist),
+  entered once per device; pressing Sync with unsynced changes asks for one. Reading needs no token.
+- **Send to phone** (shown once a device has a token) shares a link carrying that token, e.g. by AirDrop or a message
+  to yourself; opening it on the other device lets it save too. The token sits after `#`, so it never reaches a server.
