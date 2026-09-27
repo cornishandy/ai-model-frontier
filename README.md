@@ -44,13 +44,21 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   frontier beats), **Fade** (dims everything off the frontier), **Rings** (circles frontier points).
   Tick **all models** to compute the true frontier over every model; frontier models you haven't selected show as faint dots (click one to add it).
 - **Labels**: Auto (model names + effort tags where they fit, the default), Auto+ (also the top effort next to each name), Models, Every dot, None.
-- **Grid** (normal / faint / off) and **Axis text** (normal / faint).
+- **Grid** (normal / faint / off), **Axis text** (normal / faint) and **Glow** (a soft halo around dots and lines in each model's color).
+- **Theme**: Auto (follows the device), light (Paper, White, Sepia) or dark (Graphite, Midnight, Black).
+- **Models list**: Anthropic, OpenAI, Google and xAI (Grok) first and open; every other lab is in a collapsed
+  "Other labs" group, each lab collapsible. Click a heading to open or close it, its count (e.g. 3/18) to select or clear
+  the whole lab. Open/closed is remembered per device; searching opens everything.
+- **Lab colors**: Anthropic orange, OpenAI black (white on dark themes), Google blue, xAI green, then Alibaba, Meta, Z AI,
+  DeepSeek, Xiaomi; other labs grey.
+- **Hide older versions** (under the models list): leaves out a model once a newer version of it is out, e.g. Claude Opus 5
+  once Opus 5.5 is. They stay selected, so unticking brings them back. Saved with sets.
 - **Guides**: hover (or pin by clicking) draws the rectangle from the point to both axes
   with the exact values chipped on each axis. Modes: hover / pinned / frontier / all.
 - **Saved sets**: models + efforts + axes + display options, stored in localStorage;
   export/import as JSON. Built-in presets included.
 - Effort filter chips (alt/⌘-click to solo one effort), connect effort levels per model,
-  color by lab / effort / open-vs-closed, table view, SVG/PNG export, light/dark.
+  color by lab / effort / open-vs-closed, table view, SVG/PNG export.
 
 ## Syncing between devices
 
