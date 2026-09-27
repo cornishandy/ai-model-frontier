@@ -154,6 +154,8 @@
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 10px; position: relative; }
   .card h3 { margin: 0; font-size: 15px; font-weight: 600; }
   .card .sub { color: var(--ink-2); font-size: 12px; margin: 2px 0 8px; }
+  .card .desc { color: var(--ink-2); font-size: 12px; margin: -4px 0 8px; max-width: 1000px; line-height: 1.45; }
+  .card .desc:empty { display: none; }
   #chart { width: 100%; display: block; }
   #chart text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
   .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 4px 2px; color: var(--ink-2); font-size: 12px; }
@@ -174,6 +176,46 @@
   #tooltip td:last-child { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
   #tooltip tr.hl td { color: var(--ink); font-weight: 600; }
   #tooltip .t-foot { color: var(--muted); margin-top: 6px; font-size: 11px; }
+
+  /* Metric pickers: a button that opens a searchable list. Hovering an entry shows what it measures and who leads it;
+     on touch screens the description sits under each entry instead. */
+  .picker { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 210px; max-width: 320px; text-align: left; }
+  .picker .pk-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .picker::after { content: '▾'; color: var(--muted); font-size: 11px; }
+  #leadersBtn { min-width: 0; }
+  .menu {
+    position: fixed; z-index: 40; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 36px rgba(0,0,0,.18);
+  }
+  .menu-head { padding: 8px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .menu-head input { flex: 1; min-width: 0; }
+  .menu-head .note { flex-basis: 100%; }
+  .menu-list { overflow-y: auto; padding: 0 0 6px; position: relative; overscroll-behavior: contain; }
+  .mh { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: 9px 12px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+  .mh.lead { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--ink); border-top: 1px solid var(--border); }
+  .mh i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .mh .n { margin-left: auto; font-weight: 400; color: var(--muted); }
+  .mi { padding: 5px 12px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; align-items: baseline; }
+  .mi.active { background: var(--hover); }
+  .mi[aria-selected="true"] .mi-label { font-weight: 600; }
+  .mi[aria-selected="true"] .mi-label::before { content: '✓ '; }
+  .mi-meta { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mi-desc { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.35; display: none; }
+  #mtip {
+    position: fixed; z-index: 41; width: 300px; display: none; pointer-events: none; font-size: 12px; padding: 10px 12px;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.14);
+  }
+  #mtip h4 { margin: 0 0 4px; font-size: 13px; }
+  #mtip p { margin: 0 0 6px; color: var(--ink-2); line-height: 1.4; }
+  #mtip table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  #mtip td { padding: 2px 0; color: var(--ink-2); }
+  #mtip td:first-child { width: 16px; color: var(--muted); }
+  #mtip td.n { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  #mtip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  #mtip .eff { color: var(--muted); }
+  @media (hover: none) { .mi-desc { display: block; } #mtip { display: none !important; } }
+  /* good-zone legend swatch, one look per zone style */
+  .legend i.zone-sw { border-radius: 2px; width: 14px; }
 
   details.card summary { cursor: pointer; font-weight: 600; }
   table.data { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
@@ -252,13 +294,17 @@
     body.opts-open .toolbar.opts { display: flex; }
     .toolbar .group { flex-wrap: wrap; }
     .toolbar:first-child .group { flex: 1 1 100%; flex-wrap: nowrap; min-width: 0; }
-    .toolbar:first-child .group select { flex: 1; min-width: 0; }
+    .toolbar:first-child .group select, .toolbar:first-child .group .picker { flex: 1; min-width: 0; max-width: none; }
     .seg button { padding: 6px 9px; }
+    /* the good-zone choices don't fit one row on a phone: let them wrap, with a line between rows */
+    #zoneSeg { flex-wrap: wrap; }
+    #zoneSeg button { flex: 1 1 auto; white-space: nowrap; box-shadow: 0 1px 0 var(--border); }
     /* iOS zooms the page when focusing text smaller than 16px */
     select, input[type="text"], input[type="search"] { font-size: 16px; }
     .card { padding: 10px 10px 8px; border-radius: 8px; }
     .card h3 { font-size: 14px; }
     .card .sub { display: none; }
+    .card .desc { margin-top: 2px; }
     #tableCard { overflow-x: auto; }
 
     aside {
@@ -298,11 +344,11 @@
   <div class="sheet-head"><span>Models &amp; saved sets</span><button id="closeSheet" class="primary">Done</button></div>
   <section>
     <h2>Saved sets</h2>
-    <div class="row"><select id="setSelect"></select></div>
+    <div class="row"><select id="setSelect" title="Load a saved set (models, efforts, axes and display options); ★ marks built-in presets"></select></div>
     <div class="row" style="margin-top:6px">
-      <button id="setSave" class="primary">Save as…</button>
+      <button id="setSave" class="primary" title="Save the current view as a new set">Save as…</button>
       <button id="setUpdate" title="Overwrite the selected saved set with the current view">Update</button>
-      <button id="setDelete">Delete</button>
+      <button id="setDelete" title="Delete the selected saved set">Delete</button>
     </div>
     <div class="row" style="margin-top:6px">
       <button id="setExport" title="Download all saved sets as JSON">Export</button>
@@ -317,10 +363,10 @@
   </section>
 
   <section>
-    <h2>Efforts shown</h2>
+    <h2 title="Which reasoning effort levels to plot; faded chips have nothing selected">Efforts shown</h2>
     <div class="chips" id="effortChips"></div>
     <div class="row" style="margin-top:6px">
-      <span class="note">Selecting a model adds:</span>
+      <span class="note" title="Which effort variants get selected when you click a model family">Selecting a model adds:</span>
       <select id="addEffort" title="Which effort variants get selected when you click a model family">
         <option value="all">all efforts</option>
         <option value="top">highest effort only</option>
@@ -331,16 +377,16 @@
   <section>
     <h2>Models</h2>
     <div class="row">
-      <input type="search" id="search" placeholder="Search models or labs…" style="flex:1;min-width:0" />
+      <input type="search" id="search" placeholder="Search models or labs…" title="Filter the list by model or lab name" style="flex:1;min-width:0" />
     </div>
     <div class="row" style="margin-top:6px">
       <button id="selDefaults" title="Artificial Analysis' default chart selection">AA defaults</button>
-      <button id="selTop">Top 20</button>
-      <button id="selNone">Clear</button>
+      <button id="selTop" title="Select the 20 highest-scoring models in the list (after the filters below)">Top 20</button>
+      <button id="selNone" title="Deselect every model">Clear</button>
     </div>
     <div class="row" style="margin-top:6px">
-      <label class="inline"><input type="checkbox" id="showDeprecated" /> Include deprecated</label>
-      <label class="inline"><input type="checkbox" id="openOnly" /> Open weights only</label>
+      <label class="inline" title="Also list models Artificial Analysis marks as deprecated"><input type="checkbox" id="showDeprecated" /> Include deprecated</label>
+      <label class="inline" title="List only models whose weights you can download and run yourself; also limits 'Who leads what' to them"><input type="checkbox" id="openOnly" /> Open weights only</label>
       <label class="inline" title="Leave out a model once a newer version of it is out, e.g. Claude Opus 5 once Opus 5.5 is. They stay selected, so turning this off brings them back."><input type="checkbox" id="hideOlder" /> Hide older versions</label>
     </div>
     <div class="note" id="selCount" style="margin-top:6px"></div>
@@ -350,33 +396,48 @@
 
 <main>
   <div class="toolbar">
-    <div class="group"><span>Y</span><select id="ySel"></select><div class="seg" id="yScale">SCALES</div></div>
-    <div class="group"><span>X</span><select id="xSel"></select><div class="seg" id="xScale">SCALES</div></div>
+    <div class="group"><span title="Vertical axis">Y</span><button id="ySel" class="picker" aria-haspopup="listbox" aria-expanded="false" title="What goes on the vertical axis. Hover a benchmark in the list to see what it measures and who leads it"></button><div class="seg" id="yScale">SCALES</div></div>
+    <div class="group"><span title="Horizontal axis">X</span><button id="xSel" class="picker" aria-haspopup="listbox" aria-expanded="false" title="What goes on the horizontal axis. Hover an entry in the list to see what it measures"></button><div class="seg" id="xScale">SCALES</div></div>
+    <div class="group"><button id="leadersBtn" class="picker" aria-haspopup="listbox" aria-expanded="false" title="Every benchmark, grouped by the model that leads it right now. Hover one for its top 3; click it to chart it on the Y axis">Who leads what</button></div>
   </div>
   <div class="toolbar opts">
-    <div class="group"><span>Pareto</span><div class="seg" id="paretoSeg"><button data-v="off">Off</button><button data-v="step">Step</button><button data-v="line">Line</button></div>
+    <div class="group"><span title="The Pareto frontier: models nothing else beats on both axes at once">Pareto</span><div class="seg" id="paretoSeg"><button data-v="off" title="No frontier line">Off</button><button data-v="step" title="Frontier as a staircase: the best score you can get at each cost or less">Step</button><button data-v="line" title="Frontier as straight lines from one frontier model to the next">Line</button></div>
       <div class="seg" id="frontStyleSeg" title="How frontier models stand out"><button data-v="shade" title="Shade the area the frontier beats; no extra marks on the dots">Shade</button><button data-v="fade" title="Fade the models that aren't on the frontier">Fade</button><button data-v="rings" title="Ring each frontier model">Rings</button></div>
       <label class="inline" title="Compute the frontier over every model (matching the sidebar filters), and show frontier models you haven't selected as faint dots"><input type="checkbox" id="fullFrontier" /> all models</label></div>
-    <div class="group"><span>Guides</span><div class="seg" id="guideSeg"><button data-v="hover">Hover</button><button data-v="pinned">Pinned</button><button data-v="frontier">Frontier</button><button data-v="all">All</button></div></div>
-    <div class="group"><span>Labels</span><div class="seg" id="labelSeg"><button data-v="auto" title="Model names, plus effort tags on dots where they fit">Auto</button><button data-v="autoplus" title="Like Auto, and the top-effort dot also gets its effort level next to the model name">Auto+</button><button data-v="series">Models</button><button data-v="all">Every dot</button><button data-v="none">None</button></div></div>
-    <div class="group"><span>Color</span><div class="seg" id="colorSeg"><button data-v="lab">Lab</button><button data-v="effort">Effort</button><button data-v="open">Open/closed</button></div></div>
-    <div class="group"><span>Mark</span><select id="markSel" title="Put a mark on this effort level on every model's line"></select><div class="seg" id="markStyleSeg"><button data-v="hash">Hash</button><button data-v="ring">Ring</button><button data-v="square">Square</button></div></div>
-    <label class="inline"><input type="checkbox" id="connect" /> Line through effort levels</label>
+    <div class="group"><span title="Dashed lines from a dot to both axes, with its exact values on the axes">Guides</span><div class="seg" id="guideSeg"><button data-v="hover" title="Guides for the dot under the mouse (and pinned dots)">Hover</button><button data-v="pinned" title="Guides for pinned dots only; click a dot to pin it">Pinned</button><button data-v="frontier" title="Guides for every model on the frontier">Frontier</button><button data-v="all" title="Guides for every dot">All</button></div></div>
+    <div class="group"><span title="Names and effort levels written next to the dots">Labels</span><div class="seg" id="labelSeg"><button data-v="auto" title="Model names, plus effort tags on dots where they fit">Auto</button><button data-v="autoplus" title="Like Auto, and the top-effort dot also gets its effort level next to the model name">Auto+</button><button data-v="series" title="One label per model, at its highest-effort dot">Models</button><button data-v="all" title="Label every dot with the model and effort, even where labels overlap">Every dot</button><button data-v="none" title="No labels; hover a dot for its name">None</button></div></div>
+    <div class="group"><span title="What the dot colors mean">Color</span><div class="seg" id="colorSeg"><button data-v="lab" title="Color by the lab that made the model">Lab</button><button data-v="effort" title="Color by reasoning effort, light (low) to dark (max)">Effort</button><button data-v="open" title="Open-weights models in green, proprietary ones in indigo">Open/closed</button></div></div>
+    <div class="group"><span title="Mark one effort level on every model's line, to compare like with like">Mark</span><select id="markSel" title="Put a mark on this effort level on every model's line"></select><div class="seg" id="markStyleSeg"><button data-v="hash" title="A short tick across the line">Hash</button><button data-v="ring" title="A ring around the dot">Ring</button><button data-v="square" title="A square around the dot">Square</button></div></div>
+    <label class="inline" title="Join each model's effort levels with a line, low to max"><input type="checkbox" id="connect" /> Line through effort levels</label>
   </div>
   <div class="toolbar opts">
-    <div class="group"><span>Grid</span><div class="seg" id="gridSeg"><button data-v="normal">Normal</button><button data-v="faint">Faint</button><button data-v="off">Off</button></div></div>
-    <div class="group"><span>Axis text</span><div class="seg" id="axisSeg"><button data-v="normal">Normal</button><button data-v="faint">Faint</button></div></div>
-    <div class="group"><span>Glow</span><div class="seg" id="glowSeg" title="A soft glow around the dots and lines, in each model's color"><button data-v="off">Off</button><button data-v="on">On</button></div></div>
-    <div class="group"><span>Theme</span><select id="themeSel">
+    <div class="group"><span title="Background grid lines at each axis tick">Grid</span><div class="seg" id="gridSeg"><button data-v="normal" title="Grid lines at full strength">Normal</button><button data-v="faint" title="Lighter grid lines">Faint</button><button data-v="off" title="No grid lines">Off</button></div></div>
+    <div class="group"><span title="Tick values and axis titles">Axis text</span><div class="seg" id="axisSeg"><button data-v="normal" title="Axis text at full strength">Normal</button><button data-v="faint" title="Lighter axis text, so the data stands out">Faint</button></div></div>
+    <div class="group"><span title="A soft glow around the dots and lines, in each model's color">Glow</span><div class="seg" id="glowSeg" title="A soft glow around the dots and lines, in each model's color"><button data-v="off" title="No glow">Off</button><button data-v="on" title="Glow on; strongest on dark themes">On</button></div></div>
+    <div class="group"><span title="Colors of the whole page">Theme</span><select id="themeSel" title="Page colors: Auto follows your device's light or dark setting">
       <option value="system">Auto (match device)</option>
       <optgroup label="Light"><option value="light">Paper</option><option value="white">White</option><option value="sepia">Sepia</option></optgroup>
       <optgroup label="Dark"><option value="dark">Graphite</option><option value="midnight">Midnight</option><option value="black">Black</option></optgroup>
     </select></div>
   </div>
+  <div class="toolbar opts">
+    <div class="group"><span title="Shade a region of the chart that counts as a good trade-off, by one of several definitions">Good zone</span><div class="seg" id="zoneSeg">
+      <button data-v="off" title="No good zone">Off</button>
+      <button data-v="quadrant" title="Better than the middle (median) model shown on both axes: Artificial Analysis' 'most attractive quadrant'">Quadrant</button>
+      <button data-v="near" title="Within a small margin (3 points on percentage benchmarks, otherwise 5%) of the best score you can get at that cost or less">Near frontier</button>
+      <button data-v="top" title="Scores within 10% of the best shown, whatever they cost; the cheapest of them gets a ring">Top tier</button>
+      <button data-v="knee" title="The frontier's knee: up to here each extra dollar buys a lot of score; past it, returns diminish">Sweet spot</button>
+      <button data-v="beats" title="Everything better than your pinned model on both axes; click a dot to pin it">Beats pinned</button>
+      <button data-v="diagonal" title="Bands toward the corner that's better on both, on the chart's own scales (the diamond shape puts this straight up)">Diagonal</button>
+    </div></div>
+    <div class="group"><span title="How the good zone is drawn">Zone style</span><div class="seg" id="zoneStyleSeg"><button data-v="tint" title="A soft fill with a thin edge">Tint</button><button data-v="hatch" title="Diagonal hatching: shows the grid and dots through it most clearly">Hatch</button><button data-v="outline" title="Dashed outline only, no fill">Outline</button><button data-v="gradient" title="A fill that deepens toward the better-on-both corner">Gradient</button></div></div>
+    <div class="group"><span title="Chart shape">Shape</span><div class="seg" id="shapeSeg"><button data-v="standard" title="Ordinary axes: Y up, X across">Standard</button><button data-v="diamond" title="Turned 45° so 'better on both' points straight up; left leans toward the X metric, right toward the Y metric (like dunksandthrees' EPM charts)">Diamond</button></div></div>
+  </div>
 
   <div class="card" id="chartCard">
     <h3 id="chartTitle"></h3>
     <div class="sub" id="chartSub"></div>
+    <div class="desc" id="chartDesc"></div>
     <svg id="chart" role="img"></svg>
     <div class="legend" id="legend"></div>
     <div class="note" id="chartNote"></div>
@@ -408,6 +469,15 @@
 
 <div id="scrim"></div>
 <div id="tooltip"></div>
+<div class="menu" id="menu" role="dialog" hidden>
+  <div class="menu-head" id="menuHead">
+    <input type="search" id="menuSearch" placeholder="Search…" autocomplete="off" title="Type to filter; arrow keys move, Enter picks, Esc closes" />
+    <div class="seg lead-by" id="leadBySeg" title="Group benchmarks by the leading model or its lab"><button data-v="model" title="Group by the leading model">By model</button><button data-v="lab" title="Group by the leading model's lab">By lab</button></div>
+    <div class="note" id="menuNote"></div>
+  </div>
+  <div class="menu-list" id="menuList" role="listbox"></div>
+</div>
+<div id="mtip"></div>
 <canvas id="confetti" hidden></canvas>
 <div id="toast" role="status" aria-live="polite"></div>
 
@@ -492,6 +562,63 @@
     timePerTask: { label: 'Time per index task', long: 'Average time per Intelligence Index task (seconds)', fmt: secs, better: 'low', scale: 'log' },
     parameters: { label: 'Parameters', long: 'Total parameters (open-weights models)', fmt: (v) => v >= 1000 ? +(v / 1000).toPrecision(3) + 'T' : +v.toPrecision(3) + 'B', better: 'low', scale: 'log' },
   };
+  // What each metric measures, from Artificial Analysis' evaluation pages (and each independent source's own page).
+  // Shown when hovering a metric in the axis lists and under the chart title.
+  const DESC = {
+    intelligence: 'A single 0–100 score combining 10 evaluations: AA-Briefcase, GDPval-AA, AutomationBench-AA, Terminal-Bench 4.0, SciCode, AA-Omniscience, GDP.pdf, AA-LCR, Humanity\'s Last Exam and CritPt (agentic work, coding, knowledge & long documents, scientific reasoning).',
+    hle: 'Expert-written academic questions across maths, science and the humanities, built so they can\'t be answered by searching the web. 2,158 text-only questions; % answered correctly.',
+    gpqa: 'The hardest graduate-level biology, physics and chemistry multiple-choice questions (PhD experts score 65%, skilled non-experts with web access 34%). 198 questions; accuracy.',
+    critpt: 'Unpublished, research-level physics problems from 50+ researchers across 11 subfields, with hard-to-guess answers (numbers, formulas, code). 70 challenges, graded by the authors\' server. Marked under review.',
+    omniscience: 'Factual recall across 6,000 questions in 42 economically relevant topics, rewarding correct answers and penalising wrong ones, with no penalty for saying "I don\'t know". −100 to 100; 0 = as many right as wrong.',
+    omniscienceAccuracy: 'AA-Omniscience: the share of all 6,000 questions answered correctly, whether or not the model chose to answer.',
+    hallucination: 'AA-Omniscience: of the questions a model didn\'t get right, how often it gave a wrong answer instead of abstaining. Lower is better.',
+    ifbench: 'From Ai2: whether a model follows precise, checkable output rules it hasn\'t seen before (e.g. exact keyword counts). 58 constraint types; % followed.',
+    mmmuPro: 'A harder MMMU: questions that need the image as well as the text, 10 answer options instead of 4, some questions embedded in images. 1,730 questions; accuracy.',
+    aime25: 'All 30 problems from the 2025 American Invitational Mathematics Examination: olympiad-level maths with integer answers 000–999. Legacy evaluation.',
+    terminalBench40: 'Hard, complex work in a terminal: software, machine learning, science, operations, security, hardware and media. 66 tasks; a task passes only if all its tests do (mini-swe-agent harness, 3 runs).',
+    terminalBench21: 'A verified refresh of Terminal-Bench 2.0 (software engineering, sysadmin, data processing, model training, security). 89 tasks, Terminus 2 harness, 3 runs. Legacy.',
+    terminalbenchHard: 'The hard subset of the original Terminal-Bench: compiling code, training models, configuring servers, playing games, debugging systems, checked by scripts in a Docker environment. Legacy.',
+    terminalBenchScience: 'Research workflows written and reviewed by domain experts in the life, physical, mathematical, engineering and earth sciences, done in a terminal. 70 tasks; all tests must pass.',
+    scicode: 'Scientists\' real research problems solved by writing Python: 288 subproblems from 80 problems across 16 disciplines. Code must pass all unit tests.',
+    livecodebench: 'Competitive programming problems collected continually from LeetCode, AtCoder and Codeforces, so they post-date training data. Legacy.',
+    tau2: 'The agent and a simulated customer both act on a shared system to troubleshoot telecom service problems; every success criterion must be met. Legacy.',
+    tauBanking: 'Banking customer support: the agent searches about 700 linked policy documents and makes multi-step tool calls (disputes, freezes, credits). 97 tasks, graded on the final database state. Legacy.',
+    automationBench: 'From Zapier: automating workflows across simulated business apps (Gmail, Sheets, Slack, Salesforce, Zendesk, Jira, HubSpot) through their APIs. 657 private tasks; share of objectives met, 0 if a guardrail is broken.',
+    enterpriseOps: 'From ServiceNow: multi-step enterprise workflows with live tools across email, calendar, Teams, drive, customer service, HR and IT. 1,117 tasks; strict success, no partial credit.',
+    apexAgents: 'From Mercor: long, multi-application tasks from investment banking, consulting and corporate law in realistic work environments. 452 tasks; % that fully meet the rubric.',
+    itBench: 'From IBM: find the root cause of a Kubernetes incident from a snapshot of alerts, events, traces and topology. 59 scenarios; precision, and 0 if a culprit is missed.',
+    analystAgent: 'Business and data-analyst questions answered by an agent running Python over real spreadsheets and documents. 80 private questions; counts only if right on all 5 attempts.',
+    gdpval: 'Based on OpenAI\'s GDPval: the agent (with shell and web access) produces real work files — documents, slides, spreadsheets — for 44 occupations in 9 industries. 220 tasks; Elo from blind head-to-head comparisons.',
+    briefcase: 'Artificial Analysis\' private benchmark: multi-week business projects with thousands of source files, where the agent produces spreadsheets, presentations and memos. 91 tasks; a combined Elo.',
+    gdpPdf: 'From Surge AI: professional tasks answered from long real-world PDFs, checked against many small criteria. 100 tasks (4,592 pages); % of attempts where every criterion passes.',
+    lcr: 'Multi-step reasoning across long document sets of 10k–100k tokens (company reports, legal documents, government consultations). 100 questions; % correct.',
+    mlcr: 'From Wisedocs: reasoning over long, fragmented medical records (about 25k–64k tokens) about chronology, causes and treatment. 60 hard questions; passes only if a majority of 3 judges agree.',
+    harvey: 'Harvey\'s legal agent benchmark: read case documents and produce legal work such as memos, disclosure schedules and deposition summaries. 120 private tasks in 24 practice areas; rubric criteria passed.',
+    openness: 'How open a model is: availability (weights, licence) and transparency about training data and methods, scored out of 18 and rescaled to 0–100.',
+    costPerTask: 'What one Intelligence Index task costs on average: each evaluation\'s cost per task (input, cached, reasoning and answer tokens at list prices), weighted like the index.',
+    costToRun: 'Total cost, at list prices, of running the whole Intelligence Index once.',
+    priceBlended: 'List price per million tokens, blending input and output 3:1. Doesn\'t account for how many tokens a model uses; cost per task does.',
+    priceInput: 'List price per million input tokens.',
+    priceOutput: 'List price per million output tokens (reasoning tokens are billed as output).',
+    tokensPerTask: 'Average output tokens (reasoning plus answer) a model spends on one Intelligence Index task: how verbose or deep-thinking it is.',
+    outputTokens: 'All output tokens used to run the whole Intelligence Index.',
+    outputSpeed: 'Tokens per second while the answer is streaming, measured on the model\'s API.',
+    ttft: 'Seconds from sending a request to the first answer token (after any thinking).',
+    e2e: 'Seconds to get a complete 500-token answer, including thinking time.',
+    timePerTask: 'Average wall-clock time for one Intelligence Index task.',
+    parameters: 'Total parameter count, for open-weights models that publish it.',
+  };
+  const EXT_DESC = {
+    weirdml: 'Agentic machine-learning engineering: explore unfamiliar data and build ML pipelines with limited data, unclear goals and little feedback. 11 hand-made tasks; scored on progress over tokens spent plus the final result.',
+    weirdml2: 'Write PyTorch code for 17 unusual ML tasks, run in a sandbox with 5 attempts and feedback each; average best test accuracy.',
+    llmChess: 'The model plays Black against a random player and the Komodo Dragon engine through a multi-step chat (view board, list moves, move): chess skill plus instruction following. Elo.',
+    gameArena: 'Google DeepMind and Kaggle\'s Game Arena: models play text-based chess against each other; ratings from their results.',
+    dubesorChess: 'Models play chess against each other on default settings, with Stockfish judging move accuracy; standard Elo updates after each game (below 500 is roughly random play).',
+    arcAgi2: 'ARC Prize Foundation: novel grid puzzles where the model must infer an abstract rule from a few examples; easy for people, hard for AI. % solved on the semi-private set.',
+    arcAgi2Cost: 'What ARC Prize reports the model cost per ARC-AGI-2 task in its own runs.',
+    simpleBench: 'Multiple-choice questions on everyday reasoning (space and time, social situations, trick questions) that ordinary people answer better than models. % correct.',
+    lmarenaText: 'People chat with two anonymous models side by side and vote for the better answer; ratings come from the votes, adjusted so formatting and length count less (style control).',
+  };
   const GROUPS = {
     'Knowledge & reasoning': ['intelligence', 'hle', 'gpqa', 'critpt', 'omniscience', 'omniscienceAccuracy', 'hallucination', 'ifbench', 'mmmuPro', 'aime25'],
     'Coding & terminal': ['terminalBench40', 'terminalBench21', 'terminalbenchHard', 'terminalBenchScience', 'scicode', 'livecodebench'],
@@ -504,11 +631,12 @@
   // Independent benchmarks (data/external.js): each source becomes a metric, plus a cost metric where the source reports one.
   const EXT = window.EXT_DATA?.sources || [];
   const EXT_FMT = { pct, elo, score: (v) => (v * 100).toFixed(1) };
+  for (const [k, d] of Object.entries(DESC)) if (METRICS[k]) METRICS[k].desc = d;
   for (const src of EXT) {
-    METRICS['ext:' + src.key] = { label: src.label, long: src.long, fmt: EXT_FMT[src.fmt] || one, better: 'high', frac: !!src.frac, ext: src };
+    METRICS['ext:' + src.key] = { label: src.label, long: src.long, fmt: EXT_FMT[src.fmt] || one, better: 'high', frac: !!src.frac, ext: src, desc: EXT_DESC[src.key] || '' };
     GROUPS['Independent benchmarks'].push('ext:' + src.key);
     if (src.cost) {
-      METRICS['ext:' + src.cost.key] = { label: src.cost.label, long: src.cost.long, fmt: money, better: 'low', scale: 'log', ext: src, costOf: src.key };
+      METRICS['ext:' + src.cost.key] = { label: src.cost.label, long: src.cost.long, fmt: money, better: 'low', scale: 'log', ext: src, costOf: src.key, desc: EXT_DESC[src.cost.key] || '' };
       GROUPS.Cost.push('ext:' + src.cost.key);
     }
   }
@@ -557,7 +685,7 @@
 
   // Axis scales. Sqrt sits between linear and log (and keeps zero); logit spreads out scores bunched near 0% or 100%.
   const SCALES = { linear: 'Linear', sqrt: '√', log: 'Log', logit: 'Logit' };
-  const SCALE_TITLE = { linear: 'Linear', sqrt: 'Square root: spreads out the low end, like log but gentler, and keeps zero', log: 'Log', logit: 'Logit: stretches scores near 0% and 100%, so small gains at the top show' };
+  const SCALE_TITLE = { linear: 'Linear: equal distances are equal amounts', sqrt: 'Square root: spreads out the low end, like log but gentler, and keeps zero', log: 'Log: equal distances are equal ratios (×10 each step), for values spanning a wide range like prices', logit: 'Logit: stretches scores near 0% and 100%, so small gains at the top show' };
   const SCALE_NOTE = { linear: '', sqrt: '√ scale', log: 'log scale', logit: 'logit scale' };
   const scaleOk = (type, v) => v != null && Number.isFinite(v) && (type === 'log' ? v > 0 : type === 'sqrt' ? v >= 0 : type === 'logit' ? v > 0 && v < 1 : true);
 
@@ -728,6 +856,7 @@
     grid: 'normal', axisText: 'normal',
     efforts: EFFORTS.slice(), selected: theoSelection(), pinned: [],
     showDeprecated: false, openOnly: false, hideOlder: false, addEffort: 'all', theme: 'system', glow: 'off', activeSet: '',
+    zone: 'off', zoneStyle: 'tint', shape: 'standard', leadBy: 'model',
   };
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const S = { ...DEFAULT_STATE, ...load(STATE_KEY, {}) };
@@ -882,6 +1011,119 @@
     return front;
   }
 
+  // ---------- good zones ----------
+  // Ways to read "good" off a cost-vs-performance chart, drawn as a shaded region in the plot's own coordinates (so they
+  // follow the axis scales and the diamond shape). Returns the legend text, or a note when the zone can't be drawn.
+  function drawZone(z) {
+    const { points, X, Y, sx, sy, T, pts, M, PW, PH, xBest, xWorse, yBest, yWorse, defs, layer, C } = z;
+    const color = css('--s4'), style = S.zoneStyle, xLow = X.better === 'low', yLow = Y.better === 'low';
+    const atLeast = (a, b, low) => low ? a <= b : a >= b;
+    const median = (vs) => { const o = vs.slice().sort((a, b) => a - b), n = o.length; return n % 2 ? o[(n - 1) / 2] : (o[n / 2 - 1] + o[n / 2]) / 2; };
+    // a y value the scale can draw (a threshold may fall outside what log or logit allow)
+    const yAt = (v) => sy.f(S.yScale === 'logit' ? Math.min(0.999, Math.max(0.001, v)) : S.yScale === 'log' ? Math.max(v, 1e-9) : S.yScale === 'sqrt' ? Math.max(v, 0) : v);
+    const uv = (p) => [(p.vx - xWorse) / (xBest - xWorse), (p.vy - yWorse) / (yBest - yWorse)];
+    const fromUV = (u, v) => [xWorse + u * (xBest - xWorse), yWorse + v * (yBest - yWorse)];
+    // the look: fill + edge for each style. Gradients run from the worse-on-both corner to the better-on-both one.
+    if (style === 'hatch') {
+      const pat = svgEl('pattern', { id: 'zoneHatch', patternUnits: 'userSpaceOnUse', width: 7, height: 7, patternTransform: 'rotate(45)' });
+      pat.append(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 7, stroke: color, 'stroke-width': 2, 'stroke-opacity': 0.4 })); defs.append(pat);
+    } else if (style === 'gradient') {
+      const [x1, y1] = T(xWorse, yWorse), [x2, y2] = T(xBest, yBest);
+      const lg = svgEl('linearGradient', { id: 'zoneGrad', gradientUnits: 'userSpaceOnUse', x1, y1, x2, y2 });
+      lg.append(svgEl('stop', { offset: 0, 'stop-color': color, 'stop-opacity': 0 }), svgEl('stop', { offset: 1, 'stop-color': color, 'stop-opacity': 0.34 }));
+      const rg = svgEl('radialGradient', { id: 'zoneRad' });
+      rg.append(svgEl('stop', { offset: 0, 'stop-color': color, 'stop-opacity': 0.55 }), svgEl('stop', { offset: 1, 'stop-color': color, 'stop-opacity': 0 }));
+      defs.append(lg, rg);
+    }
+    const paint = (round) => ({
+      tint: { fill: color, 'fill-opacity': 0.13, stroke: color, 'stroke-opacity': 0.55, 'stroke-width': 1 },
+      hatch: { fill: 'url(#zoneHatch)', stroke: color, 'stroke-opacity': 0.7, 'stroke-width': 1 },
+      outline: { fill: 'none', stroke: color, 'stroke-width': 1.75, 'stroke-dasharray': '6 4' },
+      gradient: { fill: round ? 'url(#zoneRad)' : 'url(#zoneGrad)', stroke: 'none' },
+    })[style];
+    const polys = [];
+    const poly = (list, extra = {}) => { polys.push(list); layer.append(svgEl('polygon', { points: pts(list), ...paint(false), ...extra })); };
+    const guide = (a, b) => layer.append(svgEl('line', { x1: T(...a)[0], y1: T(...a)[1], x2: T(...b)[0], y2: T(...b)[1], stroke: color, 'stroke-width': 1, 'stroke-dasharray': '3 4', 'stroke-opacity': 0.8 }));
+    const fams = (ps) => new Set(ps.map((p) => p.m.family)).size;
+    const count = (ps) => `${fams(ps)} model${fams(ps) === 1 ? '' : 's'} in it`;
+    let legend = '', tag = '', inZone = [];
+
+    if (S.zone === 'quadrant') {
+      const mx = median(points.map((p) => p.xv)), my = median(points.map((p) => p.yv)), vx = sx.f(mx), vy = sy.f(my);
+      guide([vx, M.top], [vx, M.top + PH]); guide([M.left, vy], [M.left + PW, vy]);
+      poly([[vx, vy], [xBest, vy], [xBest, yBest], [vx, yBest]]);
+      inZone = points.filter((p) => atLeast(p.xv, mx, xLow) && atLeast(p.yv, my, yLow));
+      tag = 'Better than the median on both';
+      legend = `Good zone: better than the median model shown on both axes (${X.fmt(mx)}, ${Y.fmt(my)}) · ${count(inZone)}`;
+    } else if (S.zone === 'near') {
+      // the frontier as a staircase: at each x, the best y available at that x or better; the band hangs just below it
+      const f = z.front.length ? z.front : paretoFront(points);
+      const best = f[f.length - 1].yv, d = Y.frac ? 0.03 : 0.05 * Math.abs(best), off = (v) => yLow ? v + d : v - d;
+      const upper = [], lower = [];
+      f.forEach((p, i) => {
+        const end = i + 1 < f.length ? f[i + 1].vx : xWorse;
+        upper.push([p.vx, p.vy], [end, p.vy]);
+        lower.push([p.vx, yAt(off(p.yv))], [end, yAt(off(p.yv))]);
+      });
+      poly([...upper, ...lower.reverse()]);
+      const bestAt = (x) => { let v = null; for (const q of f) if (atLeast(q.xv, x, xLow)) v = q.yv; return v; };
+      inZone = points.filter((p) => { const v = bestAt(p.xv); return v != null && atLeast(p.yv, off(v), yLow); });
+      const dt = Y.frac ? '3 points' : Y.fmt(d);
+      tag = 'Near the frontier';
+      legend = `Good zone: within ${dt} of the best score at that ${xLow ? 'cost or less' : 'X or better'} · ${count(inZone)}`;
+    } else if (S.zone === 'top') {
+      const ys = points.map((p) => p.yv), best = yLow ? Math.min(...ys) : Math.max(...ys), m = Math.abs(best) * 0.1;
+      const thr = yLow ? best + m : best - m, vy = yAt(thr);
+      poly([[xWorse, vy], [xBest, vy], [xBest, yBest], [xWorse, yBest]]);
+      inZone = points.filter((p) => atLeast(p.yv, thr, yLow));
+      const pick = inZone.slice().sort((a, b) => xLow ? a.xv - b.xv : b.xv - a.xv)[0];
+      layer.append(svgEl('circle', { cx: pick.px, cy: pick.py, r: 12, fill: 'none', stroke: color, 'stroke-width': 2.5 }));
+      tag = 'Top tier';
+      legend = `Good zone: within 10% of the best score (${Y.fmt(thr)} or ${yLow ? 'less' : 'more'}) · ${count(inZone)} · ${xLow ? 'cheapest' : 'best on X'}: ${pick.m.label} (ringed)`;
+    } else if (S.zone === 'knee') {
+      // the frontier's knee: the frontier model furthest out from the straight line joining its two ends
+      const f = z.front.length ? z.front : paretoFront(points);
+      if (f.length < 3) return { note: 'The sweet spot needs at least 3 models on the frontier.' };
+      const [a, b] = [uv(f[0]), uv(f[f.length - 1])];
+      let knee = f[1], far = -Infinity;
+      for (const p of f.slice(1, -1)) { const [u, v] = uv(p), d = -((b[0] - a[0]) * (v - a[1]) - (b[1] - a[1]) * (u - a[0])); if (d > far) { far = d; knee = p; } }
+      guide([knee.vx, M.top], [knee.vx, M.top + PH]);
+      layer.append(svgEl('circle', { cx: knee.px, cy: knee.py, r: 30, ...paint(true) }));
+      if (!lastGeom.diamond) {
+        const toWorse = xLow ? 1 : -1, x = T(knee.vx, M.top)[0] + toWorse * 8;
+        layer.append(svgEl('text', { x, y: yLow ? M.top + PH - 8 : M.top + 14, 'text-anchor': xLow ? 'start' : 'end', fill: C.muted, 'font-size': 11 }, xLow ? 'diminishing returns →' : '← diminishing returns'));
+      }
+      polys.push(null); inZone = [knee];
+      tag = 'Sweet spot';
+      legend = `Good zone: sweet spot at ${knee.m.label}; past it, each extra ${xLow ? 'dollar' : 'unit of X'} buys less`;
+      layer.append(svgEl('text', { x: knee.px, y: knee.py - 36, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 11, 'font-weight': 600, stroke: C.surface, 'stroke-width': 3, 'paint-order': 'stroke' }, tag));
+      return { legend, style };
+    } else if (S.zone === 'beats') {
+      const pins = points.filter((p) => S.pinned.has(p.m.id));
+      if (!pins.length) return { note: 'Beats pinned: click a dot to pin it, and everything better on both axes gets shaded.' };
+      for (const p of pins) poly([[p.vx, p.vy], [xBest, p.vy], [xBest, yBest], [p.vx, yBest]]);
+      inZone = points.filter((q) => !S.pinned.has(q.m.id) && pins.some((p) => atLeast(q.xv, p.xv, xLow) && atLeast(q.yv, p.yv, yLow)));
+      tag = pins.length === 1 ? `Beats ${pins[0].m.label}` : 'Beats a pinned model';
+      legend = `Good zone: better than ${pins.length === 1 ? pins[0].m.label : 'a pinned model'} on both axes · ${count(inZone)}`;
+    } else if (S.zone === 'diagonal') {
+      // bands of u + v, the "overall" direction; stacked tints deepen toward the corner
+      if (style === 'gradient') poly([fromUV(0, 0), fromUV(1, 0), fromUV(1, 1), fromUV(0, 1)]);
+      else for (const c of [1, 1.33, 1.66]) poly([fromUV(1, c - 1), fromUV(1, 1), fromUV(c - 1, 1)]);
+      inZone = points.filter((p) => uv(p)[0] + uv(p)[1] >= 1.33);
+      tag = lastGeom.diamond ? '' : 'Better on both'; // the diamond already says so at its top
+      legend = `Good zone: bands toward the corner that's better on both, on this chart's scales · ${fams(inZone)} model${fams(inZone) === 1 ? '' : 's'} in the top two bands`;
+    }
+    // name the zone just inside its better-on-both corner
+    const list = polys[0];
+    if (list && tag) {
+      const scr = list.map(([x, y]) => T(x, y)), best = list.reduce((a, q) => { const [u, v] = uv({ vx: q[0], vy: q[1] }); return u + v > a.s ? { s: u + v, q } : a; }, { s: -Infinity }).q;
+      const [bx, by] = T(...best), mx = scr.reduce((a, q) => a + q[0], 0) / scr.length, my = scr.reduce((a, q) => a + q[1], 0) / scr.length;
+      const sx2 = Math.abs(mx - bx) < 6 ? 0 : Math.sign(mx - bx), sy2 = Math.sign(my - by) || 1;
+      layer.append(svgEl('text', { x: bx + sx2 * 8, y: by + sy2 * 16 + 4, 'text-anchor': sx2 > 0 ? 'start' : sx2 < 0 ? 'end' : 'middle', fill: C.ink2, 'font-size': 11, 'font-weight': 600, stroke: C.surface, 'stroke-width': 3, 'paint-order': 'stroke' }, tag));
+    }
+    return { legend, style };
+  }
+
   // ---------- sidebar ----------
   // Families with anything selected stay listed even when the filters would hide them (e.g. deprecated),
   // so whatever is on the chart can always be switched off here.
@@ -896,7 +1138,7 @@
   function renderEffortChips() {
     const counts = {}; for (const id of S.selected) { const e = BY_ID.get(id)?.effort; counts[e] = (counts[e] || 0) + 1; }
     $('effortChips').innerHTML = EFFORTS.map((e) =>
-      `<button class="chip ${counts[e] ? '' : 'missing'}" data-e="${e}" aria-pressed="${S.efforts.has(e)}" title="${counts[e] || 0} selected">${EFFORT_LABEL[e]}</button>`).join('');
+      `<button class="chip ${counts[e] ? '' : 'missing'}" data-e="${e}" aria-pressed="${S.efforts.has(e)}" title="${EFFORT_LABEL[e]}${e === 'non-reasoning' ? '' : ' effort'}: click to show or hide on the chart (${counts[e] || 0} selected)">${EFFORT_LABEL[e]}</button>`).join('');
   }
   $('effortChips').addEventListener('click', (e) => {
     const b = e.target.closest('.chip'); if (!b) return;
@@ -935,7 +1177,7 @@
         const range = !xs.length ? '—' : Math.min(...xs) === Math.max(...xs) ? X.fmt(xs[0]) : `${X.fmt(Math.min(...xs))}–${X.fmt(Math.max(...xs)).replace(/^\$/, '')}`;
         const col = familyColor(f.models[0]), older = FAMILY.get(fid)?.older;
         const glyph = `<svg width="24" height="10" aria-hidden="true"><line x1="1" x2="23" y1="5" y2="5" stroke="${col}" stroke-width="2" ${older ? 'stroke-dasharray="3 3"' : ''}/><circle cx="12" cy="5" r="3.2" fill="${col}"/></svg>`;
-        html += `<div class="fam ${any ? 'any' : ''}"><div class="fam-name" data-fam="${esc(fid)}" title="${older ? 'Older version (dashed)' : ''}">${glyph}${esc(f.name)} ${dep}<span class="score">${best.toFixed(1)}</span><span class="range">${range}</span></div>`;
+        html += `<div class="fam ${any ? 'any' : ''}"><div class="fam-name" data-fam="${esc(fid)}" title="Click to select or clear every effort of ${esc(f.name)}${older ? ' · older version (dashed)' : ''}">${glyph}${esc(f.name)} ${dep}<span class="score">${best.toFixed(1)}</span><span class="range">${range}</span></div>`;
         if (f.models.length > 1 || f.models[0].effort !== 'non-reasoning') {
           html += '<div class="chips">' + f.models.map((m) => {
             const lab = f.models.length === 1 ? EFFORT_LABEL[m.effort] : (m.effort === 'default' || m.effort === 'non-reasoning') && f.models.filter((o) => o.effort === m.effort).length > 1 ? m.label.replace(f.name, '').replace(/[()]/g, '').trim() || EFFORT_LABEL[m.effort] : EFFORT_LABEL[m.effort];
@@ -990,13 +1232,13 @@
 
   // ---------- saved sets ----------
   function snapshot() {
-    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder };
+    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape };
   }
   function applySet(snap) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
-    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'colorBy', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder']) if (snap[k] != null) S[k] = snap[k];
+    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'colorBy', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape']) if (snap[k] != null) S[k] = snap[k];
     fixAxes(); syncControls(); save(); renderList(); render();
   }
   let dirty = false;
@@ -1036,24 +1278,23 @@
   });
 
   // ---------- controls ----------
-  // Axis menus, grouped; benchmarks only some models have say how many.
+  // Axis pickers: buttons naming the current metric; the list itself is the metric menu below.
   function renderMetricMenus() {
-    const live = ALL.filter((m) => !m.deprecated), half = live.length / 2;
-    const opt = (k) => { const n = live.filter((m) => m[k] != null).length; return `<option value="${k}">${esc(METRICS[k].label)}${n < half ? ` — ${n} models` : ''}</option>`; };
-    const menu = (groups) => groups.filter((g) => GROUPS[g].length).map((g) => `<optgroup label="${g}">${GROUPS[g].map(opt).join('')}</optgroup>`).join('');
-    $('ySel').innerHTML = menu(Y_GROUPS); $('xSel').innerHTML = menu(X_GROUPS);
-    $('ySel').value = S.y; $('xSel').value = S.x;
+    $('ySel').innerHTML = `<span class="pk-label">${esc(METRICS[S.y].label)}</span>`;
+    $('xSel').innerHTML = `<span class="pk-label">${esc(METRICS[S.x].label)}</span>`;
+    if (menuKind) renderMenu();
   }
-  renderMetricMenus();
   for (const id of ['xScale', 'yScale']) $(id).innerHTML = Object.entries(SCALES).map(([v, t]) => `<button data-v="${v}" title="${SCALE_TITLE[v]}">${t}</button>`).join('');
   const syncs = [
     bindSeg('xScale', 'xScale'), bindSeg('yScale', 'yScale'), bindSeg('paretoSeg', 'pareto'), bindSeg('frontStyleSeg', 'frontStyle', markDirty),
     bindSeg('guideSeg', 'guides'), bindSeg('labelSeg', 'labels'), bindSeg('colorSeg', 'colorBy'),
     bindSeg('markStyleSeg', 'markStyle', markDirty),
     bindSeg('gridSeg', 'grid', markDirty), bindSeg('axisSeg', 'axisText', markDirty), bindSeg('glowSeg', 'glow', markDirty),
+    bindSeg('zoneSeg', 'zone', markDirty), bindSeg('zoneStyleSeg', 'zoneStyle', markDirty), bindSeg('shapeSeg', 'shape', markDirty),
+    bindSeg('leadBySeg', 'leadBy', () => renderMenu()),
   ];
   function syncControls() {
-    $('markSel').value = S.markEffort; $('xSel').value = S.x; $('ySel').value = S.y; $('connect').checked = S.connect; $('fullFrontier').checked = S.fullFrontier;
+    renderMetricMenus(); $('markSel').value = S.markEffort; $('connect').checked = S.connect; $('fullFrontier').checked = S.fullFrontier;
     $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('hideOlder').checked = S.hideOlder; $('addEffort').value = S.addEffort; $('themeSel').value = S.theme;
     // logit only makes sense for scores that are fractions (0–100%)
     for (const [id, k] of [['xScale', S.x], ['yScale', S.y]]) {
@@ -1062,8 +1303,123 @@
     }
     syncs.forEach((f) => f());
   }
-  $('xSel').addEventListener('change', (e) => { S.x = e.target.value; S.xScale = METRICS[S.x].scale || 'linear'; markDirty(); syncControls(); save(); renderList(); render(); });
-  $('ySel').addEventListener('change', (e) => { S.y = e.target.value; S.yScale = METRICS[S.y].scale || 'linear'; markDirty(); syncControls(); save(); render(); });
+
+  // ---------- metric menus ----------
+  // One popup serves the Y and X pickers and "Who leads what". Hovering an entry shows what the metric measures and,
+  // for benchmarks, the current top 3 among current models (open-weights ones only when that filter is on).
+  const menu = $('menu'), mtip = $('mtip');
+  let menuKind = null, menuAnchor = null;
+  const BENCH_GROUPS = Object.keys(GROUPS).filter((g) => g !== 'Cost' && g !== 'Tokens & speed');
+  const isBench = (k) => k !== 'openness' && BENCH_GROUPS.some((g) => GROUPS[g].includes(k));
+  const descOf = (k) => METRICS[k]?.desc || '';
+  // best variant of each model family, best first
+  function topModels(k, n = 3) {
+    const low = METRICS[k].better === 'low', best = new Map();
+    for (const m of ALL) {
+      if (m.deprecated || m[k] == null || (S.openOnly && !m.openWeights)) continue;
+      const cur = best.get(m.family);
+      if (!cur || (low ? m[k] < cur[k] : m[k] > cur[k])) best.set(m.family, m);
+    }
+    return [...best.values()].sort((a, b) => low ? a[k] - b[k] : b[k] - a[k]).slice(0, n);
+  }
+  const liveCount = (k) => ALL.filter((m) => !m.deprecated && m[k] != null).length;
+  const leadBy = (k, d) => !d ? 'tied' : '+' + (METRICS[k].frac ? (d * 100).toFixed(1) + ' pts' : METRICS[k].fmt === elo ? Math.round(d) : d.toFixed(1));
+  const effortTag = (m) => m.effort === 'default' || m.effort === 'non-reasoning' ? '' : ' ' + EFFORT_LABEL[m.effort].toLowerCase();
+  function menuGroups(q) {
+    const match = (k) => !q || `${METRICS[k].label} ${METRICS[k].long}`.toLowerCase().includes(q);
+    if (menuKind !== 'leaders') {
+      const half = ALL.filter((m) => !m.deprecated).length / 2;
+      return (menuKind === 'x' ? X_GROUPS : Y_GROUPS).map((g) => ({ head: esc(g), items: GROUPS[g].filter(match).map((k) => {
+        const n = liveCount(k); return { k, meta: n < half ? `${n} models` : '' };
+      }) })).filter((g) => g.items.length);
+    }
+    const groups = new Map();
+    for (const g of BENCH_GROUPS) for (const k of GROUPS[g]) {
+      if (!isBench(k) || !match(k)) continue;
+      const [a, b] = topModels(k, 2); if (!a) continue;
+      const byLab = S.leadBy === 'lab', key = byLab ? a.creatorSlug : a.family;
+      if (!groups.has(key)) groups.set(key, { name: byLab ? a.creator : a.familyName, color: byLab ? labBase(a.creatorSlug) : familyColor(a), items: [] });
+      groups.get(key).items.push({ k, meta: `${METRICS[k].fmt(a[k])}${b ? ' · ' + leadBy(k, Math.abs(a[k] - b[k])) : ''}` });
+    }
+    return [...groups.values()].sort((a, b) => b.items.length - a.items.length)
+      .map((g) => ({ lead: true, head: `<i style="background:${g.color}"></i>${esc(g.name)}<span class="n">leads ${g.items.length}</span>`, items: g.items }));
+  }
+  function renderMenu() {
+    if (!menuKind) return;
+    const cur = menuKind === 'x' ? S.x : S.y;
+    $('menuNote').textContent = menuKind === 'leaders'
+      ? `Each benchmark under the ${S.leadBy === 'lab' ? 'lab' : 'model'} leading it${S.openOnly ? ' among open-weights models' : ''} (current models, best effort level), with its top score and lead over #2. ${matchMedia('(hover: none)').matches ? 'Tap' : 'Hover for the top 3; click'} to chart it on Y.`
+      : '';
+    $('menuList').innerHTML = menuGroups($('menuSearch').value.trim().toLowerCase()).map((g) => `<div class="mh${g.lead ? ' lead' : ''}">${g.head}</div>` +
+      g.items.map(({ k, meta }) => `<div class="mi" role="option" data-k="${esc(k)}" aria-selected="${k === cur}"><span class="mi-label">${esc(METRICS[k].label)}</span><span class="mi-meta">${meta}</span>${descOf(k) ? `<span class="mi-desc">${esc(descOf(k))}</span>` : ''}</div>`).join('')).join('')
+      || '<div class="note" style="padding:10px 12px">Nothing matches.</div>';
+    mtip.style.display = 'none';
+  }
+  function placeMenu() {
+    const r = menuAnchor.getBoundingClientRect(), w = Math.min(menuKind === 'leaders' ? 380 : 340, innerWidth - 16);
+    menu.style.width = w + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+    menu.style.top = r.bottom + 4 + 'px';
+    menu.style.maxHeight = Math.max(220, Math.min(620, innerHeight - r.bottom - 16)) + 'px';
+  }
+  function openMenu(kind, anchor) {
+    const same = menuKind === kind;
+    closeMenu();
+    if (same) return;
+    menuKind = kind; menuAnchor = anchor; anchor.setAttribute('aria-expanded', 'true');
+    $('leadBySeg').hidden = kind !== 'leaders';
+    $('menuSearch').value = '';
+    menu.hidden = false; renderMenu(); placeMenu();
+    const sel = menu.querySelector('.mi[aria-selected="true"]'), list = $('menuList');
+    if (sel) list.scrollTop = sel.offsetTop - list.clientHeight / 2;
+    if (!matchMedia('(hover: none)').matches) $('menuSearch').focus();
+  }
+  function closeMenu() {
+    if (!menuKind) return;
+    menu.hidden = true; mtip.style.display = 'none'; menuAnchor.setAttribute('aria-expanded', 'false'); menuKind = null;
+  }
+  function pickMetric(k) {
+    const axis = menuKind === 'x' ? 'x' : 'y';
+    closeMenu();
+    S[axis] = k; S[axis + 'Scale'] = METRICS[k].scale || 'linear';
+    markDirty(); syncControls(); save(); if (axis === 'x') renderList(); render();
+  }
+  function showMetricTip(item) {
+    const k = item.dataset.k, M = METRICS[k], top = isBench(k) ? topModels(k) : [];
+    mtip.innerHTML = `<h4>${esc(M.long)}</h4>${descOf(k) ? `<p>${esc(descOf(k))}</p>` : ''}` +
+      `<div class="note">${liveCount(k)} current models · ${M.better === 'low' ? 'lower' : 'higher'} is better${M.ext ? ` · by ${esc(M.ext.by)}` : ''}</div>` +
+      (top.length ? `<table>${top.map((m, i) => `<tr><td>${i + 1}</td><td><i style="background:${familyColor(m)}"></i>${esc(m.familyName)}<span class="eff">${effortTag(m)}${m.estimated ? ' · est.' : ''}</span></td><td class="n">${M.fmt(m[k])}</td></tr>`).join('')}</table>` : '');
+    mtip.style.display = 'block';
+    const mr = menu.getBoundingClientRect(), ir = item.getBoundingClientRect(), tr = mtip.getBoundingClientRect();
+    let left = mr.right + 8;
+    if (left + tr.width > innerWidth - 8) left = mr.left - tr.width - 8;
+    if (left < 8) { mtip.style.display = 'none'; return; }
+    mtip.style.left = left + 'px'; mtip.style.top = Math.max(8, Math.min(ir.top - 8, innerHeight - tr.height - 8)) + 'px';
+  }
+  function setActive(item, scroll) {
+    menu.querySelector('.mi.active')?.classList.remove('active');
+    item.classList.add('active');
+    if (scroll) item.scrollIntoView({ block: 'nearest' });
+    showMetricTip(item);
+  }
+  $('ySel').addEventListener('click', (e) => openMenu('y', e.currentTarget));
+  $('xSel').addEventListener('click', (e) => openMenu('x', e.currentTarget));
+  $('leadersBtn').addEventListener('click', (e) => openMenu('leaders', e.currentTarget));
+  $('menuList').addEventListener('mouseover', (e) => { const it = e.target.closest('.mi'); if (it && !it.classList.contains('active')) setActive(it, false); });
+  $('menuList').addEventListener('click', (e) => { const it = e.target.closest('.mi'); if (it) pickMetric(it.dataset.k); });
+  menu.addEventListener('mouseleave', () => { mtip.style.display = 'none'; menu.querySelector('.mi.active')?.classList.remove('active'); });
+  $('menuSearch').addEventListener('input', renderMenu);
+  $('menuSearch').addEventListener('keydown', (e) => {
+    const items = [...menu.querySelectorAll('.mi')], i = items.indexOf(menu.querySelector('.mi.active'));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = items[Math.max(0, Math.min(items.length - 1, i < 0 ? 0 : i + (e.key === 'ArrowDown' ? 1 : -1)))];
+      if (next) setActive(next, true);
+    } else if (e.key === 'Enter') { e.preventDefault(); const it = items[i] || items[0]; if (it) pickMetric(it.dataset.k); }
+    else if (e.key === 'Escape') { const a = menuAnchor; closeMenu(); a?.focus(); }
+  });
+  document.addEventListener('pointerdown', (e) => { if (menuKind && !menu.contains(e.target) && !e.target.closest?.('.picker')) closeMenu(); });
+  addEventListener('resize', () => { if (menuKind) placeMenu(); });
   $('markSel').innerHTML = '<option value="none">No mark</option>' + EFFORTS.filter((e) => e !== 'non-reasoning').map((e) => `<option value="${e}">${EFFORT_LABEL[e]}</option>`).join('');
   $('markSel').addEventListener('change', (e) => { S.markEffort = e.target.value; markDirty(); save(); render(); });
   $('connect').addEventListener('change', (e) => { S.connect = e.target.checked; save(); render(); });
@@ -1098,15 +1454,19 @@
     const card = $('chartCard'), cs = getComputedStyle(card);
     const W = Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
     // Narrow (phone): a taller-than-wide plot that fits the screen, tighter margins, horizontal y title.
-    const narrow = W < 560;
-    const H = narrow ? Math.round(Math.max(340, Math.min(W * 1.35, innerHeight * 0.66))) : Math.round(Math.min(760, Math.max(440, W * 0.6)));
-    const M = narrow ? { top: 26, right: 12, bottom: 44, left: 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
+    const narrow = W < 560, diamond = S.shape === 'diamond';
+    const H = narrow ? Math.round(Math.max(340, Math.min(W * (diamond ? 1.15 : 1.35), innerHeight * 0.66))) : Math.round(Math.min(diamond ? 820 : 760, Math.max(diamond ? 500 : 440, W * (diamond ? 0.66 : 0.6))));
+    // Diamond: tick labels and axis titles sit outside the rhombus, in the corners of the plot rectangle, so margins are small.
+    const M = diamond ? (narrow ? { top: 22, right: 6, bottom: 40, left: 6 } : { top: 30, right: 24, bottom: 40, left: 24 })
+      : narrow ? { top: 26, right: 12, bottom: 44, left: 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
     let PW = W - M.left - M.right;
     const PH = H - M.top - M.bottom;
     const X = METRICS[S.x], Y = METRICS[S.y];
     const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
 
     $('chartTitle').textContent = `${Y.label} vs. ${X.label}`;
+    $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && (i === 0 || isBench(k)) && (i === 0 || S.x !== S.y))
+      .map((k) => `<b>${esc(METRICS[k].label)}:</b> ${esc(descOf(k))}`).join('<br>');
     const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
     $('chartSub').textContent = `${Y.long} (${dir(Y)}) against ${/^[A-Z][a-z]/.test(X.long) ? X.long.charAt(0).toLowerCase() + X.long.slice(1) : X.long} (${dir(X)}). ${word[S.xScale].replace(/^./, (c) => c.toUpperCase())} x · ${word[S.yScale]} y.`;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
@@ -1122,7 +1482,7 @@
       if (okX && okY) points.push({ m, xv, yv }); else missing.push(m);
     }
     // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
-    if (!narrow) { const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700))); if (yw + 44 > M.left) { M.left = Math.ceil(yw + 44); PW = W - M.left - M.right; } }
+    if (!narrow && !diamond) { const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700))); if (yw + 44 > M.left) { M.left = Math.ceil(yw + 44); PW = W - M.left - M.right; } }
     const hiddenByEffort = S.selected.size - chosen.length;
     let note = [];
     if (missing.length) note.push(`${missing.length} selected model${missing.length > 1 ? 's have' : ' has'} no ${!missing.every((m) => m[S.x] != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missing.slice(0, 6).map((m) => m.label).join(', ')}${missing.length > 6 ? '…' : ''}`);
@@ -1156,49 +1516,92 @@
     }
     const sx = makeScale(points.concat(inScale).map((p) => p.xv), S.xScale, [M.left, M.left + PW]);
     const sy = makeScale(points.concat(inScale).map((p) => p.yv), S.yScale, [M.top + PH, M.top]);
-    for (const p of points.concat(ghosts)) { p.px = sx.f(p.xv); p.py = sy.f(p.yv); p.color = colorOf(p.m); }
+    // Everything is laid out in the plot rectangle (vx, vy) and then passed through T to the screen (px, py). In the standard
+    // shape T changes nothing. In the diamond, T maps the rectangle onto a rhombus with "better on both" at the top, best X
+    // at the left and best Y at the right (like dunksandthrees' EPM charts). T is affine, so straight lines stay straight.
+    const xBest = X.better === 'low' ? M.left : M.left + PW, xWorse = X.better === 'low' ? M.left + PW : M.left;
+    const yBest = Y.better === 'low' ? M.top + PH : M.top, yWorse = Y.better === 'low' ? M.top : M.top + PH;
+    const Dw = narrow ? PW : Math.min(PW, PH * 1.7), cx = M.left + PW / 2;
+    const T = !diamond ? (x, y) => [x, y] : (x, y) => {
+      const u = (x - xWorse) / (xBest - xWorse), v = (y - yWorse) / (yBest - yWorse);
+      return [cx + (v - u) * Dw / 2, M.top + PH - (u + v) * PH / 2];
+    };
+    const pts = (list) => list.map(([x, y]) => T(x, y).map((n) => +n.toFixed(2)).join(',')).join(' ');
+    const corners = [[M.left, M.top], [M.left + PW, M.top], [M.left + PW, M.top + PH], [M.left, M.top + PH]];
+    for (const p of points.concat(ghosts)) { p.vx = sx.f(p.xv); p.vy = sy.f(p.yv); [p.px, p.py] = T(p.vx, p.vy); p.color = colorOf(p.m); }
     const visibleGhosts = inScale;
-    lastPoints = points; lastGhosts = visibleGhosts; lastGeom = { M, PW, PH, sx, sy, W, H };
+    lastPoints = points; lastGhosts = visibleGhosts; lastGeom = { M, PW, PH, sx, sy, W, H, T, diamond, xWorse, yWorse, xBest, yBest };
     if (visibleGhosts.length) $('chartNote').textContent = [`${visibleGhosts.length} frontier model${visibleGhosts.length > 1 ? 's' : ''} you haven't selected ${visibleGhosts.length > 1 ? 'are' : 'is'} shown faint — click one to add it.`, $('chartNote').textContent].filter(Boolean).join(' · ');
 
     // grid + ticks (dropping any that would crowd their neighbours on a narrow chart)
+    // Diamond: X ticks along the lower-left edge, Y ticks along the lower-right edge, each label beside its gridline's end.
     const thin = (ticks, f, gap) => { const out = []; let last = -Infinity; for (const t of ticks) { const v = f(t); if (Math.abs(v - last) >= gap) { out.push(t); last = v; } } return out; };
-    sx.ticks = thin(sx.ticks, sx.f, Math.max(...sx.ticks.map((t) => textW(X.fmt(t), 11))) + 12);
-    sy.ticks = thin(sy.ticks.slice().reverse(), sy.f, 20).reverse();
+    sx.ticks = thin(sx.ticks, sx.f, diamond ? 15 * PW / (PH / 2) : Math.max(...sx.ticks.map((t) => textW(X.fmt(t), 11))) + 12);
+    sy.ticks = thin(sy.ticks.slice().reverse(), sy.f, diamond ? 15 * 2 : 20).reverse();
     const g = svgEl('g');
     const gridAttrs = { stroke: C.grid, 'stroke-width': 1, 'stroke-opacity': S.grid === 'faint' ? 0.4 : 1 };
     const axisText = S.axisText === 'faint' ? { opacity: 0.45 } : {};
-    const tickEls = { x: [], y: [] }; // label + span, so value chips on the axes can hide what they overlap
+    const seg = ([x1, y1], [x2, y2], attrs) => svgEl('line', { ...attrs, x1, y1, x2, y2 });
+    const tickFont = { ...axisText, fill: C.muted, 'font-size': 11, style: 'font-variant-numeric:tabular-nums' };
+    const tickEls = []; // [label, box], so value chips on the axes can hide the tick labels they overlap
     for (const t of sy.ticks) {
-      const y = sy.f(t);
-      if (S.grid !== 'off') g.append(svgEl('line', { ...gridAttrs, x1: M.left, x2: M.left + PW, y1: y, y2: y }));
-      const el = svgEl('text', { ...axisText, x: M.left - 8, y: y + 4, 'text-anchor': 'end', fill: C.muted, 'font-size': 11, style: 'font-variant-numeric:tabular-nums' }, Y.fmt(t));
-      g.append(el); tickEls.y.push([el, y - 7, y + 7]);
+      const y = sy.f(t), txt = Y.fmt(t), tw = textW(txt, 11);
+      if (S.grid !== 'off') g.append(seg(T(M.left, y), T(M.left + PW, y), gridAttrs));
+      const [qx, qy] = diamond ? T(xWorse, y) : [M.left - 8, y];
+      const el = diamond ? svgEl('text', { ...tickFont, x: qx + 6, y: qy + 12 }, txt) : svgEl('text', { ...tickFont, x: qx, y: qy + 4, 'text-anchor': 'end' }, txt);
+      g.append(el); tickEls.push([el, diamond ? { x0: qx + 6, x1: qx + 6 + tw, y0: qy + 2, y1: qy + 14 } : { x0: qx - tw, x1: qx, y0: y - 7, y1: y + 7 }]);
     }
     for (const t of sx.ticks) {
-      const x = sx.f(t);
-      if (S.grid !== 'off') g.append(svgEl('line', { ...gridAttrs, x1: x, x2: x, y1: M.top, y2: M.top + PH }));
-      const el = svgEl('text', { ...axisText, x, y: M.top + PH + 18, 'text-anchor': 'middle', fill: C.muted, 'font-size': 11, style: 'font-variant-numeric:tabular-nums' }, X.fmt(t)), tw = textW(X.fmt(t), 11) / 2;
-      g.append(el); tickEls.x.push([el, x - tw, x + tw]);
+      const x = sx.f(t), txt = X.fmt(t), tw = textW(txt, 11);
+      if (S.grid !== 'off') g.append(seg(T(x, M.top), T(x, M.top + PH), gridAttrs));
+      const [qx, qy] = diamond ? T(x, yWorse) : [x, M.top + PH];
+      const el = diamond ? svgEl('text', { ...tickFont, x: qx - 6, y: qy + 12, 'text-anchor': 'end' }, txt) : svgEl('text', { ...tickFont, x: qx, y: qy + 18, 'text-anchor': 'middle' }, txt);
+      g.append(el); tickEls.push([el, diamond ? { x0: qx - 6 - tw, x1: qx - 6, y0: qy + 2, y1: qy + 14 } : { x0: x - tw / 2, x1: x + tw / 2, y0: qy + 6, y1: qy + 22 }]);
     }
-    g.append(svgEl('line', { x1: M.left, x2: M.left + PW, y1: M.top + PH, y2: M.top + PH, stroke: C.axis }));
-    g.append(svgEl('line', { x1: M.left, x2: M.left, y1: M.top, y2: M.top + PH, stroke: C.axis }));
     const scaleTag = (s) => s === 'linear' ? '' : narrow ? ` (${word[s]})` : ` · ${SCALE_NOTE[s]}`, yLow = Y.better === 'low';
-    g.append(svgEl('text', { ...axisText, x: M.left + PW / 2, y: H - (narrow ? 8 : 12), 'text-anchor': 'middle', fill: C.ink2, 'font-size': narrow ? 11 : 12, 'font-weight': 500 }, `${narrow ? X.label : X.long}${scaleTag(S.xScale)}  ${X.better === 'low' ? '← better' : 'better →'}`));
-    if (narrow) g.append(svgEl('text', { ...axisText, x: 4, y: 12, fill: C.ink2, 'font-size': 11, 'font-weight': 500 }, `${Y.label}${scaleTag(S.yScale)}  ${yLow ? '↓' : '↑'} better`));
-    else g.append(svgEl('text', { ...axisText, x: 0, y: 0, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 12, 'font-weight': 500, transform: `translate(18 ${M.top + PH / 2}) rotate(-90)` }, `${Y.long}${scaleTag(S.yScale)}  ${yLow ? '← better' : 'better →'}`));
-    // "most attractive quadrant" hint
-    const qx = X.better === 'low' ? M.left + 10 : M.left + PW - 10;
-    if (!narrow) g.append(svgEl('text', { ...axisText, x: qx, y: yLow ? M.top + PH - 8 : M.top + 14, 'text-anchor': X.better === 'low' ? 'start' : 'end', fill: C.muted, 'font-size': 11 }, 'Most attractive quadrant'));
+    const titleFont = { ...axisText, fill: C.ink2, 'font-size': narrow ? 10.5 : 12, 'font-weight': 500 };
+    if (diamond) {
+      g.append(svgEl('polygon', { points: pts(corners), fill: 'none', stroke: C.axis }));
+      // axis titles run along the two lower edges, outside the tick labels
+      // (on a phone there's no room beside the edges: the titles go flat in the bottom corners)
+      const ang = Math.atan2(PH, Dw) * 180 / Math.PI, len = Math.hypot(Dw, PH), off = 42;
+      const [ax, ay] = T((xBest + xWorse) / 2, yWorse), [bx, by] = T(xWorse, (yBest + yWorse) / 2);
+      if (narrow) {
+        g.append(svgEl('text', { ...titleFont, x: 2, y: H - 4 }, `↖ ${X.label}${scaleTag(S.xScale)}`));
+        g.append(svgEl('text', { ...titleFont, x: W - 2, y: H - 4, 'text-anchor': 'end' }, `${Y.label}${scaleTag(S.yScale)} ↗`));
+      } else {
+        g.append(svgEl('text', { ...titleFont, x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(${ax - PH / len * off} ${ay + Dw / len * off}) rotate(${ang})` }, `← better  ${X.long}${scaleTag(S.xScale)}`));
+        g.append(svgEl('text', { ...titleFont, x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(${bx + PH / len * off} ${by + Dw / len * off}) rotate(${-ang})` }, `${Y.long}${scaleTag(S.yScale)}  better →`));
+      }
+      const vFont = { ...axisText, fill: C.muted, 'font-size': 11 };
+      g.append(svgEl('text', { ...vFont, x: cx, y: M.top - 10, 'text-anchor': 'middle', 'font-weight': 600, fill: C.ink2 }, '▲ Better on both'));
+      if (!narrow) {
+        const [lx, ly] = T(xBest, yWorse), [rx, ry] = T(xWorse, yBest);
+        g.append(svgEl('text', { ...vFont, x: lx, y: ly - 26 }, `◀ Best ${X.label}`));
+        g.append(svgEl('text', { ...vFont, x: rx, y: ry - 26, 'text-anchor': 'end' }, `Best ${Y.label} ▶`));
+      }
+    } else {
+      g.append(svgEl('line', { x1: M.left, x2: M.left + PW, y1: M.top + PH, y2: M.top + PH, stroke: C.axis }));
+      g.append(svgEl('line', { x1: M.left, x2: M.left, y1: M.top, y2: M.top + PH, stroke: C.axis }));
+      g.append(svgEl('text', { ...titleFont, x: M.left + PW / 2, y: H - (narrow ? 8 : 12), 'text-anchor': 'middle', 'font-size': narrow ? 11 : 12 }, `${narrow ? X.label : X.long}${scaleTag(S.xScale)}  ${X.better === 'low' ? '← better' : 'better →'}`));
+      if (narrow) g.append(svgEl('text', { ...titleFont, x: 4, y: 12, 'font-size': 11 }, `${Y.label}${scaleTag(S.yScale)}  ${yLow ? '↓' : '↑'} better`));
+      else g.append(svgEl('text', { ...titleFont, x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(18 ${M.top + PH / 2}) rotate(-90)` }, `${Y.long}${scaleTag(S.yScale)}  ${yLow ? '← better' : 'better →'}`));
+      // "most attractive quadrant" hint (a good zone labels itself instead)
+      const qx = X.better === 'low' ? M.left + 10 : M.left + PW - 10;
+      if (!narrow && S.zone === 'off') g.append(svgEl('text', { ...axisText, x: qx, y: yLow ? M.top + PH - 8 : M.top + 14, 'text-anchor': X.better === 'low' ? 'start' : 'end', fill: C.muted, 'font-size': 11 }, 'Most attractive quadrant'));
+    }
     svg.append(g);
 
     const plot = svgEl('g'); svg.append(plot);
     const clipId = 'plotclip';
-    const defs = svgEl('defs'); const cp = svgEl('clipPath', { id: clipId }); cp.append(svgEl('rect', { x: M.left, y: M.top, width: PW, height: PH })); defs.append(cp); svg.prepend(defs);
+    const defs = svgEl('defs'); const cp = svgEl('clipPath', { id: clipId }); cp.append(svgEl('polygon', { points: pts(corners) })); defs.append(cp); svg.prepend(defs);
 
     // pareto
     const segs = []; // line segments labels should avoid
     const frontSet = new Set(front.map((p) => p.m.id));
+    const zoneLayer = svgEl('g', { 'clip-path': `url(#${clipId})` }); plot.append(zoneLayer);
+    const zone = S.zone === 'off' ? null : drawZone({ points, front, X, Y, sx, sy, T, pts, M, PW, PH, xBest, xWorse, yBest, yWorse, defs, layer: zoneLayer, C });
+    if (zone?.note) $('chartNote').textContent = [zone.note, $('chartNote').textContent].filter(Boolean).join(' · ');
     const guideLayer = svgEl('g', { 'clip-path': `url(#${clipId})` }); plot.append(guideLayer);
     // Glow: blurred copies of the lines and dots, underneath the real ones
     const glow = S.glow === 'on', glowLayer = svgEl('g', { 'clip-path': `url(#${clipId})` });
@@ -1210,22 +1613,22 @@
     }
     const lineLayer = svgEl('g', { 'clip-path': `url(#${clipId})` }); plot.append(lineLayer);
     if (front.length) {
-      let d = `M${front[0].px},${front[0].py}`;
+      const vs = [[front[0].vx, front[0].vy]];
       for (let i = 1; i < front.length; i++) {
         const a = front[i - 1], b = front[i];
-        d += S.pareto === 'step' ? ` L${b.px},${a.py} L${b.px},${b.py}` : ` L${b.px},${b.py}`;
+        if (S.pareto === 'step') vs.push([b.vx, a.vy]);
+        vs.push([b.vx, b.vy]);
       }
-      const nums = d.match(/-?[\d.]+/g).map(Number);
-      for (let i = 2; i + 1 < nums.length; i += 2) segs.push([nums[i - 2], nums[i - 1], nums[i], nums[i + 1]]);
+      const scr = vs.map(([x, y]) => T(x, y));
+      for (let i = 1; i < scr.length; i++) segs.push([...scr[i - 1], ...scr[i]]);
       const shade = S.frontStyle === 'shade';
       if (shade) {
         // Shade everything the frontier beats: from the first frontier model, along the frontier, out to the worse corner.
         // The frontier models sit on the edge of the shading, so they need no extra marks.
-        const xWorse = X.better === 'low' ? M.left + PW : M.left, yWorse = Y.better === 'low' ? M.top : M.top + PH, last = front[front.length - 1];
-        const area = `M${front[0].px},${yWorse} L${d.slice(1)} L${xWorse},${last.py} L${xWorse},${yWorse} Z`;
-        lineLayer.append(svgEl('path', { d: area, fill: C.ink, 'fill-opacity': 0.045, stroke: 'none' }));
+        const last = front[front.length - 1];
+        lineLayer.append(svgEl('polygon', { points: pts([[front[0].vx, yWorse], ...vs, [xWorse, last.vy], [xWorse, yWorse]]), fill: C.ink, 'fill-opacity': 0.045, stroke: 'none' }));
       }
-      lineLayer.append(svgEl('path', { d, fill: 'none', stroke: C.ink, 'stroke-width': shade ? 1.5 : 1.25, 'stroke-opacity': shade ? 0.5 : 0.35, 'stroke-linejoin': 'round' }));
+      lineLayer.append(svgEl('polyline', { points: pts(vs), fill: 'none', stroke: C.ink, 'stroke-width': shade ? 1.5 : 1.25, 'stroke-opacity': shade ? 0.5 : 0.35, 'stroke-linejoin': 'round' }));
     }
     const fade = S.frontStyle === 'fade' && front.length > 0;
 
@@ -1254,10 +1657,10 @@
     const guidePts = points.filter((p) => guideIds.has(p.m.id));
     // Only pinned guides get the tinted rectangle: with a whole frontier of them, the overlapping fills turn to mud.
     // Value chips on the axes skip any that would overlap one already there; pinned ones go first.
-    const taken = { x: [], y: [] };
+    const taken = [];
     guidePts.sort((a, b) => S.pinned.has(b.m.id) - S.pinned.has(a.m.id));
     for (const p of guidePts) drawGuide(p, guideLayer, chipLayer, S.pinned.has(p.m.id) ? 0.9 : 0.45, S.pinned.has(p.m.id), taken);
-    for (const k of ['x', 'y']) for (const [el, a, b] of tickEls[k]) if (taken[k].some(([c, d]) => a < d && b > c)) el.remove();
+    for (const [el, b] of tickEls) if (taken.some((t) => overlaps(t, b))) el.remove();
 
     // points: frontier + pinned drawn last (on top)
     const dotLayer = svgEl('g'); plot.append(dotLayer);
@@ -1300,34 +1703,41 @@
     const hoverLayer = svgEl('g', { id: 'hoverLayer', 'pointer-events': 'none' }); svg.append(hoverLayer);
     svg.append(svgEl('rect', { id: 'hit', x: M.left, y: M.top, width: PW, height: PH, fill: 'transparent', style: 'cursor:crosshair' }));
 
-    renderLegend(points, visibleGhosts.length > 0);
+    renderLegend(points, visibleGhosts.length > 0, zone);
     renderTable(points, frontSet);
   }
 
   // The "intersecting square": dashed lines from the dot to both axes, meeting at the dot,
   // with the exact values written onto the axes in the model's color.
+  // Diamond: the lines run parallel to the edges, to the two lower edges where the tick labels are.
+  const overlaps = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
   function drawGuide(p, layer, chips, strength = 1, fill = true, taken = null) {
-    const { M, PW, PH } = lastGeom, X = METRICS[S.x], Y = METRICS[S.y];
-    const surface = css('--surface'), x0 = M.left, y0 = M.top + PH;
-    if (fill) layer.append(svgEl('rect', { x: Math.min(x0, p.px), y: Math.min(p.py, y0), width: Math.abs(p.px - x0), height: Math.abs(y0 - p.py), fill: p.color, 'fill-opacity': 0.05 * strength }));
+    const { M, PW, PH, T, diamond, xWorse, yWorse } = lastGeom, X = METRICS[S.x], Y = METRICS[S.y];
+    const surface = css('--surface'), x0 = diamond ? xWorse : M.left, y0 = diamond ? yWorse : M.top + PH;
+    const map = (list) => list.map(([x, y]) => T(x, y).join(',')).join(' ');
+    if (fill) layer.append(svgEl('polygon', { points: map([[p.vx, p.vy], [x0, p.vy], [x0, y0], [p.vx, y0]]), fill: p.color, 'fill-opacity': 0.05 * strength }));
     const line = { stroke: p.color, 'stroke-width': 1.25, 'stroke-dasharray': '4 4', 'stroke-opacity': strength };
-    layer.append(svgEl('line', { ...line, x1: p.px, x2: p.px, y1: p.py, y2: y0 }));
-    layer.append(svgEl('line', { ...line, x1: x0, x2: p.px, y1: p.py, y2: p.py }));
+    const [ax, ay] = T(p.vx, y0), [bx, by] = T(x0, p.vy);
+    layer.append(svgEl('line', { ...line, x1: p.px, y1: p.py, x2: ax, y2: ay }));
+    layer.append(svgEl('line', { ...line, x1: p.px, y1: p.py, x2: bx, y2: by }));
     if (!chips) return;
     const xt = X.fmt(p.xv), yt = Y.fmt(p.yv), font = { 'font-size': 12, 'font-weight': 700, fill: p.color, style: 'font-variant-numeric:tabular-nums' };
     const xw = textW(xt, 12, 700) + 12, yw = textW(yt, 12, 700) + 10;
-    const cx = Math.max(M.left + xw / 2, Math.min(M.left + PW - xw / 2, p.px));
-    const free = (list, a, b) => !taken || !list.some(([c, d]) => a < d && b > c);
-    // surface-colored backing hides the tick label underneath
-    if (free(taken?.x, cx - xw / 2 - 2, cx + xw / 2 + 2)) {
-      taken?.x.push([cx - xw / 2 - 2, cx + xw / 2 + 2]);
-      chips.append(svgEl('rect', { x: cx - xw / 2, y: y0 + 5, width: xw, height: 18, fill: surface }));
-      chips.append(svgEl('text', { ...font, x: cx, y: y0 + 18, 'text-anchor': 'middle' }, xt));
+    // [text x, text y, anchor, box]; a surface-colored backing hides the tick label underneath
+    let xc, yc;
+    if (diamond) {
+      xc = [ax - 6, ay + 13, 'end', { x0: ax - xw, x1: ax - 2, y0: ay + 1, y1: ay + 18 }];
+      yc = [bx + 6, by + 13, 'start', { x0: bx + 2, x1: bx + yw, y0: by + 1, y1: by + 18 }];
+    } else {
+      const cx = Math.max(M.left + xw / 2, Math.min(M.left + PW - xw / 2, p.px));
+      xc = [cx, y0 + 18, 'middle', { x0: cx - xw / 2, x1: cx + xw / 2, y0: y0 + 5, y1: y0 + 23 }];
+      yc = [M.left - 8, p.py + 4, 'end', { x0: M.left - yw - 6, x1: M.left - 2, y0: p.py - 9, y1: p.py + 9 }];
     }
-    if (free(taken?.y, p.py - 9, p.py + 9)) {
-      taken?.y.push([p.py - 9, p.py + 9]);
-      chips.append(svgEl('rect', { x: M.left - yw - 6, y: p.py - 9, width: yw + 4, height: 18, fill: surface }));
-      chips.append(svgEl('text', { ...font, x: M.left - 8, y: p.py + 4, 'text-anchor': 'end' }, yt));
+    for (const [tx, ty, anchor, b, t] of [[...xc, xt], [...yc, yt]]) {
+      if (taken?.some((o) => overlaps(o, b))) continue;
+      taken?.push(b);
+      chips.append(svgEl('rect', { x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0, fill: surface }));
+      chips.append(svgEl('text', { ...font, x: tx, y: ty, 'text-anchor': anchor }, t));
     }
   }
 
@@ -1397,7 +1807,7 @@
     } }
   }
 
-  function renderLegend(points, ghosts) {
+  function renderLegend(points, ghosts, zone) {
     let items = [];
     if (S.colorBy === 'lab') {
       const seen = new Map();
@@ -1427,6 +1837,15 @@
       extras.push(`<span><svg width="22" height="12"><path d="M1 12 L1 7 L11 7 L11 2 L21 2 L21 12 Z" fill="${k}" fill-opacity="${S.frontStyle === 'shade' ? 0.09 : 0}"/><path d="M1 11 L1 7 L11 7 L11 2 L21 2" fill="none" stroke="${k}" stroke-opacity=".55" stroke-width="1.5"/></svg>Pareto frontier (${how})</span>`);
     }
     if (ghosts) extras.push(`<span><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="${css('--ink-2')}" fill-opacity=".3" stroke="${css('--ink-2')}" stroke-opacity=".55"/></svg>Frontier model not selected</span>`);
+    if (zone?.legend) {
+      const c = css('--s4'), look = {
+        tint: `background:color-mix(in srgb, ${c} 22%, transparent);border:1px solid ${c}`,
+        hatch: `background:repeating-linear-gradient(45deg, ${c} 0 1.5px, transparent 1.5px 5px);border:1px solid ${c}`,
+        outline: `border:1.5px dashed ${c}`,
+        gradient: `background:linear-gradient(to top right, transparent, ${c})`,
+      }[zone.style];
+      extras.push(`<span><i class="zone-sw" style="${look}"></i>${esc(zone.legend)}</span>`);
+    }
     if (points.some((p) => p.m.estimated)) extras.push(`<span><i style="background:${css('--muted')};opacity:.45"></i>Estimated score</span>`);
     $('legend').innerHTML = items.map((i) => `<span><i style="background:${i.color}"></i>${esc(i.name)}</span>`).join('') + extras.join('');
   }
