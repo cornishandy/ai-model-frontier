@@ -16,7 +16,7 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   page), the independent benchmarks in `external.mjs`.
 - **Publishing**: commit and push to `main`. `node publish.mjs` does it in one step, with fresh built-in data.
 - To preview locally, open `index.html` directly or run `python3 -m http.server` here.
-- `?celebrate` on the URL previews the "new on Artificial Analysis" toast and confetti.
+- `?celebrate` on the URL previews the celebration toast and confetti (the latest feed entries and benchmark updates).
 
 - **Scraper**: the site ships its data as encrypted "manifests" in the Next.js payload
   (AES-256-GCM, key in the page, IV = sha256(key)[:12], gzipped JSON). `scrape.mjs`
@@ -36,8 +36,10 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   [SimpleBench](https://simple-bench.com),
   [LMArena Text](https://lmarena.ai/leaderboard/text).
 - **What's new**: the Artificial Analysis changelog (models added, articles), with "+ Chart" to plot a new model.
-  When a data update brings entries you haven't seen, a toast and confetti announce them (no confetti with reduced motion);
-  the first visit on a device just records what's there.
+  When the data (on opening the page, or after "Update data") brings entries you haven't seen, or an active benchmark's
+  "last updated" date has moved on since you last looked, a toast and confetti announce them (no confetti with reduced
+  motion). Updated benchmarks are tagged NEW in the metric lists for the visit. The first visit on a device just
+  records what's there.
 - **Coding agents**: the Artificial Analysis Coding Agent Index as a sortable table: the same model scores differently
   depending on the harness driving it (Claude Code, Codex, …).
 - **Pareto frontier**: step or line, computed on what's visible. Styles: **Shade** (the default: tints the region the
@@ -56,6 +58,17 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - **Axis pickers**: searchable lists; hover a metric to see what it measures (from Artificial Analysis' evaluation pages,
   or the independent source's own page), how many models have it, and its current top 3. The chosen benchmark's
   description also sits under the chart title. On touch screens the description shows under each entry.
+- **Last updated**: each metric in the pickers, Who leads what, the hover cards and the chart description shows when
+  it last changed. Artificial Analysis doesn't date its evaluations, so for its metrics it's the newest model with a
+  result (the day AA added it, from its changelog, or else the model's release date); retired benchmarks like AIME 2025
+  stop moving. Independent benchmarks use their source's date (its own "updated" field, the newest result, the last
+  commit to its data on GitHub, or the data file's date). The lists sort newest first within each section by default;
+  **Default order** switches back to the usual grouping (remembered per device).
+- **Active only** (on by default, in the pickers and Who leads what): lists only benchmarks still run on the current
+  frontier, i.e. with a result for today's top model on the Intelligence Index and at least 3 of the top 5 families.
+  Retired ones (AIME 2025, IFBench, GPQA Diamond once new models stopped getting it, WeirdML v2, …) are hidden, with a
+  "Show all" link at the end of the list; searching still finds them, and the charted one stays listed. The hover card
+  says which frontier models a benchmark is missing.
 - **Who leads what**: every benchmark grouped by the model (or lab) that leads it among current models, with the top
   score and the lead over #2; hover for the top 3, click to chart it. Respects "Open weights only".
 - **Good zone**: shades one reading of "good" for the trade-off. **Quadrant** (better than the median model shown on

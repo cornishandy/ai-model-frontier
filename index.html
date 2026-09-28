@@ -188,18 +188,25 @@
     background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 36px rgba(0,0,0,.18);
   }
   .menu-head { padding: 8px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .menu-head input { flex: 1; min-width: 0; }
+  .menu-head input { flex: 1 1 100%; min-width: 0; }
   .menu-head .note { flex-basis: 100%; }
   .menu-list { overflow-y: auto; padding: 0 0 6px; position: relative; overscroll-behavior: contain; }
   .mh { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: 9px 12px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); display: flex; align-items: center; gap: 7px; }
   .mh.lead { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--ink); border-top: 1px solid var(--border); }
   .mh i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .mh .n { margin-left: auto; font-weight: 400; color: var(--muted); }
-  .mi { padding: 5px 12px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; align-items: baseline; }
+  .mi { padding: 5px 12px; cursor: pointer; display: grid; grid-template-columns: 1fr auto auto; gap: 1px 10px; align-items: baseline; }
   .mi.active { background: var(--hover); }
   .mi[aria-selected="true"] .mi-label { font-weight: 600; }
   .mi[aria-selected="true"] .mi-label::before { content: '✓ '; }
   .mi-meta { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* when each benchmark last got a new result */
+  .mi-date { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3.9em; text-align: right; }
+  .upd { color: var(--muted); font-weight: 400; }
+  /* benchmarks no longer run on the current frontier (shown with "Active only" off, or when searching) */
+  .mi.inactive .mi-label { color: var(--muted); }
+  .mi-more { margin-top: 4px; padding: 8px 12px 4px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; cursor: pointer; }
+  .mi-more:hover u { color: var(--ink); }
   .mi-desc { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.35; display: none; }
   #mtip {
     position: fixed; z-index: 41; width: 300px; display: none; pointer-events: none; font-size: 12px; padding: 10px 12px;
@@ -252,7 +259,7 @@
   #toast {
     position: fixed; left: 50%; top: 18px; z-index: 51; transform: translate(-50%, calc(-100% - 40px)); visibility: hidden;
     transition: transform .45s cubic-bezier(.2, 1.4, .4, 1), visibility 0s .45s;
-    display: flex; align-items: center; gap: 12px; max-width: min(560px, calc(100vw - 24px));
+    display: flex; align-items: center; gap: 12px; max-width: min(660px, calc(100vw - 24px));
     background: var(--ink); color: var(--surface); border-radius: 12px; padding: 10px 12px 10px 16px; box-shadow: 0 10px 40px rgba(0,0,0,.25);
   }
   #toast.show { transform: translate(-50%, 0); visibility: visible; transition-delay: 0s; }
@@ -473,6 +480,8 @@
   <div class="menu-head" id="menuHead">
     <input type="search" id="menuSearch" placeholder="Search…" autocomplete="off" title="Type to filter; arrow keys move, Enter picks, Esc closes" />
     <div class="seg lead-by" id="leadBySeg" title="Group benchmarks by the leading model or its lab"><button data-v="model" title="Group by the leading model">By model</button><button data-v="lab" title="Group by the leading model's lab">By lab</button></div>
+    <div class="seg" id="menuSortSeg" title="Order within each section"><button data-v="date" title="Most recently updated first, within each section">Newest first</button><button data-v="default" title="The usual order, with related benchmarks together">Default order</button></div>
+    <label class="inline"><input type="checkbox" id="activeOnly" /> Active only</label>
     <div class="note" id="menuNote"></div>
   </div>
   <div class="menu-list" id="menuList" role="listbox"></div>
@@ -511,6 +520,9 @@
   const compact = (v) => v >= 1e9 ? (v / 1e9).toFixed(1) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(v >= 1e4 ? 0 : 1) + 'K' : String(+v.toPrecision(3));
   const secs = (v) => v >= 100 ? Math.round(v) + 's' : v.toPrecision(2) + 's';
   const elo = (v) => String(Math.round(v)), one = (v) => v.toFixed(1);
+  // "Sep 27" this year, "Dec 2025" before it; full: "Sep 27, 2026"
+  const fmtDay = (d, full) => new Date(d + 'T12:00:00').toLocaleDateString(undefined, full ? { year: 'numeric', month: 'short', day: 'numeric' }
+    : d.startsWith(new Date().getFullYear() + '-') ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short' });
   const bench = (label, long, extra) => ({ label, long, fmt: pct, better: 'high', frac: true, ...extra });
   const METRICS = {
     intelligence: { label: 'Intelligence Index', long: 'Artificial Analysis Intelligence Index', fmt: one, better: 'high' },
@@ -640,6 +652,8 @@
       GROUPS.Cost.push('ext:' + src.cost.key);
     }
   }
+  const BENCH_GROUPS = Object.keys(GROUPS).filter((g) => g !== 'Cost' && g !== 'Tokens & speed');
+  const isBench = (k) => k !== 'openness' && BENCH_GROUPS.some((g) => GROUPS[g].includes(k));
   // Each source names models its own way ("gemini-3.8-flash-high", "Gemini 3.8 Flash (High)", "openai/gpt-6-astra", "qwen3-8-max-0902").
   // Reduce family names to a common key: separators unified, dates dropped, words before version numbers.
   function famKey(s) {
@@ -679,6 +693,55 @@
     }
   }
 
+  // When each metric last got a new result. Artificial Analysis doesn't date its evaluations, so it's the newest model
+  // with a value: the day AA added it (from its changelog, which covers the latest additions), or else its release date.
+  // Independent benchmarks carry their source's own date.
+  const addedSlug = (c) => c.type === 'modelAdded' ? c.url?.match(/^\/models\/([^/?#]+)/)?.[1] : null;
+  const UPDATED = new Map(); // metric key -> { date, m (newest model with a value), added }
+  function datesOf() {
+    UPDATED.clear();
+    const added = new Map((DATA.changelog || []).map((c) => [addedSlug(c), c.date]).filter(([s, d]) => s && d));
+    const cap = DATA.scrapedAt.slice(0, 10);
+    const dated = ALL.map((m) => {
+      const a = added.get(m.slug) || '', d = a > (m.releaseDate || '') ? a : m.releaseDate;
+      return { m, date: d && d > cap ? cap : d, added: !!a && a >= (m.releaseDate || '') };
+    }).filter((x) => x.date);
+    for (const [k, M] of Object.entries(METRICS)) {
+      if (M.ext) { if (M.ext.updated) UPDATED.set(k, { date: M.ext.updated.slice(0, 10) }); continue; }
+      let best = null;
+      for (const x of dated) if (x.m[k] != null && (!best || x.date > best.date)) best = x;
+      if (best) UPDATED.set(k, best);
+    }
+  }
+  // "Active" benchmarks still get run on the current frontier: they have a result for today's top model on the
+  // Intelligence Index and for at least 3 of the top 5 (by family, any effort; estimated scores don't pick the top).
+  // Retired ones, like AIME 2025, stop getting new models.
+  let FRONTIER = []; // best model of each of the top 5 families, best first
+  const MISSING = new Map(); // benchmark key -> the frontier families it has no result for
+  function frontierOf() {
+    const best = new Map();
+    for (const m of ALL) if (!m.deprecated && !m.estimated && m.intelligence != null && !(best.get(m.family)?.intelligence >= m.intelligence)) best.set(m.family, m);
+    FRONTIER = [...best.values()].sort((a, b) => b.intelligence - a.intelligence).slice(0, 5);
+    MISSING.clear();
+    for (const k of Object.keys(METRICS)) {
+      if (!isBench(k) && !METRICS[k].costOf) continue;
+      const key = METRICS[k].costOf ? 'ext:' + METRICS[k].costOf : k; // a cost follows its benchmark
+      MISSING.set(k, FRONTIER.filter((f) => !ALL.some((m) => m.family === f.family && m[key] != null)));
+    }
+  }
+  const isActive = (k) => { const miss = MISSING.get(k); return !miss || !FRONTIER.length || (!miss.includes(FRONTIER[0]) && FRONTIER.length - miss.length >= Math.min(3, FRONTIER.length)); };
+  function activeNote(k) {
+    const miss = MISSING.get(k); if (!miss || !FRONTIER.length) return '';
+    const has = `has ${FRONTIER.length - miss.length} of today's top ${FRONTIER.length}`, names = miss.map((m) => m.familyName).join(', ');
+    return isActive(k) ? `Active: ${has}${miss.length ? ` (not ${names})` : ''}` : `Inactive: ${has}; missing ${names}`;
+  }
+  const updatedDay = (k) => UPDATED.has(k) ? fmtDay(UPDATED.get(k).date) : '';
+  function updatedNote(k) {
+    const u = UPDATED.get(k); if (!u) return '';
+    const when = fmtDay(u.date, true);
+    return u.m ? `Newest result: ${u.m.label}, ${u.added ? 'added' : 'released'} ${when}` : `Source last updated ${when}`;
+  }
+
   // Any metric can go on either axis; the lists just lead with the usual choice.
   const Y_GROUPS = Object.keys(GROUPS), X_GROUPS = ['Cost', 'Tokens & speed', ...Y_GROUPS.filter((g) => g !== 'Cost' && g !== 'Tokens & speed')];
   const RENAMED = { terminalBench: 'terminalBench40' }; // metric keys used by older saved sets
@@ -707,7 +770,7 @@
     DATA = d;
     ALL = d.models.map((m) => ({ ...m, label: m.shortName.replace(/ with fallback\)/, ')') }));
     BY_ID = new Map(ALL.map((m) => [m.id, m]));
-    joinExternal();
+    joinExternal(); datesOf(); frontierOf();
     FAMILY.clear();
     const newest = new Map(), labLines = new Map();
     for (const m of ALL) {
@@ -856,7 +919,7 @@
     grid: 'normal', axisText: 'normal',
     efforts: EFFORTS.slice(), selected: theoSelection(), pinned: [],
     showDeprecated: false, openOnly: false, hideOlder: false, addEffort: 'all', theme: 'system', glow: 'off', activeSet: '',
-    zone: 'off', zoneStyle: 'tint', shape: 'standard', leadBy: 'model',
+    zone: 'off', zoneStyle: 'tint', shape: 'standard', leadBy: 'model', menuSort: 'date', activeOnly: true,
   };
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const S = { ...DEFAULT_STATE, ...load(STATE_KEY, {}) };
@@ -1291,10 +1354,10 @@
     bindSeg('markStyleSeg', 'markStyle', markDirty),
     bindSeg('gridSeg', 'grid', markDirty), bindSeg('axisSeg', 'axisText', markDirty), bindSeg('glowSeg', 'glow', markDirty),
     bindSeg('zoneSeg', 'zone', markDirty), bindSeg('zoneStyleSeg', 'zoneStyle', markDirty), bindSeg('shapeSeg', 'shape', markDirty),
-    bindSeg('leadBySeg', 'leadBy', () => renderMenu()),
+    bindSeg('leadBySeg', 'leadBy', () => renderMenu()), bindSeg('menuSortSeg', 'menuSort', () => renderMenu()),
   ];
   function syncControls() {
-    renderMetricMenus(); $('markSel').value = S.markEffort; $('connect').checked = S.connect; $('fullFrontier').checked = S.fullFrontier;
+    renderMetricMenus(); $('activeOnly').checked = S.activeOnly; $('markSel').value = S.markEffort; $('connect').checked = S.connect; $('fullFrontier').checked = S.fullFrontier;
     $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('hideOlder').checked = S.hideOlder; $('addEffort').value = S.addEffort; $('themeSel').value = S.theme;
     // logit only makes sense for scores that are fractions (0–100%)
     for (const [id, k] of [['xScale', S.x], ['yScale', S.y]]) {
@@ -1309,8 +1372,6 @@
   // for benchmarks, the current top 3 among current models (open-weights ones only when that filter is on).
   const menu = $('menu'), mtip = $('mtip');
   let menuKind = null, menuAnchor = null;
-  const BENCH_GROUPS = Object.keys(GROUPS).filter((g) => g !== 'Cost' && g !== 'Tokens & speed');
-  const isBench = (k) => k !== 'openness' && BENCH_GROUPS.some((g) => GROUPS[g].includes(k));
   const descOf = (k) => METRICS[k]?.desc || '';
   // best variant of each model family, best first
   function topModels(k, n = 3) {
@@ -1325,38 +1386,49 @@
   const liveCount = (k) => ALL.filter((m) => !m.deprecated && m[k] != null).length;
   const leadBy = (k, d) => !d ? 'tied' : '+' + (METRICS[k].frac ? (d * 100).toFixed(1) + ' pts' : METRICS[k].fmt === elo ? Math.round(d) : d.toFixed(1));
   const effortTag = (m) => m.effort === 'default' || m.effort === 'non-reasoning' ? '' : ' ' + EFFORT_LABEL[m.effort].toLowerCase();
-  function menuGroups(q) {
+  // -> { groups, hidden (inactive benchmarks left out by "Active only") }
+  function menuGroups(q, cur) {
     const match = (k) => !q || `${METRICS[k].label} ${METRICS[k].long}`.toLowerCase().includes(q);
+    // "Active only" leaves out retired benchmarks, except the one charted; searching still finds everything.
+    let hidden = 0;
+    const shown = (k) => q || !S.activeOnly || k === cur || isActive(k) || (hidden++, false);
+    // "Newest first": most recently updated first within each section (sort is stable, so ties keep the usual order)
+    const order = (items) => S.menuSort === 'date' ? items.sort((a, b) => (UPDATED.get(b.k)?.date || '').localeCompare(UPDATED.get(a.k)?.date || '')) : items;
     if (menuKind !== 'leaders') {
       const half = ALL.filter((m) => !m.deprecated).length / 2;
-      return (menuKind === 'x' ? X_GROUPS : Y_GROUPS).map((g) => ({ head: esc(g), items: GROUPS[g].filter(match).map((k) => {
+      const groups = (menuKind === 'x' ? X_GROUPS : Y_GROUPS).map((g) => ({ head: `${esc(g)}<span class="n">updated</span>`, items: order(GROUPS[g].filter((k) => match(k) && shown(k)).map((k) => {
         const n = liveCount(k); return { k, meta: n < half ? `${n} models` : '' };
-      }) })).filter((g) => g.items.length);
+      })) })).filter((g) => g.items.length);
+      return { groups, hidden };
     }
     const groups = new Map();
     for (const g of BENCH_GROUPS) for (const k of GROUPS[g]) {
       if (!isBench(k) || !match(k)) continue;
-      const [a, b] = topModels(k, 2); if (!a) continue;
+      const [a, b] = topModels(k, 2); if (!a || !shown(k)) continue;
       const byLab = S.leadBy === 'lab', key = byLab ? a.creatorSlug : a.family;
       if (!groups.has(key)) groups.set(key, { name: byLab ? a.creator : a.familyName, color: byLab ? labBase(a.creatorSlug) : familyColor(a), items: [] });
       groups.get(key).items.push({ k, meta: `${METRICS[k].fmt(a[k])}${b ? ' · ' + leadBy(k, Math.abs(a[k] - b[k])) : ''}` });
     }
-    return [...groups.values()].sort((a, b) => b.items.length - a.items.length)
-      .map((g) => ({ lead: true, head: `<i style="background:${g.color}"></i>${esc(g.name)}<span class="n">leads ${g.items.length}</span>`, items: g.items }));
+    return { hidden, groups: [...groups.values()].sort((a, b) => b.items.length - a.items.length)
+      .map((g) => ({ lead: true, head: `<i style="background:${g.color}"></i>${esc(g.name)}<span class="n">leads ${g.items.length}</span>`, items: order(g.items) })) };
   }
   function renderMenu() {
     if (!menuKind) return;
     const cur = menuKind === 'x' ? S.x : S.y;
     $('menuNote').textContent = menuKind === 'leaders'
-      ? `Each benchmark under the ${S.leadBy === 'lab' ? 'lab' : 'model'} leading it${S.openOnly ? ' among open-weights models' : ''} (current models, best effort level), with its top score and lead over #2. ${matchMedia('(hover: none)').matches ? 'Tap' : 'Hover for the top 3; click'} to chart it on Y.`
+      ? `Each benchmark under the ${S.leadBy === 'lab' ? 'lab' : 'model'} leading it${S.openOnly ? ' among open-weights models' : ''} (current models, best effort level), with its top score, lead over #2 and last update. ${matchMedia('(hover: none)').matches ? 'Tap' : 'Hover for the top 3; click'} to chart it on Y.`
       : '';
-    $('menuList').innerHTML = menuGroups($('menuSearch').value.trim().toLowerCase()).map((g) => `<div class="mh${g.lead ? ' lead' : ''}">${g.head}</div>` +
-      g.items.map(({ k, meta }) => `<div class="mi" role="option" data-k="${esc(k)}" aria-selected="${k === cur}"><span class="mi-label">${esc(METRICS[k].label)}</span><span class="mi-meta">${meta}</span>${descOf(k) ? `<span class="mi-desc">${esc(descOf(k))}</span>` : ''}</div>`).join('')).join('')
+    $('activeOnly').closest('label').title = `List only benchmarks still run on the current frontier: with a result for today's top model on the Intelligence Index${FRONTIER[0] ? ` (${FRONTIER[0].familyName})` : ''} and at least 3 of the top 5${FRONTIER.length ? ` (${FRONTIER.map((m) => m.familyName).join(', ')})` : ''}. Searching still finds them all.`;
+    const { groups, hidden } = menuGroups($('menuSearch').value.trim().toLowerCase(), cur);
+    $('menuList').innerHTML = groups.map((g) => `<div class="mh${g.lead ? ' lead' : ''}">${g.head}</div>` +
+      g.items.map(({ k, meta }) => `<div class="mi${isActive(k) ? '' : ' inactive'}" role="option" data-k="${esc(k)}" aria-selected="${k === cur}"><span class="mi-label">${esc(METRICS[k].label)}${benchFresh.has(k) ? ' <span class="pill-new" title="Updated since your last visit">NEW</span>' : ''}</span><span class="mi-meta">${meta}</span><span class="mi-date" title="${esc(updatedNote(k))}">${esc(updatedDay(k))}</span>${descOf(k) ? `<span class="mi-desc">${esc(descOf(k))}</span>` : ''}</div>`).join('')).join('')
+      + (hidden ? `<div class="mi-more" role="button" tabindex="0">${hidden} inactive benchmark${hidden > 1 ? 's' : ''} hidden · <u>Show all</u></div>` : '')
       || '<div class="note" style="padding:10px 12px">Nothing matches.</div>';
     mtip.style.display = 'none';
   }
+  function showAllBenchmarks() { S.activeOnly = false; $('activeOnly').checked = false; save(); renderMenu(); }
   function placeMenu() {
-    const r = menuAnchor.getBoundingClientRect(), w = Math.min(menuKind === 'leaders' ? 380 : 340, innerWidth - 16);
+    const r = menuAnchor.getBoundingClientRect(), w = Math.min(menuKind === 'leaders' ? 460 : 340, innerWidth - 16);
     menu.style.width = w + 'px';
     menu.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
     menu.style.top = r.bottom + 4 + 'px';
@@ -1388,6 +1460,8 @@
     const k = item.dataset.k, M = METRICS[k], top = isBench(k) ? topModels(k) : [];
     mtip.innerHTML = `<h4>${esc(M.long)}</h4>${descOf(k) ? `<p>${esc(descOf(k))}</p>` : ''}` +
       `<div class="note">${liveCount(k)} current models · ${M.better === 'low' ? 'lower' : 'higher'} is better${M.ext ? ` · by ${esc(M.ext.by)}` : ''}</div>` +
+      (UPDATED.has(k) ? `<div class="note">${esc(updatedNote(k))}</div>` : '') +
+      (activeNote(k) ? `<div class="note">${esc(activeNote(k))}</div>` : '') +
       (top.length ? `<table>${top.map((m, i) => `<tr><td>${i + 1}</td><td><i style="background:${familyColor(m)}"></i>${esc(m.familyName)}<span class="eff">${effortTag(m)}${m.estimated ? ' · est.' : ''}</span></td><td class="n">${M.fmt(m[k])}</td></tr>`).join('')}</table>` : '');
     mtip.style.display = 'block';
     const mr = menu.getBoundingClientRect(), ir = item.getBoundingClientRect(), tr = mtip.getBoundingClientRect();
@@ -1406,7 +1480,9 @@
   $('xSel').addEventListener('click', (e) => openMenu('x', e.currentTarget));
   $('leadersBtn').addEventListener('click', (e) => openMenu('leaders', e.currentTarget));
   $('menuList').addEventListener('mouseover', (e) => { const it = e.target.closest('.mi'); if (it && !it.classList.contains('active')) setActive(it, false); });
-  $('menuList').addEventListener('click', (e) => { const it = e.target.closest('.mi'); if (it) pickMetric(it.dataset.k); });
+  $('menuList').addEventListener('click', (e) => { if (e.target.closest('.mi-more')) return showAllBenchmarks(); const it = e.target.closest('.mi'); if (it) pickMetric(it.dataset.k); });
+  $('menuList').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('.mi-more')) showAllBenchmarks(); });
+  $('activeOnly').addEventListener('change', (e) => { S.activeOnly = e.target.checked; save(); renderMenu(); });
   menu.addEventListener('mouseleave', () => { mtip.style.display = 'none'; menu.querySelector('.mi.active')?.classList.remove('active'); });
   $('menuSearch').addEventListener('input', renderMenu);
   $('menuSearch').addEventListener('keydown', (e) => {
@@ -1466,7 +1542,7 @@
 
     $('chartTitle').textContent = `${Y.label} vs. ${X.label}`;
     $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && (i === 0 || isBench(k)) && (i === 0 || S.x !== S.y))
-      .map((k) => `<b>${esc(METRICS[k].label)}:</b> ${esc(descOf(k))}`).join('<br>');
+      .map((k) => `<b>${esc(METRICS[k].label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(descOf(k))}`).join('<br>');
     const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
     $('chartSub').textContent = `${Y.long} (${dir(Y)}) against ${/^[A-Z][a-z]/.test(X.long) ? X.long.charAt(0).toLowerCase() + X.long.slice(1) : X.long} (${dir(X)}). ${word[S.xScale].replace(/^./, (c) => c.toUpperCase())} x · ${word[S.yScale]} y.`;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
@@ -1961,18 +2037,17 @@
   const FEED_KIND = { modelAdded: 'model', articlePublished: 'article' };
   const feedFresh = new Set();
   let feedAll = false, pendingCelebration = null, toastTimer = null;
-  const feedModel = (c, slugs) => c.type === 'modelAdded' ? slugs.get(c.url?.match(/^\/models\/([^/?#]+)/)?.[1]) : null;
+  const feedModel = (c, slugs) => slugs.get(addedSlug(c)) || null;
   const feedHref = (u) => /^https:\/\//.test(u || '') ? u : AA_URL + (String(u || '/').startsWith('/') ? u || '/' : '/' + u);
   function renderFeed() {
     const list = DATA.changelog || [], slugs = new Map(ALL.map((m) => [m.slug, m]));
     $('feedCard').hidden = !list.length;
-    const day = (d) => new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     $('feed').innerHTML = (feedAll ? list : list.slice(0, 10)).map((c) => {
       const m = feedModel(c, slugs), fresh = feedFresh.has(c.id);
       const dot = m ? `<i class="dot" style="background:${familyColor(m)}"></i>` : '<i class="dot" style="box-shadow:inset 0 0 0 1.5px var(--muted)"></i>';
       const end = m ? `<span class="score" title="Intelligence Index">${m.intelligence.toFixed(1)}</span><button class="chip add" data-id="${m.id}" aria-pressed="${S.selected.has(m.id)}" title="${S.selected.has(m.id) ? 'Remove from' : 'Add to'} the chart">${S.selected.has(m.id) ? 'On chart' : '+ Chart'}</button>`
         : `<span class="kind">${esc(FEED_KIND[c.type] || String(c.type).replace(/([A-Z])/g, ' $1').toLowerCase())}</span>`;
-      return `<li class="${fresh ? 'fresh' : ''}"><span class="when">${esc(day(c.date))}</span>${dot}<a class="title" href="${esc(feedHref(c.url))}" target="_blank" rel="noopener" title="${esc(c.title)}">${esc(m ? m.label : c.title)}</a>${fresh ? '<span class="pill-new">NEW</span>' : ''}${end}</li>`;
+      return `<li class="${fresh ? 'fresh' : ''}"><span class="when">${esc(fmtDay(c.date))}</span>${dot}<a class="title" href="${esc(feedHref(c.url))}" target="_blank" rel="noopener" title="${esc(c.title)}">${esc(m ? m.label : c.title)}</a>${fresh ? '<span class="pill-new">NEW</span>' : ''}${end}</li>`;
     }).join('');
     $('feedMore').hidden = list.length <= 10;
     $('feedMore').textContent = feedAll ? 'Show fewer' : `Show all ${list.length}`;
@@ -1991,32 +2066,57 @@
     $('feedCard').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }
   $('whatsNew').addEventListener('click', showFeed);
-  function checkFeed(demo = false) {
-    const list = DATA.changelog || []; if (!list.length) return;
+  function freshFeed(demo) {
+    const list = DATA.changelog || []; if (!list.length) return [];
     let seen = null; try { seen = JSON.parse(localStorage.getItem(SEEN_KEY)); } catch {}
     const ids = list.map((c) => c.id);
-    if (!Array.isArray(seen) && !demo) { store(SEEN_KEY, JSON.stringify(ids)); renderFeed(); return; } // first visit: this is the baseline
+    if (!Array.isArray(seen) && !demo) { store(SEEN_KEY, JSON.stringify(ids)); return []; } // first visit: this is the baseline
     const fresh = demo ? list.slice(0, 3) : list.filter((c) => !seen.includes(c.id));
-    if (!fresh.length) { renderFeed(); return; }
+    if (!fresh.length) return [];
     fresh.forEach((c) => feedFresh.add(c.id));
     delete $('newBadge').dataset.cleared;
     store(SEEN_KEY, JSON.stringify([...new Set([...ids, ...(seen || [])])].slice(0, 300)));
-    renderFeed(); celebrate(fresh);
+    return fresh;
   }
-  function celebrate(items) {
-    if (document.hidden) { pendingCelebration = items; return; } // wait until someone's looking
+  // Benchmarks join in when an active one's "last updated" date moves on from what this device last saw (independent
+  // ones first: they update less often). They're tagged NEW in the metric lists for the visit.
+  const BENCH_SEEN_KEY = 'aa-charts:bench-seen', benchFresh = new Set();
+  function freshBenchmarks(demo) {
+    const dated = Object.keys(METRICS).filter((k) => isBench(k) && UPDATED.has(k)), day = (k) => UPDATED.get(k).date;
+    let seen = null; try { seen = JSON.parse(localStorage.getItem(BENCH_SEEN_KEY)); } catch {}
+    const first = !seen || typeof seen !== 'object' || Array.isArray(seen);
+    const fresh = (demo ? dated.filter(isActive).sort((a, b) => day(b).localeCompare(day(a))).slice(0, 2) : first ? [] : dated.filter((k) => isActive(k) && seen[k] && day(k) > seen[k]))
+      .sort((a, b) => !!METRICS[b].ext - !!METRICS[a].ext);
+    if (!demo) {
+      const next = first ? {} : { ...seen };
+      for (const k of dated) if (!(next[k] >= day(k))) next[k] = day(k); // dates only move forward
+      store(BENCH_SEEN_KEY, JSON.stringify(next));
+    }
+    fresh.forEach((k) => benchFresh.add(k));
+    return fresh;
+  }
+  function checkNews(demo = false) {
+    const items = freshFeed(demo), benches = freshBenchmarks(demo);
+    renderFeed(); if (menuKind) renderMenu();
+    if (items.length || benches.length) celebrate(items, benches);
+  }
+  function celebrate(items, benches) {
+    if (document.hidden) { pendingCelebration = [items, benches]; return; } // wait until someone's looking
     const slugs = new Map(ALL.map((m) => [m.slug, m]));
-    const names = items.map((c) => feedModel(c, slugs)?.label || c.title);
+    const names = items.map((c) => feedModel(c, slugs)?.label || c.title), benchNames = benches.map((k) => METRICS[k].label);
+    const head = [items.length && `${items.length === 1 ? 'New' : items.length + ' new'} on Artificial Analysis`, benches.length && `${benches.length} benchmark${benches.length > 1 ? 's' : ''} updated`].filter(Boolean).join(' · ');
+    const line = (xs, pre = '') => xs.length ? `<span>${pre}${esc(xs.slice(0, 4).join(' · '))}${xs.length > 4 ? ' …' : ''}</span>` : '';
     const t = $('toast');
-    t.innerHTML = `<span aria-hidden="true" style="font-size:22px">🎉</span><div class="msg"><b>${items.length === 1 ? 'New' : items.length + ' new'} on Artificial Analysis</b><span>${esc(names.slice(0, 4).join(' · '))}${names.length > 4 ? ' …' : ''}</span></div><button class="go"><span class="desk-only">See what's new</span><span class="mobile-only">View</span></button><button class="x" aria-label="Dismiss">✕</button>`;
-    t.querySelector('.go').onclick = () => { hideToast(); showFeed(); };
+    t.innerHTML = `<span aria-hidden="true" style="font-size:22px">🎉</span><div class="msg"><b>${esc(head)}</b>${line(names)}${line(benchNames, items.length ? 'Updated: ' : '')}</div><button class="go"><span class="desk-only">See what's new</span><span class="mobile-only">View</span></button><button class="x" aria-label="Dismiss">✕</button>`;
+    // new models and articles are in the feed card; updated benchmarks lead the Y list (tagged NEW)
+    t.querySelector('.go').onclick = () => { hideToast(); if (items.length) showFeed(); else if (menuKind !== 'y') openMenu('y', $('ySel')); };
     t.querySelector('.x').onclick = hideToast;
     requestAnimationFrame(() => t.classList.add('show'));
     clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 10000);
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) confetti();
   }
   function hideToast() { $('toast').classList.remove('show'); }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && pendingCelebration) { const p = pendingCelebration; pendingCelebration = null; setTimeout(() => celebrate(p), 400); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && pendingCelebration) { const p = pendingCelebration; pendingCelebration = null; setTimeout(() => celebrate(...p), 400); } });
   function confetti() {
     const cv = $('confetti'), ctx = cv.getContext('2d'), colors = [1, 2, 3, 4, 5, 7, 8].map((i) => css('--s' + i)), parts = [];
     cv.hidden = false;
@@ -2101,7 +2201,7 @@
       S.selected = new Set([...S.selected].filter((id) => BY_ID.has(id)));
       S.pinned = new Set([...S.pinned].filter((id) => BY_ID.has(id)));
       if (!S.selected.size) S.selected = new Set(theoSelection());
-      save(); renderMetricMenus(); renderList(); render(); renderAgents(); checkFeed();
+      save(); renderMetricMenus(); renderList(); render(); renderAgents(); checkNews();
       showMeta(before.size && added ? `updated · ${added} new model${added > 1 ? 's' : ''}` : 'updated');
     } catch (err) {
       showMeta(`update failed (${err.message}) — still showing the previous data`, true);
@@ -2121,7 +2221,7 @@
   if (qp.get('fullFrontier')) S.fullFrontier = qp.get('fullFrontier') === '1';
   if (qp.get('pin')) S.pinned = new Set(qp.get('pin').split(',').map((t) => { const [fam, eff] = t.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff)?.id; }).filter(Boolean));
   fixAxes(); syncControls(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
-  checkFeed(qp.has('celebrate')); // ?celebrate previews the new-entries celebration
+  checkNews(qp.has('celebrate')); // ?celebrate previews the celebration (the latest feed entries and benchmark updates)
   sync(false);
   let lastW = 0;
   new ResizeObserver(() => { const w = $('chartCard').clientWidth; if (w !== lastW) { lastW = w; render(); } }).observe($('chartCard'));

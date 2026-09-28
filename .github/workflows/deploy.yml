@@ -33,6 +33,8 @@ jobs:
       - name: Refresh data
         run: node scrape.mjs
         continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }} # for the commit dates of benchmarks hosted on GitHub
       - name: Assemble site
         run: |
           mkdir -p _site/data
