@@ -11,6 +11,17 @@ const get = async (url, opts = {}) => {
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   return res;
 };
+// When a source last changed, as YYYY-MM-DD. A missing date never fails a source.
+const ymd = (d) => { const t = new Date(d); return Number.isNaN(+t) ? null : t.toISOString().slice(0, 10); };
+const latest = (dates) => dates.map((d) => d && ymd(d)).filter(Boolean).sort().at(-1) || null;
+// The last commit touching a file in a GitHub repo (the workflow passes its token, as runners share rate limits).
+async function commitDate(repo, path) {
+  try {
+    const auth = process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {};
+    const [c] = await (await get(`https://api.github.com/repos/${repo}/commits?path=${encodeURIComponent(path)}&per_page=1`, { headers: { accept: 'application/vnd.github+json', ...auth } })).json();
+    return ymd(c?.commit?.committer?.date);
+  } catch { return null; }
+}
 const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 const effortOf = (s) => {
   s = String(s || '').toLowerCase().trim();
@@ -59,6 +70,7 @@ const SOURCES = [
     async load() {
       const rows = parseCsv(await (await get('https://htihle.github.io/data/weirdml_data.csv')).text());
       return {
+        updated: await commitDate('htihle/htihle.github.io', 'data/weirdml_data.csv'),
         rows: rows.map((r) => {
           const [, fam, eff] = r.display_name.match(/^(.*?)\s*(?:\(([^)]*)\))?$/);
           return { name: r.display_name, fam: famOf(fam), effort: effortOf(eff), value: n(r.avg_acc), cost: n(r.cost_per_run_usd) };
@@ -74,6 +86,7 @@ const SOURCES = [
       const [elo, meta] = await Promise.all(['elo_refined.csv', 'models_metadata.csv'].map(async (f) => parseCsv(await (await get(base + f)).text())));
       const info = new Map(meta.map((m) => [m.model, m]));
       return {
+        updated: await commitDate('maxim-saplin/llm_chess', 'data/elo_refined.csv'),
         rows: elo.filter((r) => n(r.elo) != null).map((r) => {
           const m = info.get(r.Player);
           const suffix = r.Player.match(/-(minimal|low|medium|high|xhigh|max)$/)?.[1];
@@ -96,6 +109,7 @@ const SOURCES = [
       const lb = await api('GetBenchmarkLeaderboard', { versionIdentifier: { versionIdSelector: { id: versionId } } });
       // The overall score is the result with a confidence interval (the others are tokens and cost per turn).
       return {
+        updated: latest(lb.rows.flatMap((r) => (r.results || []).map((x) => x.evaluationDate))) ?? ymd(b.version?.updateTime),
         rows: lb.rows.map((r) => {
           const res = (r.results || []).find((x) => x.numericResult?.unevenConfidenceInterval);
           const mv = r.modelVersion || {};
@@ -128,9 +142,11 @@ const SOURCES = [
     cost: { key: 'arcAgi2Cost', label: 'ARC-AGI-2 cost per task', long: 'ARC-AGI-2 cost per task (USD)' },
     url: 'https://arcprize.org/leaderboard', by: 'ARC Prize Foundation',
     async load() {
-      const [evals, models] = await Promise.all(['evaluations', 'models'].map(async (f) => (await get(`https://arcprize.org/media/data/${f}.json`)).json()));
-      const info = new Map(models.map((m) => [m.id, m]));
+      const [res, models] = await Promise.all([get('https://arcprize.org/media/data/evaluations.json'), get('https://arcprize.org/media/data/models.json').then((r) => r.json())]);
+      const evals = await res.json(), info = new Map(models.map((m) => [m.id, m]));
       return {
+        // The results carry no dates, so use the file's own.
+        updated: ymd(res.headers.get('last-modified')),
         rows: evals.filter((e) => e.datasetId === 'v2_Semi_Private' && e.display !== false && Number.isFinite(e.score)).map((e) => {
           const m = info.get(e.modelId); if (!m || m.modelGroup === 'Human') return null;
           return { name: m.displayName, ...splitEffort(m.displayName), value: e.score, cost: n(e.costPerTask) };
@@ -144,7 +160,7 @@ const SOURCES = [
     async load() {
       const js = await (await get('https://simple-bench.com/static/js/leaderboard-data.js')).text();
       const rows = [...js.matchAll(/model:\s*"([^"]+)",\s*score:\s*"([\d.]+)%"/g)].map(([, name, score]) => ({ name, ...splitEffort(name), value: +score / 100 }));
-      return { rows: rows.filter((r) => !/human/i.test(r.name)) };
+      return { updated: latest([...js.matchAll(/dateAdded:\s*"([\d-]+)"/g)].map((m) => m[1])), rows: rows.filter((r) => !/human/i.test(r.name)) };
     },
   },
   {
@@ -183,7 +199,9 @@ export async function scrapeExternal(file, log = () => {}) {
     try {
       const { rows, updated } = await load();
       if (!rows.length) throw new Error('no rows');
-      sources.push({ ...meta, fetchedAt: new Date().toISOString(), updated: updated || null, rows });
+      // No date this time (e.g. GitHub's API was busy): the previous one still holds if nothing changed.
+      const old = prevBy.get(meta.key), same = old && JSON.stringify(old.rows) === JSON.stringify(rows);
+      sources.push({ ...meta, fetchedAt: new Date().toISOString(), updated: updated || (same && old.updated) || null, rows });
       log(`${meta.label}: ${rows.length} rows`);
     } catch (err) {
       const old = prevBy.get(meta.key);
