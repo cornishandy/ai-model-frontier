@@ -28,7 +28,7 @@
     --e-high: #1c5cab; --e-xhigh: #104281; --e-max: #0d366b; --e-none: #c3c2b7;
   }
   @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"]):not([data-theme="white"]):not([data-theme="sepia"])) {
+    :root:where(:not([data-theme="light"]):not([data-theme="white"]):not([data-theme="sepia"]):not([data-theme="solarized-light"]):not([data-theme="latte"]):not([data-theme="gruvbox-light"]):not([data-theme="dawn"]):not([data-theme="colorblind"]):not([data-theme="contrast-light"])) {
       color-scheme: dark;
       --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
       --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --hover: rgba(255, 255, 255, 0.06);
@@ -64,6 +64,129 @@
   }
   :root[data-theme="black"] {
     --page: #000000; --surface: #000000; --grid: #1f1f1f; --axis: #2e2e2e; --border: rgba(255, 255, 255, 0.12);
+  }
+  /* Full palettes (surfaces, text, lab colors and the effort ramp): editor themes, a colorblind-safe set (Okabe–Ito) and
+     high-contrast pairs. Lab hues keep their meaning in every theme: Google blue, Anthropic orange, xAI green, Alibaba
+     yellow, Meta pink, Z AI teal, DeepSeek purple, Xiaomi red; OpenAI is the text color. (Generated from a short table
+     of base colors; the effort ramp is derived from each theme's accent.) */
+  :root[data-theme="solarized-light"] { /* Solarized Light */
+    color-scheme: light;
+    --page: #fdf6e3; --surface: #fffbf0; --ink: #073642; --ink-2: #586e75; --muted: #839496;
+    --grid: #eee8d5; --axis: #d3cbb7; --border: rgba(7, 54, 66, 0.1); --hover: rgba(7, 54, 66, 0.05); --accent: #268bd2;
+    --s1: #268bd2; --s2: #cb4b16; --s3: #859900; --s4: #b58900; --s5: #d33682; --s6: #2aa198; --s7: #6c71c4; --s8: #dc322f; --other: #b5ad99;
+    --e-minimal: #cad3dc; --e-low: #99b6d8; --e-medium: #268bd2; --e-default: #217ab9; --e-high: #1c6599; --e-xhigh: #154c74; --e-max: #103a58; --e-none: #d3cbb7;
+  }
+  :root[data-theme="latte"] { /* Catppuccin Latte */
+    color-scheme: light;
+    --page: #eff1f5; --surface: #ffffff; --ink: #4c4f69; --ink-2: #5c5f77; --muted: #8c8fa1;
+    --grid: #e6e9ef; --axis: #ccd0da; --border: rgba(76, 79, 105, 0.1); --hover: rgba(76, 79, 105, 0.05); --accent: #1e66f5;
+    --s1: #1e66f5; --s2: #fe640b; --s3: #40a02b; --s4: #df8e1d; --s5: #ea76cb; --s6: #179299; --s7: #8839ef; --s8: #d20f39; --other: #acb0be;
+    --e-minimal: #bec8f5; --e-low: #90a3f5; --e-medium: #1e66f5; --e-default: #1a5ad8; --e-high: #164ab3; --e-xhigh: #113887; --e-max: #0d2b67; --e-none: #ccd0da;
+  }
+  :root[data-theme="gruvbox-light"] { /* Gruvbox Light */
+    color-scheme: light;
+    --page: #fbf1c7; --surface: #fdf6dd; --ink: #3c3836; --ink-2: #504945; --muted: #7c6f64;
+    --grid: #ebdbb2; --axis: #d5c4a1; --border: rgba(60, 56, 54, 0.1); --hover: rgba(60, 56, 54, 0.05); --accent: #076678;
+    --s1: #076678; --s2: #af3a03; --s3: #79740e; --s4: #b57614; --s5: #8f3f71; --s6: #427b58; --s7: #b16286; --s8: #9d0006; --other: #bdae93;
+    --e-minimal: #c7c8ad; --e-low: #96a397; --e-medium: #076678; --e-default: #065a6a; --e-high: #054a58; --e-xhigh: #043842; --e-max: #032b32; --e-none: #d5c4a1;
+  }
+  :root[data-theme="dawn"] { /* Rosé Pine Dawn */
+    color-scheme: light;
+    --page: #faf4ed; --surface: #fffaf3; --ink: #575279; --ink-2: #6e6a86; --muted: #9893a5;
+    --grid: #f2e9e1; --axis: #dfdad9; --border: rgba(87, 82, 121, 0.1); --hover: rgba(87, 82, 121, 0.05); --accent: #286983;
+    --s1: #286983; --s2: #d7827e; --s3: #56949f; --s4: #ea9d34; --s5: #b4637a; --s6: #3e8fb0; --s7: #907aa9; --s8: #b4637a; --other: #cecacd;
+    --e-minimal: #c7cacb; --e-low: #97a6ae; --e-medium: #286983; --e-default: #235c73; --e-high: #1d4d60; --e-xhigh: #163a48; --e-max: #112c37; --e-none: #dfdad9;
+  }
+  :root[data-theme="colorblind"] { /* Colorblind-safe (light) */
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11, 11, 11, 0.1); --hover: rgba(11, 11, 11, 0.05); --accent: #0072b2;
+    --s1: #0072b2; --s2: #d55e00; --s3: #009e73; --s4: #e69f00; --s5: #cc79a7; --s6: #56b4e9; --s7: #8c6bb1; --s8: #a0522d; --other: #a8a69f;
+    --e-minimal: #c5d0de; --e-low: #94accb; --e-medium: #0072b2; --e-default: #00649d; --e-high: #005382; --e-xhigh: #003f62; --e-max: #00304b; --e-none: #c3c2b7;
+  }
+  :root[data-theme="contrast-light"] { /* High contrast (light) */
+    color-scheme: light;
+    --page: #ffffff; --surface: #ffffff; --ink: #000000; --ink-2: #1a1a1a; --muted: #444444;
+    --grid: #d0d0d0; --axis: #9a9a9a; --border: rgba(0, 0, 0, 0.35); --hover: rgba(0, 0, 0, 0.08); --accent: #0047cc;
+    --s1: #0047cc; --s2: #d84a00; --s3: #007a3d; --s4: #b37400; --s5: #c2187a; --s6: #007d7a; --s7: #5a2fd0; --s8: #c40000; --other: #6e6e6e;
+    --e-minimal: #caceec; --e-low: #98a0de; --e-medium: #0047cc; --e-default: #003eb4; --e-high: #003495; --e-xhigh: #002770; --e-max: #001e56; --e-none: #9a9a9a;
+  }
+  :root[data-theme="solarized-dark"] { /* Solarized Dark */
+    color-scheme: dark;
+    --page: #002b36; --surface: #073642; --ink: #eee8d5; --ink-2: #a9b7b7; --muted: #7d9094;
+    --grid: #0d3f4b; --axis: #1f4f5b; --border: rgba(238, 232, 213, 0.12); --hover: rgba(238, 232, 213, 0.07); --accent: #268bd2;
+    --s1: #4ea3e3; --s2: #e8683a; --s3: #9fb41a; --s4: #d9a71a; --s5: #e0559b; --s6: #3dbcb3; --s7: #8a8fd9; --s8: #ee5a4f; --other: #5f7378;
+    --e-minimal: #11567c; --e-low: #186797; --e-medium: #1f7ab6; --e-default: #268bd2; --e-high: #7ba5d3; --e-xhigh: #a7bcd3; --e-max: #c5cdd4; --e-none: #1f4f5b;
+  }
+  :root[data-theme="nord"] { /* Nord */
+    color-scheme: dark;
+    --page: #2e3440; --surface: #3b4252; --ink: #eceff4; --ink-2: #d8dee9; --muted: #9aa4b8;
+    --grid: #434c5e; --axis: #4c566a; --border: rgba(236, 239, 244, 0.12); --hover: rgba(236, 239, 244, 0.07); --accent: #88c0d0;
+    --s1: #81a1c1; --s2: #d08770; --s3: #a3be8c; --s4: #ebcb8b; --s5: #b48ead; --s6: #8fbcbb; --s7: #5e81ac; --s8: #bf616a; --other: #6b7589;
+    --e-minimal: #577381; --e-low: #668b99; --e-medium: #78a7b6; --e-default: #88c0d0; --e-high: #a4cbd9; --e-xhigh: #bdd7e1; --e-max: #d0e0e8; --e-none: #4c566a;
+  }
+  :root[data-theme="dracula"] { /* Dracula */
+    color-scheme: dark;
+    --page: #282a36; --surface: #303341; --ink: #f8f8f2; --ink-2: #c9cad6; --muted: #8a90b8;
+    --grid: #383b4d; --axis: #4b4f66; --border: rgba(248, 248, 242, 0.12); --hover: rgba(248, 248, 242, 0.07); --accent: #bd93f9;
+    --s1: #8be9fd; --s2: #ffb86c; --s3: #50fa7b; --s4: #f1fa8c; --s5: #ff79c6; --s6: #5fd7a7; --s7: #bd93f9; --s8: #ff5555; --other: #6272a4;
+    --e-minimal: #6b598e; --e-low: #846baf; --e-medium: #a280d6; --e-default: #bd93f9; --e-high: #ccaff7; --e-xhigh: #dac8f6; --e-max: #e5dbf4; --e-none: #4b4f66;
+  }
+  :root[data-theme="gruvbox-dark"] { /* Gruvbox Dark */
+    color-scheme: dark;
+    --page: #282828; --surface: #32302f; --ink: #ebdbb2; --ink-2: #d5c4a1; --muted: #a89984;
+    --grid: #3c3836; --axis: #504945; --border: rgba(235, 219, 178, 0.12); --hover: rgba(235, 219, 178, 0.07); --accent: #83a598;
+    --s1: #83a598; --s2: #fe8019; --s3: #b8bb26; --s4: #fabd2f; --s5: #d3869b; --s6: #8ec07c; --s7: #b16286; --s8: #fb4934; --other: #7c6f64;
+    --e-minimal: #51605a; --e-low: #60766d; --e-medium: #738f84; --e-default: #83a598; --e-high: #a1b39e; --e-xhigh: #bbc0a4; --e-max: #cecaa9; --e-none: #504945;
+  }
+  :root[data-theme="mocha"] { /* Catppuccin Mocha */
+    color-scheme: dark;
+    --page: #1e1e2e; --surface: #262637; --ink: #cdd6f4; --ink-2: #bac2de; --muted: #8b90ac;
+    --grid: #313244; --axis: #45475a; --border: rgba(205, 214, 244, 0.12); --hover: rgba(205, 214, 244, 0.07); --accent: #89b4fa;
+    --s1: #89b4fa; --s2: #fab387; --s3: #a6e3a1; --s4: #f9e2af; --s5: #f5c2e7; --s6: #94e2d5; --s7: #cba6f7; --s8: #f38ba8; --other: #6c7086;
+    --e-minimal: #4e618a; --e-low: #607bac; --e-medium: #7699d5; --e-default: #89b4fa; --e-high: #9bbcf9; --e-xhigh: #acc4f7; --e-max: #b9cbf6; --e-none: #45475a;
+  }
+  :root[data-theme="tokyo"] { /* Tokyo Night */
+    color-scheme: dark;
+    --page: #1a1b26; --surface: #24283b; --ink: #c0caf5; --ink-2: #a9b1d6; --muted: #737aa2;
+    --grid: #292e42; --axis: #3b4261; --border: rgba(192, 202, 245, 0.12); --hover: rgba(192, 202, 245, 0.07); --accent: #7aa2f7;
+    --s1: #7aa2f7; --s2: #ff9e64; --s3: #9ece6a; --s4: #e0af68; --s5: #f7768e; --s6: #73daca; --s7: #bb9af7; --s8: #db4b4b; --other: #565f89;
+    --e-minimal: #455884; --e-low: #566fa8; --e-medium: #698ad1; --e-default: #7aa2f7; --e-high: #8dacf7; --e-xhigh: #9eb5f6; --e-max: #abbdf6; --e-none: #3b4261;
+  }
+  :root[data-theme="onedark"] { /* One Dark */
+    color-scheme: dark;
+    --page: #21252b; --surface: #282c34; --ink: #dcdfe4; --ink-2: #abb2bf; --muted: #7f8795;
+    --grid: #2f343d; --axis: #3e4451; --border: rgba(220, 223, 228, 0.12); --hover: rgba(220, 223, 228, 0.07); --accent: #61afef;
+    --s1: #61afef; --s2: #d19a66; --s3: #98c379; --s4: #e5c07b; --s5: #c678dd; --s6: #56b6c2; --s7: #8c7ae6; --s8: #e06c75; --other: #5c6370;
+    --e-minimal: #3e6383; --e-low: #497ba5; --e-medium: #5596cc; --e-default: #61afef; --e-high: #88bbed; --e-xhigh: #a6c6ea; --e-max: #bcd0e8; --e-none: #3e4451;
+  }
+  :root[data-theme="rosepine"] { /* Rosé Pine */
+    color-scheme: dark;
+    --page: #191724; --surface: #1f1d2e; --ink: #e0def4; --ink-2: #b9b6d0; --muted: #908caa;
+    --grid: #26233a; --axis: #403d52; --border: rgba(224, 222, 244, 0.12); --hover: rgba(224, 222, 244, 0.07); --accent: #c4a7e7;
+    --s1: #3e8fb0; --s2: #ebbcba; --s3: #9ccfd8; --s4: #f6c177; --s5: #eb6f92; --s6: #56949f; --s7: #c4a7e7; --s8: #b4637a; --other: #6e6a86;
+    --e-minimal: #66587c; --e-low: #83709d; --e-medium: #a58dc4; --e-default: #c4a7e7; --e-high: #cbb5ea; --e-xhigh: #d1c2ed; --e-max: #d7cdf0; --e-none: #403d52;
+  }
+  :root[data-theme="monokai"] { /* Monokai */
+    color-scheme: dark;
+    --page: #272822; --surface: #2d2e28; --ink: #f8f8f2; --ink-2: #cfcfc2; --muted: #8f908a;
+    --grid: #36372f; --axis: #49483e; --border: rgba(248, 248, 242, 0.12); --hover: rgba(248, 248, 242, 0.07); --accent: #66d9ef;
+    --s1: #66d9ef; --s2: #fd971f; --s3: #a6e22e; --s4: #e6db74; --s5: #f92672; --s6: #78dce8; --s7: #ae81ff; --s8: #ff6188; --other: #75715e;
+    --e-minimal: #43787e; --e-low: #4e96a1; --e-medium: #5bb9ca; --e-default: #66d9ef; --e-high: #96e0f0; --e-xhigh: #b9e8f0; --e-max: #d3eef1; --e-none: #49483e;
+  }
+  :root[data-theme="everforest"] { /* Everforest */
+    color-scheme: dark;
+    --page: #2d353b; --surface: #343f44; --ink: #d3c6aa; --ink-2: #b7b0a0; --muted: #859289;
+    --grid: #3d484d; --axis: #4f585e; --border: rgba(211, 198, 170, 0.12); --hover: rgba(211, 198, 170, 0.07); --accent: #7fbbb3;
+    --s1: #7fbbb3; --s2: #e69875; --s3: #a7c080; --s4: #dbbc7f; --s5: #d699b6; --s6: #83c092; --s7: #a988b0; --s8: #e67e80; --other: #6a7a7c;
+    --e-minimal: #527171; --e-low: #608885; --e-medium: #70a39d; --e-default: #7fbbb3; --e-high: #96bdb1; --e-xhigh: #abc0af; --e-max: #bbc2ad; --e-none: #4f585e;
+  }
+  :root[data-theme="contrast-dark"] { /* High contrast (dark) */
+    color-scheme: dark;
+    --page: #000000; --surface: #000000; --ink: #ffffff; --ink-2: #e6e6e6; --muted: #b0b0b0;
+    --grid: #2a2a2a; --axis: #555555; --border: rgba(255, 255, 255, 0.4); --hover: rgba(255, 255, 255, 0.12); --accent: #5ab0ff;
+    --s1: #5ab0ff; --s2: #ff8a3d; --s3: #3ddc84; --s4: #ffd23f; --s5: #ff7ac8; --s6: #00e0c0; --s7: #b48cff; --s8: #ff5c5c; --other: #8a8a8a;
+    --e-minimal: #284f73; --e-low: #386d9e; --e-medium: #4a90d1; --e-default: #5ab0ff; --e-high: #93c5ff; --e-xhigh: #bbd8ff; --e-max: #d7e7ff; --e-none: #555555;
   }
 
   * { box-sizing: border-box; }
@@ -445,8 +568,8 @@
     <div class="group"><span title="A soft glow around the dots and lines, in each model's color">Glow</span><div class="seg" id="glowSeg" title="A soft glow around the dots and lines, in each model's color"><button data-v="off" title="No glow">Off</button><button data-v="on" title="Glow on; strongest on dark themes">On</button></div></div>
     <div class="group"><span title="Colors of the whole page">Theme</span><select id="themeSel" title="Page colors: Auto follows your device's light or dark setting">
       <option value="system">Auto (match device)</option>
-      <optgroup label="Light"><option value="light">Paper</option><option value="white">White</option><option value="sepia">Sepia</option></optgroup>
-      <optgroup label="Dark"><option value="dark">Graphite</option><option value="midnight">Midnight</option><option value="black">Black</option></optgroup>
+      <optgroup label="Light"><option value="light">Paper</option><option value="white">White</option><option value="sepia">Sepia</option><option value="solarized-light">Solarized Light</option><option value="latte">Catppuccin Latte</option><option value="gruvbox-light">Gruvbox Light</option><option value="dawn">Rosé Pine Dawn</option><option value="colorblind">Colorblind-safe (light)</option><option value="contrast-light">High contrast (light)</option></optgroup>
+      <optgroup label="Dark"><option value="dark">Graphite</option><option value="midnight">Midnight</option><option value="black">Black</option><option value="solarized-dark">Solarized Dark</option><option value="nord">Nord</option><option value="dracula">Dracula</option><option value="gruvbox-dark">Gruvbox Dark</option><option value="mocha">Catppuccin Mocha</option><option value="tokyo">Tokyo Night</option><option value="onedark">One Dark</option><option value="rosepine">Rosé Pine</option><option value="monokai">Monokai</option><option value="everforest">Everforest</option><option value="contrast-dark">High contrast (dark)</option></optgroup>
     </select></div>
   </div>
   <div class="toolbar opts">

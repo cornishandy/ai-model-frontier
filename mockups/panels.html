@@ -376,7 +376,7 @@
 </style></head>
 <body>
 <h1 class="w">Workshop: the models panel and the options bar</h1>
-<p class="w">Three ways to lay out the options above the chart, and one redesign of the models panel, drawn with the page's own styles. Nothing here is wired up; it's for choosing a direction.</p>
+<p class="w">Three ways to lay out the options above the chart, and one redesign of the models panel, drawn with the page's own styles. Nothing here is wired up; it's for choosing a direction. <em>Refreshed 2 Oct 2026 to match the site as it is now (the “Your index” control, today's model list and counts); the designs are unchanged. The interactive review of these and the newer options is <a href="review.html">review.html</a>.</em></p>
 
 <section class="opt">
   <h2 class="w">Models panel: current vs. proposed</h2>
@@ -398,16 +398,22 @@
           <div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1"></div>
           <div class="row" style="margin-top:6px"><button>AA defaults</button><button>Top 20</button><button>Clear</button></div>
           <div class="row" style="margin-top:6px"><label class="inline"><input type="checkbox"> Include deprecated</label><label class="inline"><input type="checkbox"> Open weights only</label><label class="inline"><input type="checkbox" checked> Hide older versions</label><label class="inline"><input type="checkbox"> All labs</label></div>
-          <div class="note" style="margin-top:6px">32 selected · 99 in list</div>
+          <div class="note" style="margin-top:6px">30 selected · 66 in list</div>
           <div id="modelList" style="margin-top:8px">
-            <div class="lab"><div class="lab-head"><span class="tw">▶</span><span class="swatch" style="background:var(--s2)"></span>Anthropic<button class="count">15/15</button></div><div class="lab-body">
+            <div class="lab"><div class="lab-head"><span class="tw">▶</span><span class="swatch" style="background:var(--s2)"></span>Anthropic<button class="count">10/15</button></div><div class="lab-body">
               <div class="fam any"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--s2)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--s2)"/></svg>Claude Opus 5.5 <span class="score">57.6</span><span class="range">$0.55–5.98</span></div><div class="chips"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Medium</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div></div>
-              <div class="fam"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--s2)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--s2)"/></svg>Claude Fable 5.1 <span class="score">53.4</span><span class="range">$2.37–7.63</span></div><div class="chips"><button class="chip">Low</button><button class="chip">Medium</button><button class="chip">High</button><button class="chip">XHigh</button><button class="chip">Max</button></div></div>
+              <div class="fam"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--s2)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--s2)"/></svg>Claude Sonnet 5.5 <span class="score">56.0</span><span class="range">$0.42–7.67</span></div><div class="chips"><button class="chip">Low</button><button class="chip">Medium</button><button class="chip">High</button><button class="chip">XHigh</button><button class="chip">Max</button></div></div>
+              <div class="fam any"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--s2)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--s2)"/></svg>Claude Fable 5.1 <span class="score">53.4</span><span class="range">$2.37–7.63</span></div><div class="chips"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Medium</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div></div>
             </div></div>
             <div class="lab"><div class="lab-head"><span class="tw">▶</span><span class="swatch" style="background:var(--ink)"></span>OpenAI<button class="count">10/16</button></div><div class="lab-body">
               <div class="fam any"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--ink)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--ink)"/></svg>GPT-6 Astra <span class="score">52.7</span><span class="range">$0.82–3.26</span></div><div class="chips"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Medium</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div></div>
-              <div class="fam"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--ink)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--ink)"/></svg>GPT-6 Luna <span class="score">38.1</span><span class="range">$0.0045–0.068</span></div><div class="chips"><button class="chip">Non-reasoning</button><button class="chip">Low</button><button class="chip">Medium</button><button class="chip">High</button><button class="chip">XHigh</button><button class="chip">Max</button></div></div>
+              <div class="fam"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--ink)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--ink)"/></svg>GPT-6.1 Sol <span class="score">51.8</span><span class="range">$0.13–0.72</span></div><div class="chips"><button class="chip">Low</button><button class="chip">Medium</button><button class="chip">High</button><button class="chip">XHigh</button><button class="chip">Max</button></div></div>
+              <div class="fam any"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--ink)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--ink)"/></svg>GPT-6 Luna <span class="score">38.1</span><span class="range">$0.0045–0.068</span></div><div class="chips"><button class="chip">Non-reasoning</button><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Medium</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div></div>
             </div></div>
+            <div class="lab"><div class="lab-head"><span class="tw">▶</span><span class="swatch" style="background:var(--s1)"></span>Google<button class="count">0/4</button></div></div>
+            <div class="lab"><div class="lab-head"><span class="tw">▶</span><span class="swatch" style="background:var(--s3)"></span>SpaceXAI<button class="count">0/3</button></div></div>
+            <div class="lab collapsed"><div class="lab-head"><span class="tw">▶</span><span class="swatch" style="background:var(--other)"></span>Other labs<span class="count">0/28</span></div></div>
+            <div class="note" style="margin-top:10px">43 more labs ranked below DeepSeek or not on Artificial Analysis' chart · <a href="#">show all labs</a></div>
           </div>
         </section>
       </div>
@@ -421,32 +427,31 @@
         <div><h2>Efforts <span class="note">on the chart</span></h2>
           <div class="chips"><button class="chip missing">None</button><button class="chip missing">Min</button><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip missing">Def</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
         </div>
-        <div><h2>Models <span class="note">32 selected · 99 listed</span></h2>
+        <div><h2>Models <span class="note">30 selected · 66 listed</span></h2>
           <div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1"><button title="Include deprecated · Open weights only · Hide older versions ✓ · All labs">Filters <b>1</b> ▾</button></div>
           <div class="row" style="margin-top:6px"><button>AA defaults</button><button>Top 20</button><button>Clear</button><span class="note" style="margin-left:auto">adds: all efforts ▾</span></div>
           <div style="margin-top:8px">
-            <div class="lab2"><div class="lab-head2"><span class="tw">▼</span><i class="sw" style="background:var(--s2)"></i>Anthropic<span class="count">15/15</span></div>
+            <div class="lab2"><div class="lab-head2"><span class="tw">▼</span><i class="sw" style="background:var(--s2)"></i>Anthropic<span class="count">10/15</span></div>
               <div class="fam2 on"><span class="tick">●</span><span class="nm">Claude Opus 5.5</span><span class="sc">57.6</span><span class="rg">$0.55–5.98</span></div>
               <div class="chips under"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
-              <div class="fam2 on"><span class="tick">●</span><span class="nm">Claude Sonnet 5.5</span><span class="sc">56.0</span><span class="rg">$0.42–7.67</span></div>
+              <div class="fam2"><span class="tick">○</span><span class="nm">Claude Sonnet 5.5</span><span class="sc">56.0</span><span class="rg">$0.42–7.67</span></div>
+              <div class="fam2 on"><span class="tick">●</span><span class="nm">Claude Fable 5.1</span><span class="sc">53.4</span><span class="rg">$2.37–7.63</span></div>
               <div class="chips under"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
-              <div class="fam2"><span class="tick">○</span><span class="nm">Claude Fable 5.1</span><span class="sc">53.4</span><span class="rg">$2.37–7.63</span></div>
             </div>
             <div class="lab2"><div class="lab-head2"><span class="tw">▼</span><i class="sw" style="background:var(--ink)"></i>OpenAI<span class="count">10/16</span></div>
               <div class="fam2 on"><span class="tick">●</span><span class="nm">GPT-6 Astra</span><span class="sc">52.7</span><span class="rg">$0.82–3.26</span></div>
               <div class="chips under"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
-              <div class="fam2 on"><span class="tick">●</span><span class="nm">GPT-6.1 Sol</span><span class="sc">51.8</span><span class="rg">$0.13–0.72</span></div>
-              <div class="chips under"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
-              <div class="fam2"><span class="tick">○</span><span class="nm">GPT-6 Luna</span><span class="sc">38.1</span><span class="rg">$0.0045–0.068</span></div>
+              <div class="fam2"><span class="tick">○</span><span class="nm">GPT-6.1 Sol</span><span class="sc">51.8</span><span class="rg">$0.13–0.72</span></div>
+              <div class="fam2 on"><span class="tick">●</span><span class="nm">GPT-6 Luna</span><span class="sc">38.1</span><span class="rg">$0.0045–0.068</span></div>
+              <div class="chips under"><button class="chip">None</button><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
             </div>
-            <div class="lab2"><div class="lab-head2"><span class="tw">▼</span><i class="sw" style="background:var(--s1)"></i>Google<span class="count">4/15</span></div>
-              <div class="fam2 on"><span class="tick">●</span><span class="nm">Gemini 4 Argon</span><span class="sc">52.6</span><span class="rg">$1.99</span></div>
-              <div class="fam2 on"><span class="tick">●</span><span class="nm">Gemini 3.8 Flash</span><span class="sc">40.9</span><span class="rg">$0.93–1.24</span></div>
-              <div class="chips under"><button class="chip">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button></div>
-              <div class="fam2"><span class="tick">○</span><span class="nm">Gemma 4 26B A4B</span><span class="sc">16.7</span><span class="rg">—</span></div>
+            <div class="lab2"><div class="lab-head2"><span class="tw">▼</span><i class="sw" style="background:var(--s1)"></i>Google<span class="count">0/4</span></div>
+              <div class="fam2"><span class="tick">○</span><span class="nm">Gemini 4 Argon</span><span class="sc">52.6</span><span class="rg">$1.99</span></div>
+              <div class="fam2"><span class="tick">○</span><span class="nm">Gemini 3.8 Flash</span><span class="sc">40.9</span><span class="rg">$0.93–1.24</span></div>
             </div>
-            <div class="lab2"><div class="lab-head2"><span class="tw">▶</span><i class="sw" style="background:var(--s3)"></i>SpaceXAI<span class="count">3/3</span></div></div>
-            <div class="lab2"><div class="lab-head2"><span class="tw">▶</span><i class="sw" style="background:var(--other)"></i>Other labs<span class="count">0/60</span></div></div>
+            <div class="lab2"><div class="lab-head2"><span class="tw">▶</span><i class="sw" style="background:var(--s3)"></i>SpaceXAI<span class="count">0/3</span></div></div>
+            <div class="lab2"><div class="lab-head2"><span class="tw">▶</span><i class="sw" style="background:var(--other)"></i>Other labs<span class="count">0/28</span></div></div>
+            <div class="note" style="margin-top:10px">43 more labs ranked below DeepSeek or not on Artificial Analysis' chart · <a href="#">show all labs</a></div>
           </div>
         </div>
       </div>
@@ -456,11 +461,11 @@
 
 <section class="opt">
   <h2 class="w">Options bar, as it is now</h2>
-  <p class="w">Thirteen groups of segmented buttons over three rows; the grey labels are 12px and the rows wrap differently at every width.</p>
+  <p class="w">Fourteen groups of segmented buttons over three rows; the grey labels are 12px and the rows wrap differently at every width.</p>
   <div class="frame">
     <div class="toolbar now"><div class="group"><span>Pareto</span><div class="seg"><button>Off</button><button aria-pressed="true">Step</button><button>Line</button></div><div class="seg"><button aria-pressed="true">Shade</button><button>Fade</button><button>Rings</button></div><label class="inline"><input type="checkbox"> all models</label></div><div class="group"><span>Guides</span><div class="seg"><button aria-pressed="true">Hover</button><button>Pinned</button><button>Frontier</button><button>All</button></div></div><div class="group"><span>Spotlight</span><div class="seg"><button aria-pressed="true">Off</button><button>Pinned</button></div></div><div class="group"><span>Labels</span><div class="seg"><button aria-pressed="true">Auto</button><button>Auto+</button><button>Ladder</button><button>Models</button><button>Every dot</button><button>None</button></div></div><div class="group"><span>Color</span><div class="seg"><button aria-pressed="true">Lab</button><button>Effort</button><button>Open/closed</button></div></div><div class="group"><span>Mark</span><select><option>High</option></select><div class="seg"><button aria-pressed="true">Hash</button><button>Ring</button><button>Square</button></div></div><label class="inline"><input type="checkbox" checked> Line through effort levels</label></div>
     <div class="toolbar now" style="margin-top:10px"><div class="group"><span>Grid</span><div class="seg"><button aria-pressed="true">Normal</button><button>Faint</button><button>Off</button></div></div><div class="group"><span>Axis text</span><div class="seg"><button aria-pressed="true">Normal</button><button>Faint</button></div></div><div class="group"><span>Glow</span><div class="seg"><button aria-pressed="true">Off</button><button>On</button></div></div><div class="group"><span>Theme</span><select><option>Paper</option></select></div></div>
-    <div class="toolbar now" style="margin-top:10px"><div class="group"><span>Good zone</span><div class="seg"><button aria-pressed="true">Off</button><button>Quadrant</button><button>Near frontier</button><button>Top tier</button><button>Sweet spot</button><button>Beats pinned</button><button>Diagonal</button></div></div><div class="group"><span>Zone style</span><div class="seg"><button aria-pressed="true">Tint</button><button>Hatch</button><button>Outline</button><button>Gradient</button></div></div><div class="group"><span>Shape</span><div class="seg"><button aria-pressed="true">Standard</button><button>Diamond</button></div></div></div>
+    <div class="toolbar now" style="margin-top:10px"><div class="group"><span>Good zone</span><div class="seg"><button aria-pressed="true">Off</button><button>Quadrant</button><button>Near frontier</button><button>Top tier</button><button>Sweet spot</button><button>Beats pinned</button><button>Diagonal</button></div></div><div class="group"><span>Zone style</span><div class="seg"><button aria-pressed="true">Tint</button><button>Hatch</button><button>Outline</button><button>Gradient</button></div></div><div class="group"><span>Your index</span><select><option>AA's 10 index benchmarks (as published)</option></select><label class="inline"><input type="checkbox" checked> fill gaps</label></div><div class="group"><span>Shape</span><div class="seg"><button aria-pressed="true">Standard</button><button>Diamond</button></div></div></div>
   </div>
 </section>
 
@@ -474,6 +479,7 @@
       <div class="lbl">Frontier style</div><div><div class="seg"><button aria-pressed="true">Shade</button><button>Fade</button><button>Rings</button></div> <label class="inline" style="margin-left:10px"><input type="checkbox"> compute over all models</label></div>
       <div class="lbl">Good zone</div><div><div class="seg"><button aria-pressed="true">Off</button><button>Quadrant</button><button>Near frontier</button><button>Top tier</button><button>Sweet spot</button><button>Beats pinned</button><button>Diagonal</button></div></div>
       <div class="lbl">Zone style</div><div><div class="seg"><button aria-pressed="true">Tint</button><button>Hatch</button><button>Outline</button><button>Gradient</button></div></div>
+      <div class="lbl">Your index</div><div><select><option>AA's 10 index benchmarks (as published)</option></select> <label class="inline" style="margin-left:10px"><input type="checkbox" checked> fill gaps</label> <span class="hint">score and cost per task from only the benchmarks you trust</span></div>
       <div class="sub">Labels &amp; marks</div>
       <div class="lbl">Labels</div><div><div class="seg"><button aria-pressed="true">Auto</button><button>Auto+</button><button>Ladder</button><button>Models</button><button>Every dot</button><button>None</button></div></div>
       <div class="lbl">Spotlight</div><div><div class="seg"><button aria-pressed="true">Off</button><button>Pinned</button></div> <span class="hint">click a dot to pin it; everything else dims</span></div>
@@ -492,7 +498,7 @@
   <h2 class="w">Option B: one row of dropdowns that show their current value</h2>
   <p class="w">Each setting is a button reading “Labels: Auto ▾”; the menu lists the choices with a one-line explanation each (the same menu style as the axis pickers). Fits in one or two rows at any width, and the current state is readable at a glance. Two clicks to change a setting instead of one.</p>
   <div class="frame">
-    <div class="ddrow"><span class="dd"><span>Pareto</span><b>Step · Shade</b></span><span class="dd"><span>Good zone</span><b>Off</b></span><span class="dd"><span>Labels</span><b>Auto</b></span><span class="dd"><span>Spotlight</span><b>Off</b></span><span class="dd"><span>Guides</span><b>Hover</b></span><span class="dd"><span>Mark</span><b>High · hash</b></span><span class="dd"><span>Color</span><b>Lab</b></span><span class="dd"><span>Look</span><b>Grid normal · no glow</b></span><span class="dd"><span>Theme</span><b>Paper</b></span><span class="dd"><span>Shape</span><b>Standard</b></span></div>
+    <div class="ddrow"><span class="dd"><span>Pareto</span><b>Step · Shade</b></span><span class="dd"><span>Good zone</span><b>Off</b></span><span class="dd"><span>Your index</span><b>AA's 10</b></span><span class="dd"><span>Labels</span><b>Auto</b></span><span class="dd"><span>Spotlight</span><b>Off</b></span><span class="dd"><span>Guides</span><b>Hover</b></span><span class="dd"><span>Mark</span><b>High · hash</b></span><span class="dd"><span>Color</span><b>Lab</b></span><span class="dd"><span>Look</span><b>Grid normal · no glow</b></span><span class="dd"><span>Theme</span><b>Paper</b></span><span class="dd"><span>Shape</span><b>Standard</b></span></div>
     <div class="menu demo"><div class="menu-head" style="padding:8px 12px;font-weight:600">Labels</div><div class="menu-list">
       <div class="mi" aria-selected="true"><span class="mi-label">Auto</span><span class="d">Model names, plus effort tags on dots where they fit</span></div>
       <div class="mi"><span class="mi-label">Auto+</span><span class="d">Like Auto, and the top dot also gets its effort level</span></div>
@@ -509,7 +515,7 @@
   <p class="w">Four tabs (Frontier · Labels &amp; marks · Look · Zones), each showing one short row of the familiar segmented controls. The least visual noise, but settings on other tabs are out of sight.</p>
   <div class="frame">
     <div class="tabs"><button aria-selected="true">Frontier</button><button>Labels &amp; marks</button><button>Look</button><button>Zones</button></div>
-    <div class="toolbar"><div class="group"><span>Pareto</span><div class="seg"><button>Off</button><button aria-pressed="true">Step</button><button>Line</button></div></div><div class="group"><span>Style</span><div class="seg"><button aria-pressed="true">Shade</button><button>Fade</button><button>Rings</button></div></div><label class="inline"><input type="checkbox"> compute over all models</label><div class="group"><span>Guides</span><div class="seg"><button aria-pressed="true">Hover</button><button>Pinned</button><button>Frontier</button><button>All</button></div></div></div>
+    <div class="toolbar"><div class="group"><span>Pareto</span><div class="seg"><button>Off</button><button aria-pressed="true">Step</button><button>Line</button></div></div><div class="group"><span>Style</span><div class="seg"><button aria-pressed="true">Shade</button><button>Fade</button><button>Rings</button></div></div><label class="inline"><input type="checkbox"> compute over all models</label><div class="group"><span>Your index</span><select><option>AA's 10 index benchmarks</option></select></div><div class="group"><span>Guides</span><div class="seg"><button aria-pressed="true">Hover</button><button>Pinned</button><button>Frontier</button><button>All</button></div></div></div>
   </div>
 </section>
 </body></html>

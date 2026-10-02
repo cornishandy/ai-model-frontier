@@ -60,7 +60,10 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   label dims. Saved with sets.
 - The **axis pickers stay in view** while the page scrolls (on phones, under the header).
 - **Grid** (normal / faint / off), **Axis text** (normal / faint) and **Glow** (a soft halo around dots and lines in each model's color).
-- **Theme**: Auto (follows the device), light (Paper, White, Sepia) or dark (Graphite, Midnight, Black).
+- **Theme**: Auto (follows the device), light (Paper, White, Sepia, Solarized Light, Catppuccin Latte, Gruvbox Light, Rosé Pine Dawn,
+  Colorblind-safe, High contrast) or dark (Graphite, Midnight, Black, Solarized Dark, Nord, Dracula, Gruvbox Dark, Catppuccin Mocha,
+  Tokyo Night, One Dark, Rosé Pine, Monokai, Everforest, High contrast). Paper/White/Sepia and Graphite/Midnight/Black only change
+  the surfaces; the others also recolor the labs (keeping each lab's hue) and the effort ramp. `?theme=nord` previews one.
 - **Models list**: Anthropic, OpenAI, Google and xAI (Grok) first and open; every other lab is in a collapsed
   "Other labs" group, each lab collapsible. Click a heading to open or close it, its count (e.g. 3/18) to select or clear
   the whole lab. Open/closed is remembered per device; searching opens everything.
