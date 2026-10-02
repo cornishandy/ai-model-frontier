@@ -11,6 +11,11 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   GitHub pauses scheduled workflows after 60 days without repo activity; re-enable it in the Actions tab if that happens.
 - **Update data** button (top right) pulls the latest numbers straight from artificialanalysis.ai
   in the browser and saves them locally. It only runs when you press it (the deployed site already refreshes every 12 hours).
+  When the browser can't read artificialanalysis.ai's page ("Failed to fetch"), the button falls back to the site's own
+  copy of the data (the one the deploy refreshed, so at most 12 hours old) and says so. The usual cause is on their side:
+  some cached copies of their HTML pages are served without the `access-control-allow-origin` header for minutes at a
+  time (the data files always have it), so a cross-origin read is refused until the cache turns over; an ad blocker or a
+  VPN can do the same. The deploy's scraper runs in Node, which has no CORS rule, so the 12-hourly refresh is unaffected.
 - `node scrape.mjs` refreshes the built-in data (`data/models.js`, `data/external.js`) and builds `AI Model Frontier.html`,
   a single self-contained copy that works offline. The Artificial Analysis scraper lives in `aa-data.js` (shared with the
   page), the independent benchmarks in `external.mjs`.
@@ -45,16 +50,33 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - **Pareto frontier**: step or line, computed on what's visible. Styles: **Shade** (the default: tints the region the
   frontier beats), **Fade** (dims everything off the frontier), **Rings** (circles frontier points).
   Tick **all models** to compute the true frontier over every model; frontier models you haven't selected show as faint dots (click one to add it).
-- **Labels**: Auto (model names + effort tags where they fit, the default), Auto+ (also the top effort next to each name), Models, Every dot, None.
+- **Labels**: Auto (model names + effort tags where they fit, the default), Auto+ (also the top effort next to each name),
+  **Ladder** (names in a column to the right of the plot, each joined to its line by a thin leader, like slopalytics.com;
+  effort tags stay by the dots), Models, Every dot, None. When nothing fits beside a dot, Auto looks further out and draws a
+  leader line to the label instead of overlapping another one. The halo that keeps labels readable over lines is thinner
+  and translucent on dark themes (thick dark halos made light text look bloated on phones); `?halo=thick|thin|none`
+  on the URL tries the alternatives.
+- **Spotlight** (Pinned): the models you've pinned (click a dot) stay at full strength and every other model, line and
+  label dims. Saved with sets.
+- The **axis pickers stay in view** while the page scrolls (on phones, under the header).
 - **Grid** (normal / faint / off), **Axis text** (normal / faint) and **Glow** (a soft halo around dots and lines in each model's color).
 - **Theme**: Auto (follows the device), light (Paper, White, Sepia) or dark (Graphite, Midnight, Black).
 - **Models list**: Anthropic, OpenAI, Google and xAI (Grok) first and open; every other lab is in a collapsed
   "Other labs" group, each lab collapsible. Click a heading to open or close it, its count (e.g. 3/18) to select or clear
   the whole lab. Open/closed is remembered per device; searching opens everything.
+- `mockups/` holds the HTML mock-ups used in design workshops (open them in a browser); the screenshots they
+  reference aren't committed.
 - **Lab colors**: Anthropic orange, OpenAI black (white on dark themes), Google blue, xAI green, then Alibaba, Meta, Z AI,
   DeepSeek, Xiaomi; other labs grey.
-- **Hide older versions** (under the models list): leaves out a model once a newer version of it is out, e.g. Claude Opus 5
-  once Opus 5.5 is. They stay selected, so unticking brings them back. Saved with sets.
+- **Hide older versions** (under the models list): leaves out a model once a newer version of it is out (Claude Opus 5
+  once Opus 5.5 is; GPT-6 Sol once GPT-6.1 Sol is), a line that's a generation behind its brand (GPT-5.6 Terra, GPT-5.3
+  Codex and GPT-5.5 Instant once GPT-6 is out; Claude 4.5 Haiku after Claude 5), and a line the lab has left behind for
+  6 months (o3, gpt-oss, Llama 4). A model released in the last 60 days is never counted as a generation behind, and a
+  brand that's still shipping keeps its recent models (Gemma 4 while Gemini 4 is out). Hover a model's name for the
+  reason; the same models draw dashed. They stay selected, so unticking brings them back. Saved with sets.
+- **Other labs**: only labs with a model on Artificial Analysis' own Intelligence Index chart are listed (Meta, Xiaomi,
+  Alibaba, Z AI, StepFun, Kimi, DeepSeek, …), plus any lab you have something selected from; **All labs** (next to Hide
+  older versions, or the "show all labs" link at the end of the list) brings in the long tail. Searching finds everyone.
 - **Axis pickers**: searchable lists; hover a metric to see what it measures (from Artificial Analysis' evaluation pages,
   or the independent source's own page), how many models have it, and its current top 3. The chosen benchmark's
   description also sits under the chart title. On touch screens the description shows under each entry.
@@ -68,7 +90,28 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   frontier, i.e. with a result for today's top model on the Intelligence Index and at least 3 of the top 5 families.
   Retired ones (AIME 2025, IFBench, GPQA Diamond once new models stopped getting it, WeirdML v2, …) are hidden, with a
   "Show all" link at the end of the list; searching still finds them, and the charted one stays listed. The hover card
-  says which frontier models a benchmark is missing.
+  says which frontier models a benchmark is missing. **Updated within** (3 months, 6 months, a year) also leaves out
+  benchmarks whose newest result is older than that, and **Grade** leaves out those with a report card below C or B.
+- **Report cards**: every benchmark gets a letter grade (A–F) in the pickers, the hover card and under the chart title,
+  computed from: whether the test set is private (0–2), saturation in the current scores (0–3: top three current models
+  bunched within 2 points, or a top score over 95%, scores 0; a spread over 5 points with the top under 80% scores 3),
+  whether it's still run on the frontier (0–1), independence from the frontier labs (0–2), currency of the dataset (0–1),
+  and ±1 for audit findings. A = 9–10, B = 7–8, C = 5–6, D = 3–4, F = 0–2. The hover card lists each line of the score
+  and a one-line verdict. The facts behind it (who made it, test-set privacy, audits) are in `BENCH_META` in
+  `index.html`, drawn from these meta-evaluations of benchmarks:
+  [BetterBench](https://betterbench.stanford.edu/) (Stanford; 46 quality criteria on 24 benchmarks),
+  [Epoch AI's Benchmarking Hub](https://epoch.ai/benchmarks) (independent re-runs; retires saturated benchmarks),
+  [When AI Benchmarks Plateau](https://arxiv.org/abs/2602.16763) (EvalEval; a saturation index for 60 benchmarks),
+  [Stanford AI Index 2026, ch. 2](https://hai.stanford.edu/assets/files/ai_index_report_2026_chapter_2_technical.pdf),
+  [Measuring what Matters](https://arxiv.org/abs/2511.04703) (construct validity of 445 benchmarks),
+  [The Leaderboard Illusion](https://arxiv.org/abs/2504.20879) (an audit of LMArena),
+  expert re-grading of [HLE and CritPt physics](https://arxiv.org/abs/2609.13009) and
+  [SciCode-Verified](https://arxiv.org/abs/2608.04975), FutureHouse's [HLE audit](https://www.futurehouse.org/research/hle-exam),
+  and Artificial Analysis' own index changelogs
+  ([v4.1](https://artificialanalysis.ai/articles/artificial-analysis-intelligence-index-v4-1),
+  [v4.2](https://artificialanalysis.ai/articles/artificial-analysis-intelligence-index-v4-2),
+  [v4.3](https://artificialanalysis.ai/articles/artificial-analysis-intelligence-index-v4-3)), which say which
+  benchmarks were dropped as saturated.
 - **Who leads what**: every benchmark grouped by the model (or lab) that leads it among current models, with the top
   score and the lead over #2; hover for the top 3, click to chart it. Respects "Open weights only".
 - **Good zone**: shades one reading of "good" for the trade-off. **Quadrant** (better than the median model shown on
@@ -79,6 +122,17 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   Outline, Gradient. The legend says how many models are in the zone.
 - **Shape: Diamond** turns the chart 45° (like dunksandthrees' EPM charts): better on both is straight up, the left
   corner is best on X, the right corner best on Y. Ticks and axis titles run along the two lower edges.
+- **By effort level** (under the chart): one row per selected model, a dot per reasoning effort, on cost per task, total
+  cost, tokens per task, total tokens, time per task or whatever is on an axis, linear or log, sorted best first, with
+  the values under the dots (like the dot rows on slopalytics.com). Letters in the dots are the effort levels.
+- **Subscription math** (under that): pick the plan you pay for (ChatGPT, Claude, Google AI, SuperGrok, Copilot, Cursor,
+  T3 Chat, Perplexity, or a custom fee) and the table shows, model by model, how many Intelligence Index tasks a month the
+  same money buys at API list prices, with your plan's provider highlighted. The fee also drives the metric **Tasks a month
+  on your plan** (Cost group, either axis), next to the new **Tasks per dollar** and **Index points per dollar**. Plans
+  meter usage by session and week rather than by task, and measured API-equivalent use of a plan run to its caps is far
+  above the fee (SemiAnalysis' June 2026 stress test; ccusage logs), so the table is a yardstick, not a bill. Prices are
+  the providers' published monthly fees as of early October 2026 (openai.com/chatgpt/pricing, claude.com/pricing,
+  gemini.google/subscriptions, x.ai, github.com/features/copilot/plans, cursor.com/pricing); edit the fee if yours differs.
 - **Guides**: hover (or pin by clicking) draws the rectangle from the point to both axes
   with the exact values chipped on each axis. Modes: hover / pinned / frontier / all.
 - **Saved sets**: models + efforts + axes + display options, stored in localStorage;
