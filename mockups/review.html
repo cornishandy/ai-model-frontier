@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workshop review: models panel, options bar, control style, themes</title>
+<style>
+  /* ---- the site's own variables, so mock-ups look like the page (Paper / Graphite) ---- */
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11, 11, 11, 0.1); --hover: rgba(11, 11, 11, 0.05); --accent: #2a78d6;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948; --other: #a8a69f;
+    --e-minimal: #86b6ef; --e-low: #5598e7; --e-medium: #2a78d6; --e-default: #256abf; --e-high: #1c5cab; --e-xhigh: #104281; --e-max: #0d366b; --e-none: #c3c2b7;
+    --ok: #1baf7a; --warn: #eda100; --bad: #e34948;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --hover: rgba(255, 255, 255, 0.06); --accent: #3987e5;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --other: #6b6a65;
+    --e-minimal: #184f95; --e-low: #1c5cab; --e-medium: #2a78d6; --e-default: #3987e5; --e-high: #5598e7; --e-xhigh: #86b6ef; --e-max: #b7d3f6; --e-none: #52514e;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page); color: var(--ink); }
+  a { color: var(--accent); }
+  code { font-size: 12px; background: var(--hover); padding: 1px 5px; border-radius: 4px; }
+
+  /* ---- review chrome ---- */
+  .top {
+    position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+    padding: 10px 22px; background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: 0 1px 0 var(--border);
+  }
+  .top h1 { font-size: 15px; margin: 0 14px 0 0; font-weight: 700; }
+  .top .spacer { flex: 1; }
+  .top .prog { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 18px 22px 120px; }
+  .intro { max-width: 900px; color: var(--ink-2); }
+  .intro h2 { font-size: 22px; color: var(--ink); margin: 6px 0 8px; }
+  .intro blockquote { margin: 10px 0; padding: 10px 14px; border-left: 3px solid var(--s2); background: var(--surface); border-radius: 0 8px 8px 0; color: var(--ink); }
+  .intro ol { padding-left: 20px; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 6px; }
+  nav.toc a { font-size: 12px; text-decoration: none; color: var(--ink-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; background: var(--surface); }
+  nav.toc a:hover { color: var(--ink); background: var(--hover); }
+
+  section.part { margin-top: 44px; border-top: 2px solid var(--border); padding-top: 18px; }
+  section.part > h2 { font-size: 20px; margin: 0 0 4px; }
+  section.part > p.lead { color: var(--ink-2); max-width: 900px; margin: 0 0 16px; }
+  .round { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; vertical-align: 2px; margin-left: 8px; }
+  .round.r1 { color: var(--s1); border-color: color-mix(in srgb, var(--s1) 50%, transparent); }
+  .round.r2 { color: var(--s2); border-color: color-mix(in srgb, var(--s2) 50%, transparent); }
+
+  /* ---- option cards ---- */
+  .opt { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 0 0 22px; overflow: clip; }
+  .opt.verdict-pick { border-color: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 35%, transparent); }
+  .opt.verdict-no { opacity: .72; }
+  .opt > header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 14px 18px 6px; }
+  .opt > header h3 { font-size: 16px; margin: 0; }
+  .opt > header .id { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--surface); background: var(--ink); border-radius: 5px; padding: 1px 7px; }
+  .opt > header .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; }
+  .opt .what { color: var(--ink-2); margin: 0 18px 10px; max-width: 980px; }
+  .opt .what b { color: var(--ink); }
+  .opt .trade { margin: 0 18px 12px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-2); }
+  .opt .trade li::before { content: '▲ '; color: var(--ok); font-size: 10px; }
+  .opt .trade li.minus::before { content: '▼ '; color: var(--bad); }
+  .stage { padding: 14px 18px 18px; background: var(--page); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .stage .frames { display: flex; gap: 22px; align-items: flex-start; }
+  .frame { flex: none; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); overflow: hidden; container-type: inline-size; }
+  .frame.desk { width: 100%; max-width: 1180px; }
+  .frame.phone { width: 390px; border-radius: 22px; border-width: 3px; }
+  .stage .cap { font-size: 11px; color: var(--muted); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .shot { display: block; max-width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--border); }
+  .shot-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .shot-row figure { margin: 0; max-width: 100%; }
+  .shot-row figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .shot-row .narrow { max-width: 300px; }
+
+  /* review controls on each card */
+  .judge { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; align-items: start; padding: 12px 18px 16px; }
+  .judge .verdicts { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .judge .verdicts button { font: inherit; font-size: 12.5px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+  .judge .verdicts button:hover { background: var(--hover); color: var(--ink); }
+  .judge .verdicts button[aria-pressed="true"] { color: #fff; border-color: transparent; }
+  .judge .verdicts button[data-v="pick"][aria-pressed="true"] { background: var(--ok); }
+  .judge .verdicts button[data-v="like"][aria-pressed="true"] { background: var(--s1); }
+  .judge .verdicts button[data-v="maybe"][aria-pressed="true"] { background: var(--warn); }
+  .judge .verdicts button[data-v="no"][aria-pressed="true"] { background: var(--bad); }
+  .judge .fields { display: grid; gap: 8px; }
+  .judge textarea, .judge input[type="text"] { width: 100%; font: inherit; font-size: 13px; color: var(--ink); background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; resize: vertical; min-height: 38px; }
+  .judge textarea:focus, .judge input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent); border-color: var(--accent); }
+  .judge label.more { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); }
+  .judge label.more input[type="text"] { flex: 1; min-height: 0; padding: 5px 9px; }
+  .judge .hint { font-size: 11.5px; color: var(--muted); }
+
+  .general { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-top: 30px; }
+  .general h2 { margin: 0 0 6px; font-size: 18px; }
+  .general textarea { width: 100%; min-height: 120px; font: inherit; font-size: 13px; color: var(--ink); background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .btn { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .btn:hover { background: var(--hover); }
+  .btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .btn.primary:hover { opacity: .9; }
+  .segc { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .segc button { font: inherit; font-size: 12.5px; border: 0; background: var(--surface); color: var(--ink-2); padding: 5px 10px; cursor: pointer; }
+  .segc button + button { border-left: 1px solid var(--border); }
+  .segc button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  #exportBox { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; padding: 20px; }
+  #exportBox.show { display: flex; }
+  #exportBox .box { background: var(--surface); color: var(--ink); border-radius: 12px; width: min(820px, 100%); max-height: 90vh; display: flex; flex-direction: column; padding: 16px; gap: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+  #exportBox textarea { flex: 1; min-height: 360px; font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--ink); background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 80px); background: var(--ink); color: var(--surface); padding: 8px 14px; border-radius: 10px; font-size: 13px; transition: transform .25s; z-index: 95; }
+  #toast.show { transform: translate(-50%, 0); }
+
+  /* ---- site components reproduced for the mock-ups (from index.html) ---- */
+  .m { font-size: 13px; line-height: 1.4; color: var(--ink); }
+  .m button, .m select, .m input[type="text"], .m input[type="search"] { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; }
+  .m button { cursor: pointer; }
+  .m button:hover { background: var(--hover); }
+  .m button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .m select { padding-right: 4px; }
+  .m label.inline { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); white-space: nowrap; }
+  .m .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .m .seg button { border: 0; border-radius: 0; padding: 5px 10px; background: var(--surface); color: var(--ink-2); }
+  .m .seg button + button { border-left: 1px solid var(--border); }
+  .m .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .m .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .m .row > select { flex: 1; min-width: 0; }
+  .m .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .m .chip { border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; font-size: 12px; background: transparent; color: var(--ink-2); }
+  .m .chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .m .chip.missing { opacity: .45; }
+  .m .note { color: var(--muted); font-size: 12px; }
+  .m .picker { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 210px; max-width: 320px; text-align: left; }
+  .m .picker::after { content: '▾'; color: var(--muted); font-size: 11px; }
+  .m .toolbar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  .m .toolbar .group { display: flex; gap: 6px; align-items: center; }
+  .m .toolbar .group > span { color: var(--muted); font-size: 12px; }
+  .m .toolbar.axes { padding: 12px 0 10px; box-shadow: 0 1px 0 var(--border); margin-bottom: 4px; }
+  .m .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+  .m .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+  .m .tabular { font-variant-numeric: tabular-nums; }
+  /* the current sidebar */
+  .m .side { background: var(--surface); padding: 14px 14px 20px; display: flex; flex-direction: column; gap: 16px; width: 320px; border-right: 1px solid var(--border); }
+  .m .side h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .m .lab { border-top: 1px solid var(--border); padding-top: 8px; }
+  .m .lab-head { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; user-select: none; }
+  .m .lab-head .count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; border: 0; background: none; padding: 1px 4px; }
+  .m .lab-head .tw { width: 10px; flex: none; color: var(--muted); font-size: 10px; }
+  .m .lab.sub { border-top: 0; padding: 6px 0 0 18px; }
+  .m .fam { display: grid; grid-template-columns: 1fr; gap: 3px; padding: 5px 0 5px 18px; opacity: .55; }
+  .m .fam.any { opacity: 1; }
+  .m .fam-name { cursor: pointer; color: var(--ink-2); display: flex; gap: 6px; align-items: baseline; }
+  .m .fam.any .fam-name { color: var(--ink); font-weight: 600; }
+  .m .fam-name .score { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; margin-left: auto; }
+  .m .fam-name .range { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 78px; text-align: right; }
+  .m .fam-name svg { flex: none; align-self: center; }
+  .m .fam .chips { padding-left: 30px; }
+  .m .fam .chip { font-size: 11px; padding: 1px 7px; }
+  .m .dep { font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+  /* a stand-in chart so the layout options show their effect on the page */
+  .m .pagefx { display: grid; grid-template-columns: 320px 1fr; min-height: 420px; }
+  .m .pagefx > main { padding: 0 16px 16px; min-width: 0; }
+  .m .fakechart { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .m .fakechart h3 { margin: 0 0 2px; font-size: 15px; }
+  .m .fakechart .sub { color: var(--ink-2); font-size: 12px; margin-bottom: 8px; }
+  .m .fakechart svg { width: 100%; display: block; }
+  .m .hdr { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .m .hdr h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .m .hdr .meta { color: var(--muted); font-size: 12px; }
+  .m .hdr .spacer { flex: 1; }
+  /* phone frame adaptations */
+  @container (max-width: 500px) {
+    .m .pagefx { grid-template-columns: 1fr; }
+    .m .side { width: auto; border-right: 0; }
+    .m .picker { min-width: 0; flex: 1; max-width: none; }
+    .m .toolbar .group { flex-wrap: wrap; }
+    .m .desk-only { display: none !important; }
+  }
+  .m .phone-only { display: none; }
+  @container (max-width: 500px) { .m .phone-only { display: initial; } }
+  /* ---- extra styles for the new mock-ups ---- */
+  .m .side2 { background: var(--surface); padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; width: 320px; border-right: 1px solid var(--border); }
+  .m .side2 h2 { font-size: 12px; font-weight: 700; color: var(--ink); margin: 0 0 6px; display: flex; align-items: baseline; gap: 8px; }
+  .m .side2 h2 .note { font-weight: 400; }
+  .m .side2 .more { padding: 5px 9px; font-weight: 700; }
+  .m .lab2 { border-top: 1px solid var(--border); padding-top: 6px; }
+  .m .lab-head2 { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; padding: 4px 0; cursor: pointer; }
+  .m .lab-head2 .count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+  .m .lab-head2 .tw { color: var(--muted); font-size: 10px; width: 10px; }
+  .m .fam2 { display: grid; grid-template-columns: 18px 1fr auto auto; gap: 8px; align-items: baseline; padding: 4px 0 4px 18px; font-size: 13px; cursor: pointer; }
+  .m .fam2 .tick { color: var(--muted); font-size: 12px; } .m .fam2.on .tick { color: var(--ink); }
+  .m .fam2 .nm { color: var(--ink-2); } .m .fam2.on .nm { color: var(--ink); font-weight: 600; }
+  .m .fam2 .sc, .m .fam2 .rg { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; } .m .fam2 .rg { min-width: 74px; text-align: right; }
+  .m .fam2.on .sc { color: var(--ink-2); }
+  .m .chips.under { padding: 0 0 6px 44px; } .m .chips.under .chip { font-size: 11px; padding: 1px 8px; }
+  @container (max-width: 500px) { .m .side2, .m .side { width: auto; border-right: 0; } }
+
+  /* M2 lab tabs */
+  .m .labtabs { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .m .labtabs button { flex: none; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px 4px 8px; font-size: 12.5px; color: var(--ink-2); }
+  .m .labtabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .m .labtabs button[aria-selected="true"] .sw { outline: 1.5px solid var(--surface); }
+  .m .labtabs .n { font-size: 11px; opacity: .75; font-variant-numeric: tabular-nums; }
+  .m .mrow { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; align-items: baseline; padding: 7px 0 4px; border-top: 1px solid var(--border); }
+  .m .mrow .nm { font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 7px; }
+  .m .mrow.off .nm { font-weight: 500; color: var(--ink-2); }
+  .m .mrow .sc, .m .mrow .rg { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .m .mrow .chips { grid-column: 1 / -1; padding: 2px 0 2px 0; }
+  .m .mrow .chips .chip { font-size: 11px; padding: 1px 8px; }
+  .m .mrow .act { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; }
+  .m .mrow .act button { font-size: 11.5px; padding: 2px 8px; }
+  .m .summary { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); }
+  .m .summary b { color: var(--ink); font-size: 13px; }
+
+  /* M3 on the chart / add */
+  .m .h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .m .h3 .n { font-weight: 500; text-transform: none; letter-spacing: 0; }
+  .m .h3 .spacer { flex: 1; }
+  .m .h3 button { font-size: 11.5px; padding: 1px 7px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .m .onrow { display: grid; grid-template-columns: 10px 1fr auto 18px; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid var(--border); }
+  .m .onrow .nm { font-weight: 600; font-size: 13px; }
+  .m .onrow .x { color: var(--muted); font-size: 14px; text-align: center; cursor: pointer; border: 0; background: none; padding: 0; }
+  .m .onrow .x:hover { color: var(--bad); background: none; }
+  .m .mini { display: inline-flex; gap: 2px; }
+  .m .mini i { width: 20px; height: 18px; border-radius: 4px; font: 600 10px/18px system-ui, sans-serif; text-align: center; font-style: normal; color: var(--ink-2); background: var(--hover); cursor: pointer; }
+  .m .mini i.on { background: var(--ink); color: var(--surface); }
+  .m .mini i.na { opacity: .25; cursor: default; }
+  .m .addrow { display: grid; grid-template-columns: 22px 1fr auto auto; gap: 8px; align-items: baseline; padding: 4px 0 4px 6px; }
+  .m .addrow .plus { width: 20px; height: 20px; border-radius: 50%; padding: 0; font-weight: 700; line-height: 18px; text-align: center; font-size: 13px; }
+  .m .addrow .nm { color: var(--ink-2); }
+  .m .addrow .sc, .m .addrow .rg { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .m .addlab { display: flex; align-items: center; gap: 7px; font-weight: 700; padding: 8px 0 2px; }
+  .m .addlab .count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+
+  /* M4 table */
+  .m table.pick { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  .m table.pick col.c-chk { width: 22px; } .m table.pick col.c-sc { width: 38px; } .m table.pick col.c-cost { width: 66px; } .m table.pick col.c-eff { width: 94px; }
+  .m table.pick th { position: sticky; top: 0; background: var(--surface); text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 6px 4px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; }
+  .m table.pick td { padding: 5px 3px; border-bottom: 1px solid var(--border); vertical-align: middle; overflow: hidden; }
+  .m table.pick .mini i { width: 17px; }
+  .m table.pick .mini { gap: 1px; }
+  .m table.pick td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+  .m table.pick tr.on td { color: var(--ink); } .m table.pick tr.on td.name { font-weight: 600; }
+  .m table.pick tr:not(.on) td { color: var(--ink-2); }
+  .m table.pick td.name { display: flex; align-items: center; gap: 7px; }
+  .m table.pick td.name span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m table.pick input[type="checkbox"] { margin: 0; vertical-align: middle; }
+  .m table.pick tr:hover td { background: var(--hover); }
+
+  /* M5 chips strip */
+  .m .strip { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .m .strip .mchip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 999px; padding: 3px 6px 3px 8px; font-size: 12.5px; font-weight: 600; background: var(--page); }
+  .m .strip .mchip .n { font-weight: 400; color: var(--muted); font-size: 11px; }
+  .m .strip .mchip .x { color: var(--muted); cursor: pointer; padding: 0 3px; }
+  .m .strip .mchip .x:hover { color: var(--bad); }
+  .m .strip .sets { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; }
+  .m .pop { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 36px rgba(0,0,0,.18); padding: 10px 12px; width: 360px; max-width: 100%; }
+  .m .pop h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .m .pop .quick { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
+  .m .pop .quick button { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; }
+  .m .pop .list { max-height: 260px; overflow-y: auto; }
+
+  /* M6 matrix */
+  .m .matrix { display: grid; grid-template-columns: 1fr 34px repeat(7, 20px); gap: 0 2px; align-items: center; font-size: 12.5px; }
+  .m .matrix .mh { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; padding: 8px 0 3px; border-top: 1px solid var(--border); font-weight: 700; }
+  .m .matrix .mh > span:first-child { display: flex; align-items: center; gap: 7px; }
+  .m .matrix .mh .count { color: var(--muted); font-weight: 400; font-size: 11.5px; text-align: right; }
+  .m .matrix .colh { font-size: 9.5px; color: var(--muted); text-align: center; font-weight: 600; letter-spacing: .02em; cursor: pointer; }
+  .m .matrix .colh:hover { color: var(--ink); }
+  .m .matrix .nm { padding: 3px 0 3px 18px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .m .matrix .nm.on { color: var(--ink); font-weight: 600; }
+  .m .matrix .sc { color: var(--muted); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+  .m .matrix .cell { display: flex; justify-content: center; }
+  .m .matrix .cell i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--axis); display: block; cursor: pointer; }
+  .m .matrix .cell i.on { background: var(--ink); border-color: var(--ink); }
+  .m .matrix .cell i.na { visibility: hidden; }
+  .m .matrix .cell i.on.lab { background: var(--c); border-color: var(--c); }
+  .m .matrix .sticky { position: sticky; top: 0; background: var(--surface); z-index: 1; grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; padding: 4px 0; border-bottom: 1px solid var(--border); }
+
+  /* M7 tree */
+  .m .tree { font-size: 13px; }
+  .m .tree label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  .m .tree input[type="checkbox"] { margin: 0; width: 14px; height: 14px; }
+  .m .tree .lb { padding: 7px 0 3px; border-top: 1px solid var(--border); font-weight: 700; }
+  .m .tree .lb .count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+  .m .tree .fm { padding: 4px 0 2px 22px; }
+  .m .tree .fm .nm { color: var(--ink-2); flex: 1; } .m .tree .fm.on .nm { color: var(--ink); font-weight: 600; }
+  .m .tree .fm .sc, .m .tree .fm .rg { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; } .m .tree .fm .rg { min-width: 74px; text-align: right; }
+  .m .tree .efs { display: flex; flex-wrap: wrap; gap: 2px 12px; padding: 0 0 5px 44px; }
+  .m .tree .efs label { font-size: 12px; color: var(--ink-2); gap: 4px; }
+  .m .tree .efs input[type="checkbox"] { width: 12px; height: 12px; }
+
+  /* M8 search-first */
+  .m .bigsearch { position: relative; }
+  .m .bigsearch input { width: 100%; font-size: 14px; padding: 9px 60px 9px 34px; border-radius: 9px; }
+  .m .bigsearch .ic { position: absolute; left: 11px; top: 9px; color: var(--muted); }
+  .m .bigsearch .kbd { position: absolute; right: 9px; top: 9px; font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+  .m .res { display: grid; grid-template-columns: 10px 1fr auto; gap: 4px 8px; align-items: center; padding: 6px 8px; border-radius: 7px; }
+  .m .res.active { background: var(--hover); }
+  .m .res .nm { font-weight: 600; } .m .res .nm small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .m .res .meta { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .m .res .adds { grid-column: 2 / -1; display: flex; gap: 4px; flex-wrap: wrap; }
+  .m .res .adds button { font-size: 11px; padding: 1px 7px; border-radius: 999px; }
+  .m .keys { font-size: 11.5px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .m .keys kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+  .m mark { background: color-mix(in srgb, var(--s4) 35%, transparent); color: inherit; border-radius: 2px; }
+
+  /* M9 rail */
+  .m .rail { width: 56px; border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; }
+  .m .rail .lb { width: 40px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: var(--ink-2); cursor: pointer; padding: 4px 0; border-radius: 6px; }
+  .m .rail .lb:hover { background: var(--hover); }
+  .m .rail .lb i { width: 22px; height: 6px; border-radius: 3px; display: block; }
+  .m .rail .lb b { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+  .m .rail .open { margin-top: auto; width: 36px; height: 30px; padding: 0; font-size: 14px; }
+  .m .pagefx.rail-layout { grid-template-columns: 56px 1fr; }
+
+  /* ---- options bar mock-ups ---- */
+  .m .form { display: grid; grid-template-columns: 110px 1fr; gap: 8px 14px; align-items: center; max-width: 860px; }
+  .m .form .lbl { text-align: right; font-weight: 600; font-size: 12px; color: var(--ink); }
+  .m .form .sub { grid-column: 1 / -1; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; margin: 8px 0 -2px; }
+  .m .form .hint { color: var(--muted); font-size: 12px; margin-left: 8px; }
+  .m .form.two { grid-template-columns: 100px 1fr 100px 1fr; max-width: none; }
+  .m .form.two .sub { grid-column: span 2; }
+  @container (max-width: 700px) { .m .form.two { grid-template-columns: 100px 1fr; } .m .form.two .sub { grid-column: 1 / -1; } .m .form.two .sub:empty { display: none; } }
+  .m .dd { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 13px; cursor: pointer; }
+  .m .dd b { font-weight: 600; } .m .dd span { color: var(--muted); } .m .dd::after { content: '▾'; color: var(--muted); font-size: 11px; }
+  .m .dd[aria-expanded="true"] { background: var(--hover); }
+  .m .ddrow { display: flex; flex-wrap: wrap; gap: 8px; }
+  .m .menu { background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 36px rgba(0,0,0,.18); width: 320px; max-width: 100%; overflow: hidden; }
+  .m .menu .mhd { padding: 8px 12px; font-weight: 600; border-bottom: 1px solid var(--border); }
+  .m .menu .mi { padding: 6px 12px; cursor: pointer; display: grid; gap: 1px; }
+  .m .menu .mi:hover { background: var(--hover); }
+  .m .menu .mi[aria-selected="true"] .mi-label { font-weight: 600; } .m .menu .mi[aria-selected="true"] .mi-label::before { content: '✓ '; }
+  .m .menu .mi .d { color: var(--muted); font-size: 11px; }
+  .m .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .m .tabs button { border: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--ink-2); padding: 7px 12px; font-weight: 500; }
+  .m .tabs button[aria-selected="true"] { color: var(--ink); font-weight: 700; box-shadow: inset 0 -2px 0 var(--ink); }
+  .m .tabpanel[hidden] { display: none; }
+  /* D: popover toolbar */
+  .m .popbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .m .popbar .dd { padding: 5px 9px; }
+  .m .popover { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 36px rgba(0,0,0,.18); padding: 12px 14px; width: max-content; max-width: 100%; }
+  .m .popover .form { grid-template-columns: 120px 1fr; }
+  .m .anchor { position: relative; }
+  .m .anchor .popover { margin-top: 8px; }
+  /* E: primary + more */
+  .m .primary-row .group > span { color: var(--ink); font-weight: 600; font-size: 13px; }
+  .m .morebox { margin-top: 10px; background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  /* F: sentence */
+  .m .sentence { font-size: 15px; line-height: 2.2; color: var(--ink-2); }
+  .m .sentence .dd { font-size: 14px; padding: 3px 9px; color: var(--ink); border-radius: 7px; background: var(--surface); margin: 0 1px; vertical-align: baseline; }
+  .m .sentence .dd b { font-weight: 600; }
+  .m .sentence .gear { font-size: 13px; margin-left: 8px; }
+  /* G: sidebar tabs */
+  .m .sidetabs { display: flex; border-bottom: 1px solid var(--border); margin: -4px -14px 10px; padding: 0 8px; }
+  .m .sidetabs button { flex: 1; border: 0; border-radius: 0; background: transparent; color: var(--ink-2); padding: 9px 6px; font-weight: 600; }
+  .m .sidetabs button[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+  .m .vform { display: grid; gap: 10px; }
+  .m .vform .f { display: grid; gap: 4px; }
+  .m .vform .f > span { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .m .vform .f .hint { font-size: 11px; color: var(--muted); }
+  .m .vform .sub { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; margin: 6px 0 -4px; }
+  .m .vform .seg { flex-wrap: wrap; }
+  /* H: on-chart */
+  .m .fakechart .ch { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .m .fakechart .ch .ctl { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  .m .fakechart .ch .dd { font-size: 12px; padding: 3px 8px; }
+  .m .gearpop { width: 400px; }
+  /* I: presets */
+  .m .presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .m .preset { display: grid; gap: 2px; text-align: left; padding: 7px 12px; min-width: 120px; }
+  .m .preset b { font-size: 13px; } .m .preset span { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .m .preset[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); } .m .preset[aria-pressed="true"] span { color: color-mix(in srgb, var(--surface) 70%, transparent); }
+  /* K: icon rail */
+  .m .irail { display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; border-left: 1px solid var(--border); background: var(--surface); width: 48px; }
+  .m .irail button { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; font-size: 15px; color: var(--ink-2); }
+  .m .irail button[aria-expanded="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .m .pagefx.irail-layout { grid-template-columns: 1fr 48px; }
+  @container (max-width: 500px) {
+    .m .hdr { flex-wrap: wrap; gap: 6px 8px; padding: 8px 12px; }
+    .m .hdr h1 { font-size: 15px; white-space: nowrap; }
+    .m .hdr .meta { flex-basis: 100%; order: 9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .m .hdr .spacer { display: none; }
+    .m .pagefx.rail-layout, .m .pagefx.irail-layout { grid-template-columns: 1fr; }
+    .m .rail, .m .irail { flex-direction: row; width: auto; border: 0; border-bottom: 1px solid var(--border); padding: 6px 10px; }
+    .m .rail .open { margin: 0 0 0 auto; }
+  }
+
+  /* ---- control styles (section 3) ---- */
+  .m .st { display: grid; gap: 10px; }
+  .m .st .toolbar { gap: 10px 18px; }
+  /* S1 soft pills */
+  .m .st.pills .seg { border: 0; background: var(--hover); border-radius: 8px; padding: 2px; gap: 2px; }
+  .m .st.pills .seg button { border: 0 !important; border-radius: 6px; background: transparent; color: var(--ink-2); padding: 4px 10px; font-weight: 500; }
+  .m .st.pills .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 0 0 1px var(--border); font-weight: 600; }
+  .m .st.pills .toolbar .group > span { color: var(--ink-2); font-size: 12.5px; font-weight: 500; }
+  /* S2 underline */
+  .m .st.under .seg { border: 0; border-radius: 0; gap: 2px; }
+  .m .st.under .seg button { border: 0 !important; background: transparent; color: var(--ink-2); padding: 4px 6px; border-radius: 4px; }
+  .m .st.under .seg button:hover { background: var(--hover); }
+  .m .st.under .seg button[aria-pressed="true"] { color: var(--ink); font-weight: 700; box-shadow: inset 0 -2px 0 var(--ink); background: transparent; }
+  .m .st.under .toolbar .group > span { color: var(--muted); font-size: 12px; margin-right: 2px; }
+  /* S3 accent */
+  .m .st.accent .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .m .st.accent .toolbar .group > span { color: var(--ink); font-size: 12.5px; font-weight: 600; }
+  .m .st.accent input[type="checkbox"] { accent-color: var(--accent); }
+  /* S4 comfortable */
+  .m .st.comfy { font-size: 13.5px; }
+  .m .st.comfy .toolbar { gap: 14px 22px; }
+  .m .st.comfy .toolbar .group { flex-wrap: wrap; align-items: center; gap: 6px; }
+  .m .st.comfy .toolbar .group > span { flex-basis: 100%; }
+  .m .st.comfy .toolbar .group > span { color: var(--ink-2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .m .st.comfy .seg { border-radius: 8px; }
+  .m .st.comfy .seg button { padding: 7px 13px; font-size: 13.5px; }
+  .m .st.comfy label.inline { font-size: 13.5px; }
+  /* S5 cards */
+  .m .st.cards .toolbar .group { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .m .st.cards .toolbar .group > span { flex-basis: 100%; }
+  .m .st.cards .toolbar .group > span { color: var(--ink); font-size: 12px; font-weight: 600; }
+  .m .st.cards .seg { border: 0; background: var(--hover); border-radius: 7px; padding: 2px; gap: 2px; }
+  .m .st.cards .seg button { border: 0 !important; border-radius: 5px; background: transparent; padding: 4px 9px; }
+  .m .st.cards .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+  /* ---- theme cards ---- */
+  .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 16px; }
+  @media (max-width: 1200px) { .themes { grid-template-columns: 1fr; } }
+  .tcard .pair { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 0 12px; }
+  .tcard .pair img { border: 1px solid var(--border); border-radius: 6px; width: 100%; height: auto; display: block; cursor: zoom-in; }
+  .tcard .pair figcaption { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .tcard .pair .full { display: flex; gap: 10px; align-items: flex-start; }
+  .tcard .pair .full img { width: 200px; }
+  .tcard .pair .full p { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+  .tcard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: clip; display: flex; flex-direction: column; }
+  .tcard.verdict-pick { border-color: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 35%, transparent); }
+  .tcard.verdict-no { opacity: .6; }
+  .tcard header { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px 4px; }
+  .tcard header h3 { font-size: 14px; margin: 0; }
+  .tcard header .tag { font-size: 10.5px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+  .tcard header .new { color: var(--s2); border-color: color-mix(in srgb, var(--s2) 50%, transparent); font-weight: 700; }
+  .tcard header a { margin-left: auto; font-size: 12px; text-decoration: none; }
+  .tcard .sws { display: flex; gap: 3px; padding: 0 12px 8px; }
+  .tcard .sws i { height: 14px; flex: 1; border-radius: 3px; border: 1px solid rgba(0,0,0,.12); }
+  .tcard img { width: 100%; height: auto; display: block; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); cursor: zoom-in; }
+  .tcard .judge { padding: 10px 12px 12px; grid-template-columns: 1fr; gap: 8px; }
+  .tcard .judge textarea { min-height: 34px; }
+  #lightbox { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.8); display: none; align-items: center; justify-content: center; cursor: zoom-out; padding: 20px; }
+  #lightbox.show { display: flex; }
+  #lightbox img { max-width: 100%; max-height: 100%; border-radius: 6px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+</style></head>
+<body>
+<div class="top">
+  <h1>Workshop review</h1>
+  <span class="segc" id="schemeSeg" title="Preview the mock-ups on the light (Paper) or dark (Graphite) theme"><button data-v="light" aria-pressed="true">Light</button><button data-v="dark">Dark</button></span>
+  <span class="segc" id="widthSeg" title="Wide mock-ups at desktop width, or squeezed to a phone's width (390px) to see how they adapt"><button data-v="desk" aria-pressed="true">Desktop</button><button data-v="phone">Phone width</button></span>
+  <span class="spacer"></span>
+  <span class="prog" id="prog"></span>
+  <button class="btn" id="resetBtn" title="Clear every verdict and comment on this page">Reset</button>
+  <button class="btn primary" id="exportBtn" title="Copy a Markdown summary of your verdicts and comments to the clipboard, and download it as a file">Export feedback</button>
+</div>
+<div class="wrap">
+  <div class="intro">
+    <h2>Models panel · options bar · control style · colour themes</h2>
+    <p>This is the re-prepared workshop for your request from the “Chart update failure and UX” chat (item 7), refreshed to match the site as it is today, plus a second round of new directions for the same brief, a set of control-styling variants that combine with any layout, and the new colour themes.</p>
+    <blockquote>“re-think how we are displaying the model sidepanel and config top panel, it's hard to find things and it's visually very uncomfortable to look at. I'd like it more easily legible.”</blockquote>
+    <p><b>How to use it.</b> Every card has a verdict row (<b>Pick</b> = build this, <b>Like</b>, <b>Maybe</b>, <b>No</b>), a comment box and a “more like this” line for asking for further examples. Everything saves in this browser as you type. When you're done, press <b>Export feedback</b>: it copies a Markdown summary to the clipboard and downloads it, so you can paste it into the chat (or say “read my review feedback” and point me at the file). Mock-ups are clickable where it helps (tabs, popovers, chips, checkboxes), but nothing is wired to the real chart.</p>
+    <ol>
+      <li><a href="#models">Models panel</a>: the round-1 proposal plus eight new directions.</li>
+      <li><a href="#options">Options bar</a>: round-1 Options A, B, C plus eight new directions.</li>
+      <li><a href="#style">Control style</a>: five looks for the buttons, labels and spacing; these combine with any layout above.</li>
+      <li><a href="#themes">Colour themes</a>: the 7 that existed and the 17 new ones, each screenshotted on the live chart.</li>
+    </ol>
+    <nav class="toc">
+      <a href="#models">1 · Models panel</a><a href="#options">2 · Options bar</a><a href="#style">3 · Control style</a><a href="#themes">4 · Themes</a><a href="#general">General comments</a>
+    </nav>
+  </div>
+<section class="part" id="models">
+  <h2>1 · Models panel</h2>
+  <p class="lead">What the left-hand panel (the “Models” sheet on a phone) could look like. Same data in every option: today's list with <i>Hide older versions</i> on (30 selected, 66 listed), the big four labs, and the seven “Other labs” down to DeepSeek. M0 is the panel as it is now; M1 is the round-1 proposal with today's data; M2–M9 are new.</p>
+  <div id="cards-models"></div>
+</section>
+<script>
+window.WS = { sections: [] };
+// ---- today's catalogue (Hide older versions on; the default selection) ----
+const EFF = { 'non-reasoning': 'Non-reasoning', minimal: 'Minimal', low: 'Low', medium: 'Medium', default: 'Default', high: 'High', xhigh: 'XHigh', max: 'Max' };
+const EFF_SHORT = { 'non-reasoning': 'None', minimal: 'Min', low: 'Low', medium: 'Med', default: 'Def', high: 'High', xhigh: 'XHigh', max: 'Max' };
+const EFF_LET = { 'non-reasoning': 'N', minimal: 'Mn', low: 'L', medium: 'M', default: 'D', high: 'H', xhigh: 'XH', max: 'Mx' };
+const EFFS = Object.keys(EFF);
+const ALL5 = ['low', 'medium', 'high', 'xhigh', 'max'];
+const F = (name, score, range, efforts, on = []) => ({ name, score, range, efforts, on });
+const LABS = [
+  { name: 'Anthropic', c: 'var(--s2)', total: 15, sel: 10, fams: [F('Claude Opus 5.5', 57.6, '$0.55–5.98', ALL5, ALL5), F('Claude Sonnet 5.5', 56.0, '$0.42–7.67', ALL5), F('Claude Fable 5.1', 53.4, '$2.37–7.63', ALL5, ALL5)] },
+  { name: 'OpenAI', c: 'var(--ink)', total: 16, sel: 10, fams: [F('GPT-6 Astra', 52.7, '$0.82–3.26', ALL5, ALL5), F('GPT-6.1 Sol', 51.8, '$0.13–0.72', ALL5), F('GPT-6 Luna', 38.1, '$0.0045–0.068', ['non-reasoning', ...ALL5], ALL5)] },
+  { name: 'Google', c: 'var(--s1)', total: 4, sel: 0, fams: [F('Gemini 4 Argon', 52.6, '$1.99', ['high']), F('Gemini 3.8 Flash', 40.9, '$0.93–1.24', ['low', 'medium', 'high'])] },
+  { name: 'SpaceXAI', c: 'var(--s3)', total: 3, sel: 0, fams: [F('Grok 4.7', 46.4, '$1.25–3.74', ['low', 'high', 'xhigh'])] },
+];
+const OTHER = [
+  { name: 'Meta', c: 'var(--s5)', total: 3, sel: 0, fams: [F('Muse Spark 1.3', 48.1, '$1.37–1.60', ['xhigh', 'max']), F('Muse Glimmer', 17.5, '$0.057', ['high'])] },
+  { name: 'Xiaomi', c: 'var(--s8)', total: 2, sel: 0, fams: [F('MiMo-V2.6-Pro', 46.3, '$0.13', ['default']), F('MiMo-V2.6-Flash', 37.9, '$0.062', ['default'])] },
+  { name: 'Alibaba', c: 'var(--s4)', total: 12, sel: 0, fams: [F('Qwen3.8 Max (0902)', 45.4, '$5.41', ['default']), F('Qwen3.8 2.4T A95B', 39.9, '$2.16', ['default']), F('Qwen3.8-Flash-Next', 39.8, '$0.37', ['default'])] },
+  { name: 'Z AI', c: 'var(--s6)', total: 3, sel: 0, fams: [F('GLM-5.3', 44.8, '$0.85–2.01', ['low', 'max']), F('GLM 5.3 Flash', 41.8, '$0.25', ['max'])] },
+  { name: 'StepFun', c: 'var(--other)', total: 1, sel: 0, fams: [F('Step 5 Preview', 43.7, '$0.72', ['default'])] },
+  { name: 'Kimi', c: 'var(--other)', total: 2, sel: 0, fams: [F('Kimi K3', 43.6, '$1.15–2', ['low', 'max'])] },
+  { name: 'DeepSeek', c: 'var(--s7)', total: 5, sel: 0, fams: [F('DeepSeek V4.1 Flash', 39.5, '$0.15–0.27', ['non-reasoning', 'max']), F('DeepSeek V4 Pro 0813', 36.0, '$0.48–0.67', ['non-reasoning', 'max']), F('DeepSeek V4 Flash Vision', 34.8, '$0.31', ['max'])] },
+];
+const SETS = ['— Load a set —', 'My earlier view (restored)', 'relevant1', 'relevant2', '★ Cost curves (Theo’s six)', '★ AA default selection', '★ Frontier labs — every effort', '★ Best of each lab (top effort)', '★ Open weights — top 20'];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const glyph = (c, dashed) => `<svg width="24" height="10" aria-hidden="true"><line x1="1" x2="23" y1="5" y2="5" stroke="${c}" stroke-width="2" ${dashed ? 'stroke-dasharray="3 3"' : ''}/><circle cx="12" cy="5" r="3.2" fill="${c}"/></svg>`;
+const anyOn = (f) => f.on.length > 0;
+const chip = (label, on, cls = '') => `<button class="chip ${cls}" aria-pressed="${on}">${label}</button>`;
+const famChips = (f, short) => f.efforts.map((e) => chip(short ? EFF_SHORT[e] : EFF[e], f.on.includes(e))).join('');
+const setSelect = () => `<select>${SETS.map((s, i) => `<option ${i === 0 ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>`;
+const leftNote = `<div class="note" style="margin-top:10px">43 more labs ranked below DeepSeek or not on Artificial Analysis' chart · <a href="#" onclick="return false">show all labs</a></div>`;
+const fakeChart = (h = 230) => {
+  const w = 760;
+  const lines = [['var(--s2)', [[80, 150], [150, 110], [260, 80], [400, 55], [560, 40]]], ['var(--ink)', [[60, 190], [120, 140], [220, 100], [330, 70], [470, 62]]], ['var(--s1)', [[300, 120]]], ['var(--s3)', [[180, 160], [320, 95], [460, 85]]], ['var(--s2)', [[220, 175], [380, 130], [600, 105], [700, 100]]]];
+  let s = `<svg viewBox="0 0 ${w} ${h}" style="height:${h}px" aria-hidden="true">`;
+  for (let i = 1; i < 6; i++) s += `<line x1="40" x2="${w - 10}" y1="${i * h / 6}" y2="${i * h / 6}" stroke="var(--grid)"/>`;
+  for (let i = 1; i < 8; i++) s += `<line y1="10" y2="${h - 25}" x1="${40 + i * (w - 50) / 8}" x2="${40 + i * (w - 50) / 8}" stroke="var(--grid)"/>`;
+  s += `<line x1="40" x2="40" y1="10" y2="${h - 25}" stroke="var(--axis)"/><line x1="40" x2="${w - 10}" y1="${h - 25}" y2="${h - 25}" stroke="var(--axis)"/>`;
+  for (const [c, pts] of lines) {
+    const sc = pts.map(([x, y]) => [x, y * h / 230]);
+    if (sc.length > 1) s += `<polyline points="${sc.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${c}" stroke-width="1.8" opacity=".85"/>`;
+    for (const [x, y] of sc) s += `<circle cx="${x}" cy="${y}" r="4" fill="${c}"/>`;
+    const [lx, ly] = sc[sc.length - 1]; s += `<text x="${lx + 8}" y="${ly + 4}" font-size="11" fill="${c}" font-weight="600">${c.includes('s2') ? 'Claude' : c.includes('ink') ? 'GPT-6' : c.includes('s1') ? 'Gemini' : 'Grok'}</text>`;
+  }
+  return s + `<text x="12" y="${h / 2}" font-size="10" fill="var(--muted)" transform="rotate(-90 12 ${h / 2})" text-anchor="middle">Intelligence Index →</text><text x="${w / 2}" y="${h - 6}" font-size="10" fill="var(--muted)" text-anchor="middle">Cost per task (USD) →</text></svg>`;
+};
+const chartCard = (extraHead = '') => `<div class="fakechart"><div class="ch"><div><h3>Intelligence Index vs. Cost per task</h3><div class="sub">Artificial Analysis Intelligence Index (higher is better) against cost per Intelligence Index task (USD) (lower is better). Linear x · linear y.</div></div>${extraHead}</div>${fakeChart()}</div>`;
+const header = () => `<div class="hdr"><h1>AI Model Frontier</h1><span class="meta">artificialanalysis.ai ↗ · 259 current models · data from 2 h ago</span><span class="spacer"></span><button class="desk-only">✦ What's new</button><button class="phone-only">Models</button><button class="phone-only">Options</button><button class="primary">Update data</button></div>`;
+const axesBar = () => `<div class="toolbar axes"><div class="group"><span>Y</span><button class="picker">Intelligence Index</button><div class="seg desk-only"><button aria-pressed="true">Linear</button><button>√</button><button>Log</button><button disabled>Logit</button></div></div><div class="group"><span>X</span><button class="picker">Cost per task</button><div class="seg desk-only"><button aria-pressed="true">Linear</button><button>√</button><button>Log</button><button disabled>Logit</button></div></div><div class="group desk-only"><button class="picker" style="min-width:0">Who leads what</button></div></div>`;
+// a page skeleton for the wide mock-ups: header, sidebar slot, main
+const page = (side, main, cls = '') => `<div class="m">${header()}<div class="pagefx ${cls}">${side}<main>${main}</main></div></div>`;
+
+// ---- M0: the panel as it is now ----
+const m0 = () => {
+  const labHtml = (l, sub) => `<div class="lab ${sub ? 'sub' : ''}"><div class="lab-head"><span class="tw">▼</span><span class="sw" style="background:${l.c}"></span>${l.name}<button class="count">${l.sel}/${l.total}</button></div><div class="lab-body">` +
+    l.fams.map((f) => `<div class="fam ${anyOn(f) ? 'any' : ''}"><div class="fam-name">${glyph(l.c)}${esc(f.name)} <span class="score">${f.score.toFixed(1)}</span><span class="range">${f.range}</span></div>${f.efforts.length > 1 || f.efforts[0] !== 'non-reasoning' ? `<div class="chips">${famChips(f)}</div>` : ''}</div>`).join('') + '</div></div>';
+  return `<div class="m"><div class="side">
+    <section><h2>Saved sets</h2><div class="row">${setSelect()}</div>
+      <div class="row" style="margin-top:6px"><button class="primary">Save as…</button><button disabled>Update</button><button disabled>Delete</button></div>
+      <div class="row" style="margin-top:6px"><button>Export</button><button>Import</button></div>
+      <div class="row" style="margin-top:8px"><span class="note" style="flex:1">Saved sets match GitHub · checked just now</span><button>Sync</button></div></section>
+    <section><h2>Efforts shown</h2><div class="chips">${EFFS.map((e) => chip(EFF[e], true, ['non-reasoning', 'minimal', 'default'].includes(e) ? 'missing' : '')).join('')}</div>
+      <div class="row" style="margin-top:6px"><span class="note">Selecting a model adds:</span><select><option>all efforts</option><option>highest effort only</option></select></div></section>
+    <section><h2>Models</h2><div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1;min-width:0"></div>
+      <div class="row" style="margin-top:6px"><button>AA defaults</button><button>Top 20</button><button>Clear</button></div>
+      <div class="row" style="margin-top:6px"><label class="inline"><input type="checkbox"> Include deprecated</label><label class="inline"><input type="checkbox"> Open weights only</label><label class="inline"><input type="checkbox" checked> Hide older versions</label><label class="inline"><input type="checkbox"> All labs</label></div>
+      <div class="note" style="margin-top:6px">30 selected · 66 in list</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px">${LABS.map((l) => labHtml(l)).join('')}
+        <div class="lab"><div class="lab-head"><span class="tw">▶</span><span class="sw" style="background:var(--other)"></span>Other labs<span class="count">0/28</span></div></div>${leftNote}</div></section>
+  </div></div>`;
+};
+// ---- M1: round-1 proposal ----
+const m1 = () => {
+  const lab = (l, open = true) => `<div class="lab2"><div class="lab-head2"><span class="tw">${open ? '▼' : '▶'}</span><i class="sw" style="background:${l.c}"></i>${l.name}<span class="count">${l.sel}/${l.total}</span></div>` +
+    (open ? l.fams.map((f) => `<div class="fam2 ${anyOn(f) ? 'on' : ''}"><span class="tick">${anyOn(f) ? '●' : '○'}</span><span class="nm">${esc(f.name)}</span><span class="sc">${f.score.toFixed(1)}</span><span class="rg">${f.range}</span></div>${anyOn(f) ? `<div class="chips under">${famChips(f, true)}</div>` : ''}`).join('') : '') + '</div>';
+  return `<div class="m"><div class="side2">
+    <div><div class="row">${setSelect()}<button class="more" title="Save as…, Update, Delete, Export, Import, Sync, Send to phone">⋯</button></div><div class="note" style="margin-top:4px">In sync with GitHub · checked just now</div></div>
+    <div><h2>Efforts <span class="note">on the chart</span></h2><div class="chips">${EFFS.map((e) => chip(EFF_SHORT[e], true, ['non-reasoning', 'minimal', 'default'].includes(e) ? 'missing' : '')).join('')}</div></div>
+    <div><h2>Models <span class="note">30 selected · 66 listed</span></h2>
+      <div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1;min-width:0"><button title="Include deprecated · Open weights only · Hide older versions ✓ · All labs">Filters <b>1</b> ▾</button></div>
+      <div class="row" style="margin-top:6px"><button>AA defaults</button><button>Top 20</button><button>Clear</button><span class="note" style="margin-left:auto">adds: all efforts ▾</span></div>
+      <div style="margin-top:8px">${LABS.map((l, i) => lab(l, i < 3)).join('')}<div class="lab2"><div class="lab-head2"><span class="tw">▶</span><i class="sw" style="background:var(--other)"></i>Other labs<span class="count">0/28</span></div></div>${leftNote}</div></div>
+  </div></div>`;
+};
+// ---- M2: lab tabs ----
+const m2 = () => {
+  const l = LABS[0];
+  const row = (f) => `<div class="mrow ${anyOn(f) ? '' : 'off'}"><span class="nm">${glyph(l.c)}${esc(f.name)}</span><span class="sc">${f.score.toFixed(1)}</span><span class="rg">${f.range}</span>` +
+    (anyOn(f) ? `<div class="chips">${famChips(f, true)}</div>` : `<div class="act"><span class="note">not on the chart</span><button>+ all efforts</button><button>+ top effort</button></div>`) + '</div>';
+  return `<div class="m"><div class="side2">
+    <div class="row">${setSelect()}<button class="more">⋯</button></div>
+    <div class="summary"><b>30 models on the chart</b><span>4 labs · efforts Low–Max</span><span class="note" style="margin-left:auto">Filters <b>1</b> ▾</span></div>
+    <div class="row"><input type="search" placeholder="Search any lab…" style="flex:1;min-width:0"></div>
+    <div class="labtabs" data-tabs>${[...LABS, ...OTHER].map((x, i) => `<button aria-selected="${i === 0}"><i class="sw" style="background:${x.c}"></i>${x.name}<span class="n">${x.sel}/${x.total}</span></button>`).join('')}<button><span class="n">43 more…</span></button></div>
+    <div><div class="row" style="margin-bottom:4px"><span class="note" style="flex:1">${l.name} · ${l.sel} of ${l.total} on the chart</span><button style="font-size:11.5px;padding:2px 8px">all</button><button style="font-size:11.5px;padding:2px 8px">none</button></div>${l.fams.map(row).join('')}</div>
+    <div class="note">Efforts shown on the chart: <b>Low Med High XHigh Max</b> · <a href="#" onclick="return false">change</a></div>
+  </div></div>`;
+};
+// ---- M3: on the chart / add models ----
+const m3 = () => {
+  const mini = (f) => `<span class="mini">${f.efforts.map((e) => `<i class="${f.on.includes(e) ? 'on' : ''}" title="${EFF[e]}">${EFF_LET[e]}</i>`).join('')}</span>`;
+  const on = LABS.flatMap((l) => l.fams.filter(anyOn).map((f) => ({ l, f })));
+  const addLab = (l) => { const off = l.fams.filter((f) => !anyOn(f)); return off.length ? `<div class="addlab"><i class="sw" style="background:${l.c}"></i>${l.name}<span class="count">${l.sel}/${l.total}</span></div>` + off.map((f) => `<div class="addrow"><button class="plus" title="Add every effort (⌥-click: top effort only)">+</button><span class="nm">${esc(f.name)}</span><span class="sc">${f.score.toFixed(1)}</span><span class="rg">${f.range}</span></div>`).join('') : ''; };
+  return `<div class="m"><div class="side2">
+    <div class="row">${setSelect()}<button class="more">⋯</button></div>
+    <div><p class="h3">On the chart <span class="n">30 models</span><span class="spacer"></span><button>Clear</button></p>
+      ${on.map(({ l, f }) => `<div class="onrow"><i class="dot" style="background:${l.c}"></i><span class="nm">${esc(f.name)}</span>${mini(f)}<button class="x" title="Remove from the chart">×</button></div>`).join('')}
+      <div class="note" style="margin-top:6px">Letters are effort levels: N none · L low · M medium · H high · XH xhigh · Mx max. Click one to toggle it.</div></div>
+    <div><p class="h3">Add models<span class="spacer"></span><button>Filters 1 ▾</button></p>
+      <div class="row" style="margin:6px 0 2px"><input type="search" placeholder="Search models or labs…" style="flex:1;min-width:0"></div>
+      <div class="row" style="margin:4px 0 2px"><button style="font-size:11.5px;padding:2px 8px">AA defaults</button><button style="font-size:11.5px;padding:2px 8px">Top 20</button><button style="font-size:11.5px;padding:2px 8px">Frontier labs</button></div>
+      ${LABS.map(addLab).join('')}${OTHER.slice(0, 2).map(addLab).join('')}<div class="addlab"><i class="sw" style="background:var(--other)"></i>5 more labs<span class="count">0/23</span><span class="tw" style="color:var(--muted);font-size:10px;margin-left:6px">▶</span></div>${leftNote}</div>
+  </div></div>`;
+};
+// ---- M4: table ----
+const m4 = () => {
+  const rows = [...LABS.flatMap((l) => l.fams.map((f) => ({ l, f }))), ...OTHER.flatMap((l) => l.fams.slice(0, 1).map((f) => ({ l, f })))].sort((a, b) => b.f.score - a.f.score);
+  const cells = (f) => ALL5.map((e) => `<i class="${!f.efforts.includes(e) ? 'na' : f.on.includes(e) ? 'on' : ''}" title="${EFF[e]}">${EFF_LET[e]}</i>`).join('');
+  return `<div class="m"><div class="side2">
+    <div class="row">${setSelect()}<button class="more">⋯</button></div>
+    <div class="row"><input type="search" placeholder="Search…" style="flex:1;min-width:0"><button>Filters <b>1</b> ▾</button><button>Group by lab</button></div>
+    <div class="row"><button style="font-size:11.5px;padding:2px 8px">AA defaults</button><button style="font-size:11.5px;padding:2px 8px">Top 20</button><button style="font-size:11.5px;padding:2px 8px">Clear</button><span class="note" style="margin-left:auto">30 selected · 66 listed</span></div>
+    <table class="pick"><colgroup><col class="c-chk"><col><col class="c-sc"><col class="c-cost"><col class="c-eff"></colgroup><thead><tr><th></th><th>Model ▾</th><th style="text-align:right">Score</th><th style="text-align:right">$/task</th><th>Efforts</th></tr></thead><tbody>
+      ${rows.map(({ l, f }) => `<tr class="${anyOn(f) ? 'on' : ''}"><td><input type="checkbox" ${anyOn(f) ? 'checked' : ''}></td><td class="name"><i class="dot" style="background:${l.c}" title="${l.name}"></i><span title="${esc(f.name)}">${esc(f.name)}</span></td><td class="n">${f.score.toFixed(1)}</td><td class="n">${f.range.replace('$', '')}</td><td><span class="mini">${cells(f)}</span></td></tr>`).join('')}
+    </tbody></table>${leftNote}
+  </div></div>`;
+};
+// ---- M5: chips above the chart, no sidebar ----
+const m5 = () => {
+  const on = LABS.flatMap((l) => l.fams.filter(anyOn).map((f) => ({ l, f })));
+  const strip = `<div class="strip"><span class="sets"><span class="note">Set</span>${setSelect()}</span>${on.map(({ l, f }) => `<span class="mchip"><i class="dot" style="background:${l.c}"></i>${esc(f.name)}<span class="n">${f.on.length} efforts</span><span class="x">×</span></span>`).join('')}<button class="primary" data-pop="m5pop" aria-expanded="true">+ Add models</button><span class="note" style="margin-left:auto">Efforts on the chart: Low–Max ▾</span></div>`;
+  const pop = `<div class="pop" id="m5pop" style="margin:10px 16px 0"><div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1;min-width:0"></div><div class="quick"><button>AA defaults</button><button>Top 20</button><button>Frontier labs</button><button>Open weights</button><button>Filters 1 ▾</button></div><div class="list">${[...LABS, ...OTHER.slice(0, 2)].map((l) => `<div class="addlab"><i class="sw" style="background:${l.c}"></i>${l.name}<span class="count">${l.sel}/${l.total}</span></div>` + l.fams.map((f) => `<div class="addrow"><button class="plus">${anyOn(f) ? '✓' : '+'}</button><span class="nm" style="${anyOn(f) ? 'color:var(--ink);font-weight:600' : ''}">${esc(f.name)}</span><span class="sc">${f.score.toFixed(1)}</span><span class="rg">${f.range}</span></div>`).join('')).join('')}</div></div>`;
+  return `<div class="m">${header()}${strip}${pop}<div style="padding:0 16px 16px">${axesBar()}${chartCard()}</div></div>`;
+};
+// ---- M6: effort matrix ----
+const m6 = () => {
+  const cols = EFFS.filter((e) => e !== 'minimal'); // Minimal shows as a column only when a listed model has it
+  const head = `<div class="sticky"><span class="note">Model</span><span class="sc">Score</span>${cols.map((e) => `<span class="colh" title="${EFF[e]}: click to toggle this effort for every model">${EFF_LET[e]}</span>`).join('')}</div>`;
+  const lab = (l) => `<div class="mh"><span><i class="sw" style="background:${l.c}"></i>${l.name}</span><span class="count">${l.sel}/${l.total}</span>${cols.map((e) => `<span class="colh" title="Toggle ${EFF[e]} for all of ${l.name}">${EFF_LET[e]}</span>`).join('')}</div>` +
+    l.fams.map((f) => `<span class="nm ${anyOn(f) ? 'on' : ''}" title="${f.range}">${esc(f.name)}</span><span class="sc">${f.score.toFixed(1)}</span>${cols.map((e) => `<span class="cell"><i class="${!f.efforts.includes(e) ? 'na' : f.on.includes(e) ? 'on lab' : ''}" style="--c:${l.c}" title="${esc(f.name)} · ${EFF[e]}"></i></span>`).join('')}`).join('');
+  return `<div class="m"><div class="side2">
+    <div class="row">${setSelect()}<button class="more">⋯</button></div>
+    <div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1;min-width:0"><button>Filters <b>1</b> ▾</button></div>
+    <div class="row"><button style="font-size:11.5px;padding:2px 8px">AA defaults</button><button style="font-size:11.5px;padding:2px 8px">Top 20</button><button style="font-size:11.5px;padding:2px 8px">Clear</button><span class="note" style="margin-left:auto">30 selected · 66 listed</span></div>
+    <div class="matrix">${head}${LABS.map(lab).join('')}${OTHER.slice(0, 3).map(lab).join('')}<div class="mh"><span><i class="sw" style="background:var(--other)"></i>4 more labs</span><span class="count">0/11</span></div></div>
+    <div class="note">Columns are effort levels (N none · L low · M medium · D default · H high · XH xhigh · Mx max; Minimal appears when a listed model has it). A blank cell means the model has no such variant. Click a column letter to toggle that effort for a whole lab, or in the sticky header for every model.</div>${leftNote}
+  </div></div>`;
+};
+// ---- M7: tree with checkboxes ----
+const m7 = () => {
+  const lab = (l) => { const state = l.sel === 0 ? '' : l.sel === l.total ? 'checked' : 'data-ind'; return `<div class="lb"><label><input type="checkbox" ${state}><i class="sw" style="background:${l.c}"></i>${l.name}<span class="count">${l.sel}/${l.total}</span><span class="tw" style="color:var(--muted);font-size:10px;margin-left:8px">▼</span></label></div>` +
+    l.fams.map((f) => `<div class="fm ${anyOn(f) ? 'on' : ''}"><label><input type="checkbox" ${anyOn(f) ? (f.on.length === f.efforts.length ? 'checked' : 'data-ind') : ''}><span class="nm">${esc(f.name)}</span><span class="sc">${f.score.toFixed(1)}</span><span class="rg">${f.range}</span></label></div>` +
+      (anyOn(f) ? `<div class="efs">${f.efforts.map((e) => `<label><input type="checkbox" ${f.on.includes(e) ? 'checked' : ''}>${EFF[e]}</label>`).join('')}</div>` : '')).join(''); };
+  return `<div class="m"><div class="side2">
+    <div class="row">${setSelect()}<button class="more">⋯</button></div>
+    <div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1;min-width:0"><button>Filters <b>1</b> ▾</button></div>
+    <div class="row"><button style="font-size:11.5px;padding:2px 8px">AA defaults</button><button style="font-size:11.5px;padding:2px 8px">Top 20</button><button style="font-size:11.5px;padding:2px 8px">Clear</button><span class="note" style="margin-left:auto">30 selected · 66 listed</span></div>
+    <div class="tree">${LABS.map(lab).join('')}<div class="lb"><label><input type="checkbox"><i class="sw" style="background:var(--other)"></i>Other labs<span class="count">0/28</span><span class="tw" style="color:var(--muted);font-size:10px;margin-left:8px">▶</span></label></div></div>
+    <div class="note">Ticking a lab or a model selects all of it (⌥-tick: top effort only); a dash means part of it. Effort boxes appear under ticked models.</div>${leftNote}
+  </div></div>`;
+};
+// ---- M8: search first ----
+const m8 = () => {
+  const on = LABS.flatMap((l) => l.fams.filter(anyOn).map((f) => ({ l, f })));
+  const hit = (l, f, i) => `<div class="res ${i === 0 ? 'active' : ''}"><i class="dot" style="background:${l.c}"></i><span class="nm">${esc(f.name).replace(/Gem/, '<mark>Gem</mark>')}<small>${l.name}</small></span><span class="meta">${f.score.toFixed(1)} · ${f.range}</span><div class="adds">${f.efforts.map((e) => `<button>+ ${EFF_SHORT[e]}</button>`).join('')}<button class="primary" style="color:var(--surface)">+ all</button></div></div>`;
+  return `<div class="m"><div class="side2">
+    <div class="bigsearch"><span class="ic">🔍</span><input type="search" value="gem"><span class="kbd">⌘K</span></div>
+    <div class="keys"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↩</kbd> add top effort</span><span><kbd>⇧↩</kbd> add all</span><span><kbd>⌫</kbd> remove</span></div>
+    <div><p class="h3">Results <span class="n">3 of 66</span></p>${hit(LABS[2], LABS[2].fams[0], 0)}${hit(LABS[2], LABS[2].fams[1], 1)}<div class="res"><i class="dot" style="background:var(--s1)"></i><span class="nm" style="color:var(--muted);font-weight:500"><mark>Gem</mark>ma 4 31B<small>Google · older, hidden</small></span><span class="meta">14.7</span></div></div>
+    <div><p class="h3">Quick picks</p><div class="chips" style="margin-top:4px"><button class="chip">AA defaults</button><button class="chip">Top 20</button><button class="chip" aria-pressed="true">Frontier labs</button><button class="chip">Open weights</button><button class="chip">Theo's six</button></div></div>
+    <div><p class="h3">On the chart <span class="n">30 models</span><span class="spacer"></span><button>Clear</button></p><div class="chips" style="margin-top:6px">${on.map(({ l, f }) => `<button class="chip" aria-pressed="true" style="background:transparent;color:var(--ink);border-color:${l.c}"><i class="dot" style="background:${l.c};margin-right:5px;vertical-align:-1px"></i>${esc(f.name)} · ${f.on.length}</button>`).join('')}</div></div>
+    <div class="row" style="margin-top:4px">${setSelect()}<button class="more">⋯</button></div>
+  </div></div>`;
+};
+// ---- M9: collapsible rail ----
+const m9 = () => {
+  const rail = `<div class="rail" title="Click a lab to open the panel on it">${LABS.map((l) => `<div class="lb"><i style="background:${l.c}"></i><b>${l.sel}</b></div>`).join('')}<div class="lb"><i style="background:var(--other)"></i><b>0</b></div><button class="open" title="Open the models panel">»</button></div>`;
+  return page(rail, `<div style="padding-top:10px">${axesBar()}${chartCard()}</div>`, 'rail-layout');
+};
+WS.sections.push({ id: 'models', title: '1 · Models panel', verdicts: ['pick', 'like', 'maybe', 'no'], options: [
+  { id: 'M0', title: 'As it is now', round: 'current', what: 'The panel today, redrawn for comparison: saved-set buttons in three rows, effort chips, filters as four checkboxes, then every model with its effort chips whether or not it is selected.', plus: [], minus: ['Six buttons for saved sets before anything else', 'Chips under every model, selected or not, so 30 rows of chips', 'Unselected names at 55% opacity on top of grey text'], frames: [{ w: 'side', cap: 'Desktop sidebar · phone sheet is the same at full width', html: m0() }] },
+  { id: 'M1', title: 'Round-1 proposal', round: 'r1', what: 'From the first workshop, with today\'s data: saved sets collapse to one row with a “⋯” menu; names at full contrast with the numbers in aligned columns; effort chips only under selected models; filters behind one button that shows how many are on.', plus: ['Keeps the familiar structure', 'Halves the height of the list', 'One row of set controls'], minus: ['Still one chip row per selected model'], frames: [{ w: 'side', cap: 'Desktop sidebar', html: m1() }] },
+  { id: 'M2', title: 'Lab tabs', round: 'r2', what: 'One lab at a time. A scrollable row of lab tabs with counts, then that lab\'s models as roomy rows: selected ones show their effort chips, unselected ones offer “+ all efforts” / “+ top effort”. A one-line summary of what\'s on the chart sits above.', plus: ['Short list, big type, no scrolling past labs you don\'t care about', 'Counts on the tabs show where your selection is'], minus: ['Can\'t see two labs at once', 'Other labs are a tab each, so 11 tabs'], frames: [{ w: 'side', cap: 'Desktop sidebar', html: m2() }] },
+  { id: 'M3', title: 'On the chart / Add models', round: 'r2', what: 'Two lists. The top one is only what\'s charted, one line per model with a compact effort strip (letters) and a remove button. Below it, every other model with a “+” button, grouped by lab, with no chips until it\'s added.', plus: ['What you\'re looking at is always at the top, never scattered down the list', 'Unselected models take one short line each'], minus: ['Letters for efforts need learning (a legend is shown once)', 'Two places to look for one model'], frames: [{ w: 'side', cap: 'Desktop sidebar', html: m3() }] },
+  { id: 'M4', title: 'Ranked table', round: 'r2', what: 'A dense, sortable table: checkbox, model (lab as a coloured dot), score, cost per task and the five effort levels as toggles in fixed columns. Sorted by score by default; “Group by lab” brings the lab headers back.', plus: ['Most information per inch; aligned columns read fast', 'Sorting by score or cost is one click'], minus: ['Lab is only a dot, so the colour legend matters', 'Needs the panel 40px wider (360px)'], frames: [{ w: 'side', width: 362, cap: 'Desktop sidebar, 360px wide', html: m4() }] },
+  { id: 'M5', title: 'Chips above the chart (no sidebar)', round: 'r2', what: 'The sidebar goes away. Selected models sit as chips in a strip above the chart, each with a remove button; “+ Add models” opens a popover with search, quick picks and the lab-grouped list. The chart gets the full page width.', plus: ['Chart is a third wider on a laptop', 'Selection is visible without a panel; removing a model is one click'], minus: ['Adding models is a popover away', 'Many chips wrap to two or three rows'], frames: [{ w: 'wide', cap: 'Whole page · popover shown open', html: m5() }] },
+  { id: 'M6', title: 'Effort matrix', round: 'r2', what: 'Rows are models, columns are the eight effort levels, cells are dots: filled = on the chart, hollow = available, blank = the model has no such variant. Lab headers repeat the column letters so a whole lab\'s “High” can be toggled at once.', plus: ['Replaces 150 chips with an aligned grid you can scan', 'Shows at a glance which models lack which efforts'], minus: ['Letters instead of words', 'Cost range moves to a hover', 'Needs the panel 40px wider (360px)'], frames: [{ w: 'side', width: 362, cap: 'Desktop sidebar, 360px wide', html: m6() }] },
+  { id: 'M7', title: 'Tree with checkboxes', round: 'r2', what: 'The classic: a checkbox per lab (dash = partly selected), per model, and per effort level under the models that are ticked. Native checkboxes, 13px names at full contrast, nothing faded.', plus: ['Everyone knows how it works', 'Clear partial-selection state at every level'], minus: ['Effort rows take more vertical space than chips', 'Plainer-looking'], frames: [{ w: 'side', cap: 'Desktop sidebar', html: m7() }] },
+  { id: 'M8', title: 'Search first', round: 'r2', what: 'A big search field leads; results list what matches with a “+” per effort, keyboard navigable (⌘K, arrows, Enter). Under it, quick picks and the current selection as compact chips. Saved sets drop to the bottom.', plus: ['Fastest way to add a specific model', 'Nothing to scroll until you ask for it'], minus: ['Browsing (what does Google have?) takes typing a lab name', 'Keyboard-first is less obvious on a phone'], frames: [{ w: 'side', cap: 'Desktop sidebar · shown mid-search for “gem”', html: m8() }] },
+  { id: 'M9', title: 'Collapsible rail', round: 'r2', what: 'The panel collapses to a 56px rail of lab colour bars with selected counts; clicking a bar (or the » button) slides the full panel out as an overlay, on that lab. Pairs with any list design above (M1–M8) for the expanded state.', plus: ['Chart gets the width without losing the sidebar', 'Counts on the rail keep the selection visible'], minus: ['Two clicks to change anything', 'An overlay covers part of the chart while open'], frames: [{ w: 'wide', cap: 'Whole page, rail collapsed', html: m9() }] },
+] });
+</script>
+<section class="part" id="options">
+  <h2>2 · Options bar</h2>
+  <p class="lead">What the display controls above the chart could look like. Every option holds the same fourteen settings the bar has today (Pareto, frontier style, all-models, guides, spotlight, labels, colour, mark, line-through, grid, axis text, glow, theme, good zone, zone style, your index, shape). O0 is the bar as it is now; A, B and C are round 1 with today's controls; D–K are new. The axis pickers stay where they are in every option.</p>
+  <div id="cards-options"></div>
+</section>
+<script>
+const seg = (opts, on, id = '') => `<div class="seg">${opts.map((o) => `<button aria-pressed="${o === on}">${o}</button>`).join('')}</div>`;
+const cb = (label, on) => `<label class="inline"><input type="checkbox" ${on ? 'checked' : ''}> ${label}</label>`;
+const themeSel = () => `<select><option>Auto (match device)</option><option>Paper</option><option>Nord</option><option>…</option></select>`;
+const basisSel = () => `<select><option>AA's 10 index benchmarks (as published)</option><option>Grade A benchmarks only</option><option>Grade B or better</option></select>`;
+const markSel = () => `<select><option>High</option></select>`;
+// the current bar
+const o0 = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}
+  <div class="toolbar" style="margin-top:8px"><div class="group"><span>Pareto</span>${seg(['Off', 'Step', 'Line'], 'Step')}${seg(['Shade', 'Fade', 'Rings'], 'Shade')}${cb('all models')}</div><div class="group"><span>Guides</span>${seg(['Hover', 'Pinned', 'Frontier', 'All'], 'Hover')}</div><div class="group"><span>Spotlight</span>${seg(['Off', 'Pinned'], 'Off')}</div><div class="group"><span>Labels</span>${seg(['Auto', 'Auto+', 'Ladder', 'Models', 'Every dot', 'None'], 'Auto')}</div><div class="group"><span>Color</span>${seg(['Lab', 'Effort', 'Open/closed'], 'Lab')}</div><div class="group"><span>Mark</span>${markSel()}${seg(['Hash', 'Ring', 'Square'], 'Hash')}</div>${cb('Line through effort levels', true)}</div>
+  <div class="toolbar" style="margin-top:10px"><div class="group"><span>Grid</span>${seg(['Normal', 'Faint', 'Off'], 'Normal')}</div><div class="group"><span>Axis text</span>${seg(['Normal', 'Faint'], 'Normal')}</div><div class="group"><span>Glow</span>${seg(['Off', 'On'], 'Off')}</div><div class="group"><span>Theme</span>${themeSel()}</div></div>
+  <div class="toolbar" style="margin-top:10px"><div class="group"><span>Good zone</span>${seg(['Off', 'Quadrant', 'Near frontier', 'Top tier', 'Sweet spot', 'Beats pinned', 'Diagonal'], 'Off')}</div><div class="group"><span>Zone style</span>${seg(['Tint', 'Hatch', 'Outline', 'Gradient'], 'Tint')}</div><div class="group"><span>Your index</span>${basisSel()}${cb('fill gaps', true)}</div><div class="group"><span>Shape</span>${seg(['Standard', 'Diamond'], 'Standard')}</div></div>
+  <div style="margin-top:12px">${chartCard()}</div></div>`;
+// Option A rows (reused by D, E, G, J)
+const ROWS = {
+  frontier: [['Pareto frontier', `${seg(['Off', 'Step', 'Line'], 'Step')} <span class="hint">the models nothing else beats on both axes</span>`], ['Frontier style', `${seg(['Shade', 'Fade', 'Rings'], 'Shade')} <span style="margin-left:10px">${cb('compute over all models')}</span>`], ['Good zone', seg(['Off', 'Quadrant', 'Near frontier', 'Top tier', 'Sweet spot', 'Beats pinned', 'Diagonal'], 'Off')], ['Zone style', seg(['Tint', 'Hatch', 'Outline', 'Gradient'], 'Tint')], ['Your index', `${basisSel()} <span style="margin-left:10px">${cb('fill gaps', true)}</span> <span class="hint">score and cost per task from only the benchmarks you trust</span>`]],
+  labels: [['Labels', seg(['Auto', 'Auto+', 'Ladder', 'Models', 'Every dot', 'None'], 'Auto')], ['Spotlight', `${seg(['Off', 'Pinned'], 'Off')} <span class="hint">click a dot to pin it; everything else dims</span>`], ['Guides', seg(['Hover', 'Pinned', 'Frontier', 'All'], 'Hover')], ['Mark effort', `${markSel()} <span style="margin-left:6px">${seg(['Hash', 'Ring', 'Square'], 'Hash')}</span> <span style="margin-left:10px">${cb('line through effort levels', true)}</span>`]],
+  look: [['Color by', seg(['Lab', 'Effort', 'Open/closed'], 'Lab')], ['Grid & axis text', `${seg(['Normal', 'Faint', 'Off'], 'Normal')} <span style="margin-left:6px">${seg(['Normal', 'Faint'], 'Normal')}</span> <span style="margin-left:10px">${cb('glow')}</span>`], ['Theme', themeSel()], ['Shape', seg(['Standard', 'Diamond'], 'Standard')]],
+};
+const formRows = (groups) => groups.map(([title, key]) => `<div class="sub">${title}</div>` + ROWS[key].map(([l, c]) => `<div class="lbl">${l}</div><div>${c}</div>`).join('')).join('');
+const oA = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}<div class="row" style="margin:8px 0 10px"><button aria-pressed="true" style="background:var(--hover)">Display ▾</button><span class="note">opens the sheet below; it can stay open</span></div><div class="form">${formRows([['Frontier', 'frontier'], ['Labels & marks', 'labels'], ['Look', 'look']])}</div></div>`;
+const oB = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}<div class="ddrow" style="margin-top:8px"><span class="dd"><span>Pareto</span><b>Step · Shade</b></span><span class="dd"><span>Good zone</span><b>Off</b></span><span class="dd"><span>Your index</span><b>AA's 10</b></span><span class="dd" aria-expanded="true"><span>Labels</span><b>Auto</b></span><span class="dd"><span>Spotlight</span><b>Off</b></span><span class="dd"><span>Guides</span><b>Hover</b></span><span class="dd"><span>Mark</span><b>High · hash</b></span><span class="dd"><span>Color</span><b>Lab</b></span><span class="dd"><span>Look</span><b>Grid normal · no glow</b></span><span class="dd"><span>Theme</span><b>Paper</b></span><span class="dd"><span>Shape</span><b>Standard</b></span></div>
+  <div class="menu" style="margin-top:10px"><div class="mhd">Labels</div><div class="mi" aria-selected="true"><span class="mi-label">Auto</span><span class="d">Model names, plus effort tags on dots where they fit</span></div><div class="mi"><span class="mi-label">Auto+</span><span class="d">Like Auto, and the top dot also gets its effort level</span></div><div class="mi"><span class="mi-label">Ladder</span><span class="d">Names in a column beside the plot, joined to their lines</span></div><div class="mi"><span class="mi-label">Models</span><span class="d">One label per model, at its highest-effort dot</span></div><div class="mi"><span class="mi-label">Every dot</span><span class="d">Model and effort on every dot, even where they overlap</span></div><div class="mi"><span class="mi-label">None</span><span class="d">No labels; hover a dot for its name</span></div></div></div>`;
+const oC = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}<div data-tabhost style="margin-top:8px"><div class="tabs" data-tabs><button aria-selected="true" data-for="t1">Frontier</button><button data-for="t2">Labels &amp; marks</button><button data-for="t3">Look</button><button data-for="t4">Zones</button></div>
+  <div class="tabpanel" data-tab="t1"><div class="toolbar"><div class="group"><span>Pareto</span>${seg(['Off', 'Step', 'Line'], 'Step')}</div><div class="group"><span>Style</span>${seg(['Shade', 'Fade', 'Rings'], 'Shade')}</div>${cb('compute over all models')}<div class="group"><span>Your index</span>${basisSel()}</div><div class="group"><span>Guides</span>${seg(['Hover', 'Pinned', 'Frontier', 'All'], 'Hover')}</div></div></div>
+  <div class="tabpanel" data-tab="t2" hidden><div class="toolbar"><div class="group"><span>Labels</span>${seg(['Auto', 'Auto+', 'Ladder', 'Models', 'Every dot', 'None'], 'Auto')}</div><div class="group"><span>Spotlight</span>${seg(['Off', 'Pinned'], 'Off')}</div><div class="group"><span>Mark</span>${markSel()}${seg(['Hash', 'Ring', 'Square'], 'Hash')}</div>${cb('Line through effort levels', true)}</div></div>
+  <div class="tabpanel" data-tab="t3" hidden><div class="toolbar"><div class="group"><span>Color</span>${seg(['Lab', 'Effort', 'Open/closed'], 'Lab')}</div><div class="group"><span>Grid</span>${seg(['Normal', 'Faint', 'Off'], 'Normal')}</div><div class="group"><span>Axis text</span>${seg(['Normal', 'Faint'], 'Normal')}</div><div class="group"><span>Glow</span>${seg(['Off', 'On'], 'Off')}</div><div class="group"><span>Theme</span>${themeSel()}</div><div class="group"><span>Shape</span>${seg(['Standard', 'Diamond'], 'Standard')}</div></div></div>
+  <div class="tabpanel" data-tab="t4" hidden><div class="toolbar"><div class="group"><span>Good zone</span>${seg(['Off', 'Quadrant', 'Near frontier', 'Top tier', 'Sweet spot', 'Beats pinned', 'Diagonal'], 'Off')}</div><div class="group"><span>Zone style</span>${seg(['Tint', 'Hatch', 'Outline', 'Gradient'], 'Tint')}</div></div></div></div></div>`;
+// D: popover toolbar
+const oD = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}<div class="popbar" style="margin-top:8px"><span class="dd" aria-expanded="true"><span>Frontier</span><b>Step · shade</b></span><span class="dd"><span>Labels</span><b>Auto</b></span><span class="dd"><span>Guides</span><b>Hover</b></span><span class="dd"><span>Spotlight</span><b>Off</b></span><span class="dd"><span>Marks</span><b>High · hash · line</b></span><span class="dd"><span>Color</span><b>Lab</b></span><span class="dd"><span>Good zone</span><b>Off</b></span><span class="dd"><span>Your index</span><b>AA's 10</b></span><span class="dd"><span>Look</span><b>Paper · grid</b></span><span class="dd"><span>Shape</span><b>Standard</b></span></div>
+  <div class="popover" style="margin-top:8px"><div class="form">${ROWS.frontier.slice(0, 2).map(([l, c]) => `<div class="lbl">${l}</div><div>${c}</div>`).join('')}</div></div></div>`;
+// E: primary + more
+const oE = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}<div class="toolbar primary-row" style="margin-top:10px"><div class="group"><span>Labels</span>${seg(['Auto', 'Auto+', 'Ladder', 'Models', 'Every dot', 'None'], 'Auto')}</div><div class="group"><span>Frontier</span>${seg(['Off', 'Step', 'Line'], 'Step')}</div><div class="group"><span>Spotlight</span>${seg(['Off', 'Pinned'], 'Off')}</div><div class="group"><span>Color</span>${seg(['Lab', 'Effort', 'Open/closed'], 'Lab')}</div><button data-pop="oEmore" aria-expanded="true" style="margin-left:auto">More options ▾</button></div>
+  <div class="morebox" id="oEmore"><div class="form two"><div class="sub">Frontier &amp; zones</div><div class="sub">Labels, marks &amp; look</div>
+    ${[['Frontier style', ROWS.frontier[1][1]], ['Guides', ROWS.labels[2][1]], ['Good zone', ROWS.frontier[2][1]], ['Mark effort', ROWS.labels[3][1]], ['Zone style', ROWS.frontier[3][1]], ['Grid & axis text', ROWS.look[1][1]], ['Your index', ROWS.frontier[4][1]], ['Theme', ROWS.look[2][1]], ['', ''], ['Shape', ROWS.look[3][1]]].map(([l, c]) => `<div class="lbl">${l}</div><div>${c.replace(/<span class="hint">.*?<\/span>/g, '')}</div>`).join('')}</div></div></div>`;
+// F: sentence
+const oF = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}<p class="sentence" style="margin:8px 0 0">Show the <span class="dd"><b>Pareto frontier</b></span> as a <span class="dd"><b>staircase</b></span> with <span class="dd"><b>shading</b></span>, using <span class="dd"><b>the models on the chart</b></span>. Label <span class="dd"><b>automatically</b></span>, colour by <span class="dd"><b>lab</b></span>, mark <span class="dd"><b>High</b></span> effort with a <span class="dd"><b>hash</b></span>, and <span class="dd"><b>join</b></span> each model's efforts. Guides on <span class="dd"><b>hover</b></span>, spotlight <span class="dd"><b>off</b></span>, good zone <span class="dd"><b>off</b></span>. Score models by <span class="dd"><b>AA's 10 benchmarks</b></span>. <button class="gear">⚙ Grid, axis text, glow, theme, shape</button></p></div>`;
+// G: display tab in the sidebar
+const oG = () => {
+  const vf = (rows) => rows.map(([l, c]) => `<div class="f"><span>${l}</span><div>${c.replace(/<span class="hint">.*?<\/span>/g, '')}</div></div>`).join('');
+  const side = `<div class="side2" style="gap:10px"><div class="sidetabs" data-tabs><button data-for="g1">Models <span class="note">30</span></button><button aria-selected="true" data-for="g2">Display</button><button data-for="g3">Sets</button></div><div class="vform"><div class="sub">Frontier</div>${vf(ROWS.frontier)}<div class="sub">Labels &amp; marks</div>${vf(ROWS.labels)}<div class="sub">Look</div>${vf(ROWS.look)}</div></div>`;
+  return page(side, `<div style="padding-top:10px">${axesBar()}${chartCard()}</div>`);
+};
+// H: on-chart controls
+const oH = () => {
+  const ctl = `<div class="ctl"><span class="dd"><span>Labels</span><b>Auto</b></span><span class="dd"><span>Frontier</span><b>Step</b></span><span class="dd"><span>Zone</span><b>Off</b></span><span class="dd"><span>Spotlight</span><b>Off</b></span><span class="dd"><span>Color</span><b>Lab</b></span><span class="dd" aria-expanded="true">⋯</span></div>`;
+  const pop = `<div class="popover gearpop" style="position:absolute;right:16px;top:44px;z-index:2"><div class="form" style="grid-template-columns:90px 1fr;gap:6px 10px"><div class="lbl">Guides</div><div>${seg(['Hover', 'Pinned', 'Frontier', 'All'], 'Hover')}</div><div class="lbl">Mark</div><div>${markSel()} ${seg(['Hash', 'Ring', 'Square'], 'Hash')}</div><div class="lbl"></div><div>${cb('line through efforts', true)}</div><div class="lbl">Your index</div><div>${basisSel().replace('<select>', '<select style="max-width:250px">')}</div><div class="lbl">Zone style</div><div>${seg(['Tint', 'Hatch', 'Outline', 'Gradient'], 'Tint')}</div></div></div>`;
+  const side = `<div class="side2"><div class="row">${setSelect()}<button class="more">⋯</button></div><div class="note">Models panel as today (or any of M1–M9)</div></div>`;
+  const hdr = `<div class="hdr"><h1>AI Model Frontier</h1><span class="meta">artificialanalysis.ai ↗ · 259 current models</span><span class="spacer"></span><button class="desk-only">✦ What's new</button><button title="Page look: theme, grid, axis text, glow, shape">⚙ Look</button><button class="primary">Update data</button></div>`;
+  return `<div class="m">${hdr}<div class="pagefx">${side}<main style="position:relative"><div style="padding-top:10px">${axesBar()}${chartCard(ctl)}</div>${pop}</main></div></div>`;
+};
+// I: presets + customize
+const oI = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}<div class="presets" style="margin-top:10px"><span class="note">Look</span>
+  <button class="preset" aria-pressed="true"><b>Clean</b><span>auto labels · step frontier · no zone</span></button><button class="preset"><b>Analyst</b><span>ladder labels · guides on frontier · sweet spot</span></button><button class="preset"><b>Presentation</b><span>model labels only · faint grid · glow · dark</span></button><button class="preset"><b>Dense</b><span>every dot labelled · rings · all guides</span></button><button class="preset"><b>Theo</b><span>ladder · log x · effort colours · diamond</span></button>
+  <button data-pop="oIcustom" aria-expanded="false" style="margin-left:auto">Customize ▾</button><button title="Save the current settings as a preset">+ Save as preset</button></div>
+  <div class="morebox" id="oIcustom" hidden><div class="form">${formRows([['Frontier', 'frontier'], ['Labels & marks', 'labels'], ['Look', 'look']])}</div></div></div>`;
+// J: two-column form, always visible
+const oJ = () => `<div class="m" style="padding:0 16px 14px">${axesBar()}<div class="form two" style="margin-top:10px"><div class="sub">Frontier &amp; zones</div><div class="sub">Labels &amp; marks</div>
+  ${[['Pareto', ROWS.frontier[0][1]], ['Labels', ROWS.labels[0][1]], ['Frontier style', ROWS.frontier[1][1]], ['Spotlight', ROWS.labels[1][1]], ['Good zone', ROWS.frontier[2][1]], ['Guides', ROWS.labels[2][1]], ['Zone style', ROWS.frontier[3][1]], ['Mark effort', ROWS.labels[3][1]], ['Your index', ROWS.frontier[4][1]], ['Color by', ROWS.look[0][1]]].map(([l, c]) => `<div class="lbl">${l}</div><div>${c.replace(/<span class="hint">.*?<\/span>/g, '')}</div>`).join('')}
+  <div class="sub">Look</div><div class="sub"></div>${[['Grid & axis text', ROWS.look[1][1]], ['Theme', ROWS.look[2][1]], ['Shape', ROWS.look[3][1]], ['', '']].map(([l, c]) => `<div class="lbl">${l}</div><div>${c}</div>`).join('')}</div></div>`;
+// K: icon rail
+const oK = () => {
+  const rail = `<div class="irail"><button title="Labels" aria-expanded="true">Aa</button><button title="Frontier">⌐</button><button title="Good zone">◩</button><button title="Spotlight">◎</button><button title="Guides">╂</button><button title="Colour by">◐</button><button title="Marks">✚</button><button title="Your index">Σ</button><button title="Look: theme, grid, glow, shape" style="margin-top:auto">☾</button></div>`;
+  const pop = `<div class="popover" style="position:absolute;right:60px;top:12px;z-index:2;width:300px"><div class="form" style="grid-template-columns:1fr;gap:6px"><div class="lbl" style="text-align:left">Labels</div><div>${seg(['Auto', 'Auto+', 'Ladder', 'Models', 'Every dot', 'None'], 'Auto').replace('class="seg"', 'class="seg" style="flex-wrap:wrap"')}</div><div class="hint" style="margin:0">Names next to the dots; Ladder puts them in a column beside the plot</div></div></div>`;
+  return `<div class="m">${header()}<div class="pagefx irail-layout"><main style="position:relative"><div style="padding-top:10px">${axesBar()}${chartCard()}</div>${pop}</main>${rail}</div></div>`;
+};
+WS.sections.push({ id: 'options', title: '2 · Options bar', verdicts: ['pick', 'like', 'maybe', 'no'], options: [
+  { id: 'O0', title: 'As it is now', round: 'current', what: 'Fourteen groups of segmented buttons over three rows under the axes; the grey 12px group names sit between the controls, and the rows wrap differently at every width.', plus: ['Every setting is one click away'], minus: ['Nothing says which group a control belongs to', 'Row wrapping changes the layout between a laptop and a monitor', 'Lowest-contrast text on the page labels the controls'], frames: [{ w: 'wide', cap: 'Desktop', html: o0() }] },
+  { id: 'OA', title: 'A · Settings sheet with labelled rows', round: 'r1', what: 'One control per row, bold label on the left, grouped under three headings with a one-line hint where it helps. Opens from a “Display ▾” button beside the axes and can stay open.', plus: ['Easiest to scan; every control has a name', 'Hints explain the odd ones (spotlight, your index)'], minus: ['Tallest option; pushes the chart down while open'], frames: [{ w: 'wide', cap: 'Desktop · sheet open', html: oA() }] },
+  { id: 'OB', title: 'B · Dropdowns showing their value', round: 'r1', what: 'Each setting is a button reading “Labels: Auto ▾”; its menu lists the choices with a one-line explanation each, in the same style as the axis pickers. Fits in one or two rows at any width.', plus: ['Current state is readable at a glance', 'Compact at every width'], minus: ['Two clicks to change a setting'], frames: [{ w: 'wide', cap: 'Desktop · Labels menu shown open', html: oB() }] },
+  { id: 'OC', title: 'C · Tabs', round: 'r1', what: 'Four tabs (Frontier · Labels & marks · Look · Zones), each showing one short row of the familiar segmented controls.', plus: ['Least visual noise'], minus: ['Settings on other tabs are out of sight', 'The tab names are the only grouping cue'], frames: [{ w: 'wide', cap: 'Desktop · click the tabs', html: oC() }] },
+  { id: 'OD', title: 'D · Popover toolbar', round: 'r2', what: 'A row of ten buttons, each naming its group and showing the current value (“Frontier · Step, shade”). Clicking one opens a small popover with that group\'s controls as labelled rows with hints, so it is B\'s compact bar with A\'s legibility inside.', plus: ['One short row that never wraps badly; value visible without opening', 'Related controls (Pareto + style + all-models) open together'], minus: ['Two clicks, like B', 'Popovers can cover the top of the chart'], frames: [{ w: 'wide', cap: 'Desktop · Frontier popover shown open', html: oD() }] },
+  { id: 'OE', title: 'E · Primary row + More', round: 'r2', what: 'The four controls people touch most (Labels, Frontier, Spotlight, Color) stay as full-size segmented controls with black labels. Everything else lives under “More options ▾”, which expands a two-column sheet of labelled rows below.', plus: ['The common case is one click, and only four groups to read', 'Progressive disclosure keeps the rest findable'], minus: ['Which four is a judgement call', 'Expanded sheet is as tall as A'], frames: [{ w: 'wide', cap: 'Desktop · More shown expanded', html: oE() }] },
+  { id: 'OF', title: 'F · Settings as a sentence', round: 'r2', what: 'The display settings read as prose: “Show the Pareto frontier as a staircase with shading … colour by lab …”. Each underlined phrase is a dropdown. Page-level look settings (grid, theme, shape) go behind a gear.', plus: ['Self-explanatory; it says what the chart is doing', 'No group labels needed'], minus: ['Unusual; slower to scan once you know the controls', 'Long on a phone'], frames: [{ w: 'wide', cap: 'Desktop', html: oF() }] },
+  { id: 'OG', title: 'G · Display tab in the left panel', round: 'r2', what: 'The options leave the top of the page. The left panel gets three tabs: Models, Display and Sets. Display is a vertical form with a bold name above each control and hints under the odd ones. Above the chart there is only the axes bar.', plus: ['Vertical space is plentiful, so every control gets a name and room', 'The chart moves up by three rows'], minus: ['Models and Display can\'t be seen at once', 'Phone sheet needs the same tabs'], frames: [{ w: 'wide', cap: 'Desktop · Display tab', html: oG() }] },
+  { id: 'OH', title: 'H · Controls on the chart card', round: 'r2', what: 'Settings sit next to what they change: the chart card\'s title row carries small value-dropdowns for Labels, Frontier, Zone, Spotlight and Color, with a “⋯” for the rest. Page look (theme, grid, axis text, glow, shape) moves to a “⚙ Look” button in the header.', plus: ['Controls are where your eyes already are', 'Nothing between the axes and the chart'], minus: ['Title row gets crowded on narrow screens', 'Two homes for settings (card and header)'], frames: [{ w: 'wide', cap: 'Desktop · ⋯ popover shown open', html: oH() }] },
+  { id: 'OI', title: 'I · Presets, then customize', round: 'r2', what: 'A row of named looks (Clean, Analyst, Presentation, Dense, Theo), each with a one-line summary, and a “Customize ▾” that reveals the full labelled sheet (A). You can save your own preset.', plus: ['One click to a coherent look', 'Hides fourteen controls until wanted'], minus: ['Presets need curating', 'Still A underneath when you customize'], frames: [{ w: 'wide', cap: 'Desktop · click Customize to expand', html: oI() }] },
+  { id: 'OJ', title: 'J · Two-column form, always visible', round: 'r2', what: 'Option A\'s labelled rows laid out in two columns so it is half as tall, and always open: no sheet, no tabs, no popovers.', plus: ['Everything visible and named, like A, in half the height', 'Columns give a second grouping cue'], minus: ['Still taller than today\'s bar', 'Collapses to one column on a phone'], frames: [{ w: 'wide', cap: 'Desktop', html: oJ() }] },
+  { id: 'OK', title: 'K · Icon rail beside the chart', round: 'r2', what: 'A vertical rail of icon buttons at the chart\'s right edge (labels, frontier, zone, spotlight, guides, colour, marks, your index, look). Each opens a popover with that group\'s controls and a hint. Nothing above the chart but the axes.', plus: ['Minimal chrome; the chart gets the top of the page', 'Always in reach while scrolling'], minus: ['Icons for abstract settings need tooltips to learn', 'Current values are hidden until you open a popover'], frames: [{ w: 'wide', cap: 'Desktop · Labels popover shown open', html: oK() }] },
+] });
+</script>
+<section class="part" id="style">
+  <h2>3 · Control style</h2>
+  <p class="lead">How the buttons, labels and spacing look, independent of where the controls live. Each variant shows the same five groups. Pick one here and it applies to whichever layouts you choose above, and to the models panel's chips.</p>
+  <div id="cards-style"></div>
+</section>
+<script>
+const sample = (cls) => `<div class="m"><div class="st ${cls}" style="padding:16px"><div class="toolbar"><div class="group"><span>Labels</span>${seg(['Auto', 'Auto+', 'Ladder', 'Models', 'Every dot', 'None'], 'Auto')}</div><div class="group"><span>Pareto</span>${seg(['Off', 'Step', 'Line'], 'Step')}${seg(['Shade', 'Fade', 'Rings'], 'Shade')}${cb('all models')}</div><div class="group"><span>Spotlight</span>${seg(['Off', 'Pinned'], 'Off')}</div><div class="group"><span>Color</span>${seg(['Lab', 'Effort', 'Open/closed'], 'Lab')}</div><div class="group"><span>Mark</span>${markSel()}${seg(['Hash', 'Ring', 'Square'], 'Hash')}</div></div>
+  <div class="toolbar" style="margin-top:12px"><div class="group"><span>Good zone</span>${seg(['Off', 'Quadrant', 'Near frontier', 'Top tier', 'Sweet spot', 'Beats pinned', 'Diagonal'], 'Off')}</div><div class="group"><span>Theme</span>${themeSel()}</div></div>
+  <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="note" style="margin-right:4px">Chips in the models panel:</span>${['Low', 'Med', 'High', 'XHigh', 'Max'].map((e) => chip(e, e !== 'Low')).join('')}</div></div></div>`;
+WS.sections.push({ id: 'style', title: '3 · Control style', verdicts: ['pick', 'like', 'maybe', 'no'], options: [
+  { id: 'S0', title: 'As it is now: boxed segments', round: 'current', what: 'Bordered segmented controls, 12px grey group names, the chosen option filled black.', plus: ['High contrast on the chosen option'], minus: ['Every button has a border, so a row of ten groups is a wall of boxes', 'Group names are the faintest text on the page'], frames: [{ w: 'wide', cap: 'Sample', html: sample('') }] },
+  { id: 'S1', title: 'Soft pills', round: 'r2', what: 'Each group sits on a tinted track with no borders; the chosen option is a raised white (or dark) pill. Group names at 12.5px, medium weight, in the secondary text colour.', plus: ['Fewer lines; groups read as units', 'Calmer in dark mode'], minus: ['Lower contrast on the chosen option than black-on-white'], frames: [{ w: 'wide', cap: 'Sample', html: sample('pills') }] },
+  { id: 'S2', title: 'Underlined text', round: 'r2', what: 'Options are plain words; the chosen one is bold with an underline. No boxes at all.', plus: ['Lightest possible chrome', 'Reads like a menu bar'], minus: ['Touch targets are only the words', 'Where one group ends and the next begins relies on spacing'], frames: [{ w: 'wide', cap: 'Sample', html: sample('under') }] },
+  { id: 'S3', title: 'Accent for the chosen option', round: 'r2', what: 'Today\'s boxes, but the chosen option is the accent blue rather than black, and group names are black, 12.5px, semibold.', plus: ['Chosen options stand out from the black “primary” buttons', 'Names are legible'], minus: ['Blue competes with Google-blue dots on the chart', 'Still boxy'], frames: [{ w: 'wide', cap: 'Sample', html: sample('accent') }] },
+  { id: 'S4', title: 'Comfortable: names above, bigger targets', round: 'r2', what: 'Each group name sits above its control in small caps, controls are 13.5px with 32px-tall buttons, and the gaps grow. Phone-friendly spacing on the desktop too.', plus: ['Easiest to read and tap', 'Names above make the groups unmistakable'], minus: ['Takes about 40% more height'], frames: [{ w: 'wide', cap: 'Sample', html: sample('comfy') }] },
+  { id: 'S5', title: 'Cards per group', round: 'r2', what: 'Every group is a small card: name on top, soft-pill control inside. The cards tile and wrap cleanly at any width.', plus: ['Grouping is unmistakable; wrapping never splits a group', 'Looks tidy on the phone'], minus: ['Most chrome of the five', 'Tallest after S4'], frames: [{ w: 'wide', cap: 'Sample', html: sample('cards') }] },
+] });
+</script>
+<section class="part" id="themes">
+  <h2>4 · Colour themes</h2>
+  <p class="lead">Every theme in the Theme picker now, screenshotted on the live chart. The six that existed (Paper, White, Sepia, Graphite, Midnight, Black) only change the surfaces; the seventeen new ones also recolour the labs, keeping each lab's hue (Google blue, Anthropic orange, xAI green, Alibaba yellow, Meta pink, Z AI teal, DeepSeek purple, Xiaomi red; OpenAI is the text colour) and the effort ramp. Click a screenshot to enlarge it; “Open live” shows the real page in that theme. Verdicts here are <b>Keep</b>, <b>Like</b>, <b>Tweak</b> (say what in the comment) or <b>Drop</b>.</p>
+  <div class="themes" id="cards-themes"></div>
+</section>
+<script>
+const THEMES = [{"slug":"light","name":"Paper","dark":false,"isNew":false,"page":"#f9f9f7","surface":"#fcfcfb","ink":"#0b0b0b","accent":"#2a78d6","s":["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#e34948"],"other":"#a8a69f","note":"The default light theme."},{"slug":"white","name":"White","dark":false,"isNew":false,"page":"#f3f4f6","surface":"#ffffff","ink":"#111418","accent":"#2a78d6","s":["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#e34948"],"other":"#a8a69f","note":"Pure white surfaces, cool grey text."},{"slug":"sepia","name":"Sepia","dark":false,"isNew":false,"page":"#efe7d6","surface":"#f8f2e5","ink":"#2a2217","accent":"#2a78d6","s":["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#e34948"],"other":"#a99d86","note":"Warm paper."},{"slug":"dark","name":"Graphite","dark":true,"isNew":false,"page":"#0d0d0d","surface":"#1a1a19","ink":"#ffffff","accent":"#3987e5","s":["#3987e5","#d95926","#199e70","#c98500","#d55181","#008300","#9085e9","#e66767"],"other":"#6b6a65","note":"The default dark theme."},{"slug":"midnight","name":"Midnight","dark":true,"isNew":false,"page":"#0b1120","surface":"#111a2e","ink":"#f1f5f9","accent":"#3987e5","s":["#3987e5","#d95926","#199e70","#c98500","#d55181","#008300","#9085e9","#e66767"],"other":"#5f6b80","note":"Navy-black."},{"slug":"black","name":"Black","dark":true,"isNew":false,"page":"#000000","surface":"#000000","ink":"#ffffff","accent":"#3987e5","s":["#3987e5","#d95926","#199e70","#c98500","#d55181","#008300","#9085e9","#e66767"],"other":"#6b6a65","note":"True black, for OLED."},{"slug":"solarized-light","name":"Solarized Light","dark":false,"isNew":true,"page":"#fdf6e3","surface":"#fffbf0","ink":"#073642","accent":"#268bd2","s":["#268bd2","#cb4b16","#859900","#b58900","#d33682","#2aa198","#6c71c4","#dc322f"],"other":"#b5ad99","note":"Ethan Schoonover's palette; the lab colours are Solarized's own accents."},{"slug":"latte","name":"Catppuccin Latte","dark":false,"isNew":true,"page":"#eff1f5","surface":"#ffffff","ink":"#4c4f69","accent":"#1e66f5","s":["#1e66f5","#fe640b","#40a02b","#df8e1d","#ea76cb","#179299","#8839ef","#d20f39"],"other":"#acb0be","note":"Catppuccin's light flavour."},{"slug":"gruvbox-light","name":"Gruvbox Light","dark":false,"isNew":true,"page":"#fbf1c7","surface":"#fdf6dd","ink":"#3c3836","accent":"#076678","s":["#076678","#af3a03","#79740e","#b57614","#8f3f71","#427b58","#b16286","#9d0006"],"other":"#bdae93","note":"Retro, warm, low-saturation."},{"slug":"dawn","name":"Rosé Pine Dawn","dark":false,"isNew":true,"page":"#faf4ed","surface":"#fffaf3","ink":"#575279","accent":"#286983","s":["#286983","#d7827e","#56949f","#ea9d34","#b4637a","#3e8fb0","#907aa9","#b4637a"],"other":"#cecacd","note":"Rosé Pine's light variant: muted, rosy."},{"slug":"colorblind","name":"Colorblind-safe (light)","dark":false,"isNew":true,"page":"#f9f9f7","surface":"#fcfcfb","ink":"#0b0b0b","accent":"#0072b2","s":["#0072b2","#d55e00","#009e73","#e69f00","#cc79a7","#56b4e9","#8c6bb1","#a0522d"],"other":"#a8a69f","note":"Okabe–Ito colours for the labs, on Paper: distinguishable with the common colour-vision deficiencies."},{"slug":"contrast-light","name":"High contrast (light)","dark":false,"isNew":true,"page":"#ffffff","surface":"#ffffff","ink":"#000000","accent":"#0047cc","s":["#0047cc","#d84a00","#007a3d","#b37400","#c2187a","#007d7a","#5a2fd0","#c40000"],"other":"#6e6e6e","note":"Black on white, saturated lab colours, strong borders."},{"slug":"solarized-dark","name":"Solarized Dark","dark":true,"isNew":true,"page":"#002b36","surface":"#073642","ink":"#eee8d5","accent":"#268bd2","s":["#4ea3e3","#e8683a","#9fb41a","#d9a71a","#e0559b","#3dbcb3","#8a8fd9","#ee5a4f"],"other":"#5f7378","note":"Solarized's dark side, lab colours lifted for contrast."},{"slug":"nord","name":"Nord","dark":true,"isNew":true,"page":"#2e3440","surface":"#3b4252","ink":"#eceff4","accent":"#88c0d0","s":["#81a1c1","#d08770","#a3be8c","#ebcb8b","#b48ead","#8fbcbb","#5e81ac","#bf616a"],"other":"#6b7589","note":"Arctic blues and pastels."},{"slug":"dracula","name":"Dracula","dark":true,"isNew":true,"page":"#282a36","surface":"#303341","ink":"#f8f8f2","accent":"#bd93f9","s":["#8be9fd","#ffb86c","#50fa7b","#f1fa8c","#ff79c6","#5fd7a7","#bd93f9","#ff5555"],"other":"#6272a4","note":"Purple-grey with neon accents."},{"slug":"gruvbox-dark","name":"Gruvbox Dark","dark":true,"isNew":true,"page":"#282828","surface":"#32302f","ink":"#ebdbb2","accent":"#83a598","s":["#83a598","#fe8019","#b8bb26","#fabd2f","#d3869b","#8ec07c","#b16286","#fb4934"],"other":"#7c6f64","note":"Warm retro dark."},{"slug":"mocha","name":"Catppuccin Mocha","dark":true,"isNew":true,"page":"#1e1e2e","surface":"#262637","ink":"#cdd6f4","accent":"#89b4fa","s":["#89b4fa","#fab387","#a6e3a1","#f9e2af","#f5c2e7","#94e2d5","#cba6f7","#f38ba8"],"other":"#6c7086","note":"Catppuccin's dark flavour: pastel on indigo."},{"slug":"tokyo","name":"Tokyo Night","dark":true,"isNew":true,"page":"#1a1b26","surface":"#24283b","ink":"#c0caf5","accent":"#7aa2f7","s":["#7aa2f7","#ff9e64","#9ece6a","#e0af68","#f7768e","#73daca","#bb9af7","#db4b4b"],"other":"#565f89","note":"Tokyo Night: cool indigo."},{"slug":"onedark","name":"One Dark","dark":true,"isNew":true,"page":"#21252b","surface":"#282c34","ink":"#dcdfe4","accent":"#61afef","s":["#61afef","#d19a66","#98c379","#e5c07b","#c678dd","#56b6c2","#8c7ae6","#e06c75"],"other":"#5c6370","note":"Atom's One Dark."},{"slug":"rosepine","name":"Rosé Pine","dark":true,"isNew":true,"page":"#191724","surface":"#1f1d2e","ink":"#e0def4","accent":"#c4a7e7","s":["#3e8fb0","#ebbcba","#9ccfd8","#f6c177","#eb6f92","#56949f","#c4a7e7","#b4637a"],"other":"#6e6a86","note":"Rosé Pine: soft, low-contrast."},{"slug":"monokai","name":"Monokai","dark":true,"isNew":true,"page":"#272822","surface":"#2d2e28","ink":"#f8f8f2","accent":"#66d9ef","s":["#66d9ef","#fd971f","#a6e22e","#e6db74","#f92672","#78dce8","#ae81ff","#ff6188"],"other":"#75715e","note":"The classic editor theme."},{"slug":"everforest","name":"Everforest","dark":true,"isNew":true,"page":"#2d353b","surface":"#343f44","ink":"#d3c6aa","accent":"#7fbbb3","s":["#7fbbb3","#e69875","#a7c080","#dbbc7f","#d699b6","#83c092","#a988b0","#e67e80"],"other":"#6a7a7c","note":"Green-grey, easy on the eyes."},{"slug":"contrast-dark","name":"High contrast (dark)","dark":true,"isNew":true,"page":"#000000","surface":"#000000","ink":"#ffffff","accent":"#5ab0ff","s":["#5ab0ff","#ff8a3d","#3ddc84","#ffd23f","#ff7ac8","#00e0c0","#b48cff","#ff5c5c"],"other":"#8a8a8a","note":"White on black, vivid lab colours, strong borders."}];
+WS.sections.push({ id: 'themes', title: '4 · Colour themes', verdicts: ['pick', 'like', 'maybe', 'no'], labels: { pick: '★ Keep', like: '👍 Like', maybe: '✎ Tweak', no: '✕ Drop' }, themes: THEMES });
+</script>
+<section class="general" id="general">
+  <h2>General comments</h2>
+  <p class="note" style="margin:0 0 8px">Which models-panel option with which options-bar layout and which control style? Anything missing? Ask for more examples of a direction here or on the cards.</p>
+  <textarea id="generalText" placeholder="e.g. Build M6 inside M9's rail with S1 pills; options as D; keep Nord and Latte, drop Monokai. Show me two more variants of the matrix with words instead of letters…"></textarea>
+  <div style="display:flex;gap:8px;margin-top:10px;align-items:center"><button class="btn primary" id="exportBtn2">Export feedback</button><span class="note">Copies Markdown to the clipboard and downloads <code>review-feedback.md</code>. Paste it into the chat, or tell me to read the file.</span></div>
+</section>
+</div>
+<div id="exportBox"><div class="box"><div style="display:flex;align-items:center;gap:10px"><b>Your feedback as Markdown</b><span class="note" id="exportNote"></span><span style="flex:1"></span><button class="btn" id="copyAgain">Copy</button><button class="btn" id="dlAgain">Download</button><button class="btn" id="closeExport">Close</button></div><textarea id="exportText" readonly></textarea></div></div>
+<div id="lightbox"><img alt=""></div>
+<div id="toast"></div>
+<script>
+(() => {
+  const KEY = 'workshop-review:panels-v1';
+  const $ = (s, r = document) => r.querySelector(s);
+  const state = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
+  state.items ||= {}; state.ui ||= {};
+  const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+  const VLABEL = { pick: '★ Pick', like: '👍 Like', maybe: '🤷 Maybe', no: '👎 No' };
+  const ROUND = { current: ['Today', ''], r1: ['Round 1', 'r1'], r2: ['New', 'r2'] };
+  const cards = [];
+  const judge = (id, labels) => `<div class="judge"><div class="verdicts">${['pick', 'like', 'maybe', 'no'].map((v) => `<button data-v="${v}" aria-pressed="false">${labels[v]}</button>`).join('')}</div><div class="fields"><textarea data-f="comment" placeholder="Comments… (what works, what doesn't, what to change)"></textarea><label class="more"><input type="checkbox" data-f="more"> More like this <input type="text" data-f="moreWhat" placeholder="what to vary, e.g. 'with words instead of letters', 'denser', 'combined with M3'"></label></div></div>`;
+  for (const sec of WS.sections) {
+    const host = $('#cards-' + sec.id);
+    if (sec.themes) {
+      host.innerHTML = sec.themes.map((t) => `<article class="tcard" data-id="T:${t.slug}" data-title="${t.name}"><header><h3>${t.name}</h3><span class="tag">${t.dark ? 'dark' : 'light'}</span>${t.isNew ? '<span class="tag new">NEW</span>' : ''}<a href="../index.html?theme=${t.slug}" target="_blank" rel="noopener" title="The real page in this theme (opens a new tab)">Open live ↗</a></header>
+        <div class="sws" title="page · surface · text · accent · Google · Anthropic · xAI · Alibaba · Meta · Z AI · DeepSeek · Xiaomi · other">${[t.page, t.surface, t.ink, t.accent, ...t.s, t.other].map((c) => `<i style="background:${c}"></i>`).join('')}</div>
+        <div class="pair"><figure style="margin:0"><img src="shots/review/themes/${t.slug}-chart.png" alt="${t.name} chart" loading="lazy" data-zoom><figcaption>The chart card, zoomed</figcaption></figure><div class="full"><figure style="margin:0"><img src="shots/review/themes/${t.slug}.png" alt="${t.name} page" loading="lazy" data-zoom><figcaption>Whole page</figcaption></figure><p>${t.note}</p></div></div>
+        ${judge('T:' + t.slug, sec.labels)}</article>`).join('');
+      cards.push(...sec.themes.map((t) => ({ id: 'T:' + t.slug, title: t.name, section: sec.title })));
+      continue;
+    }
+    host.innerHTML = sec.options.map((o) => { const [rl, rc] = ROUND[o.round]; return `<article class="opt" data-id="${o.id}" data-title="${o.title.replace(/"/g, '&quot;')}"><header><span class="id">${o.id}</span><h3>${o.title}</h3><span class="round ${rc}">${rl}</span></header><p class="what">${o.what}</p>${o.plus.length || o.minus.length ? `<ul class="trade">${o.plus.map((p) => `<li>${p}</li>`).join('')}${o.minus.map((p) => `<li class="minus">${p}</li>`).join('')}</ul>` : ''}<div class="stage"><div class="frames">${o.frames.map((f) => `<div style="${f.w === 'wide' ? 'flex:1;min-width:0' : ''}"><p class="cap">${f.cap}</p><div class="frame ${f.w === 'side' ? 'side' : 'desk'}" ${f.width ? `style="width:${f.width}px"` : ''}>${f.html}</div></div>`).join('')}</div></div>${judge(o.id, VLABEL)}</article>`; }).join('');
+    cards.push(...sec.options.map((o) => ({ id: o.id, title: o.title, section: sec.title })));
+  }
+  // side frames: the sidebar's own width
+  document.querySelectorAll('.frame.side').forEach((f) => { if (!f.style.width) f.style.width = '322px'; });
+  if (location.search.includes('shots')) document.querySelector('.top').style.position = 'static';
+  // restore + wire the judge controls
+  const prog = () => { const n = cards.filter((c) => state.items[c.id]?.verdict).length; $('#prog').textContent = `${n} of ${cards.length} judged`; };
+  document.querySelectorAll('article[data-id]').forEach((a) => {
+    const id = a.dataset.id, it = state.items[id] || (state.items[id] = {});
+    const paint = () => { a.querySelectorAll('.verdicts button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === it.verdict))); a.classList.toggle('verdict-pick', it.verdict === 'pick'); a.classList.toggle('verdict-no', it.verdict === 'no'); };
+    a.querySelector('[data-f="comment"]').value = it.comment || ''; a.querySelector('[data-f="more"]').checked = !!it.more; a.querySelector('[data-f="moreWhat"]').value = it.moreWhat || '';
+    paint();
+    a.querySelector('.verdicts').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; it.verdict = it.verdict === b.dataset.v ? '' : b.dataset.v; paint(); save(); prog(); });
+    a.addEventListener('input', (e) => { const f = e.target.dataset.f; if (!f) return; it[f] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; if (f === 'moreWhat' && e.target.value) { it.more = true; a.querySelector('[data-f="more"]').checked = true; } save(); });
+  });
+  $('#generalText').value = state.general || '';
+  $('#generalText').addEventListener('input', (e) => { state.general = e.target.value; save(); });
+  prog();
+  // scheme + width toggles
+  const segc = (id, key, apply) => { const el = $('#' + id); const set = (v) => { el.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v))); state.ui[key] = v; apply(v); save(); }; el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) set(b.dataset.v); }); set(state.ui[key] || el.querySelector('button').dataset.v); };
+  segc('schemeSeg', 'scheme', (v) => document.documentElement.setAttribute('data-theme', v));
+  segc('widthSeg', 'width', (v) => document.querySelectorAll('.frame.desk').forEach((f) => { f.style.maxWidth = v === 'phone' ? '390px' : ''; f.classList.toggle('phone', v === 'phone'); }));
+  // mock-up interactions (visual only)
+  document.addEventListener('click', (e) => {
+    const m = e.target.closest('.m'); if (!m) return;
+    const t = e.target;
+    const segBtn = t.closest('.seg > button'); if (segBtn && !segBtn.disabled) { segBtn.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === segBtn))); return; }
+    const ch = t.closest('.chip'); if (ch && ch.hasAttribute('aria-pressed')) { ch.setAttribute('aria-pressed', String(ch.getAttribute('aria-pressed') !== 'true')); return; }
+    const tab = t.closest('[data-tabs] > button'); if (tab) { tab.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b === tab))); const host = tab.closest('[data-tabhost]'); if (host && tab.dataset.for) host.querySelectorAll('.tabpanel').forEach((p) => { p.hidden = p.dataset.tab !== tab.dataset.for; }); return; }
+    const pop = t.closest('[data-pop]'); if (pop) { const target = document.getElementById(pop.dataset.pop); const open = pop.getAttribute('aria-expanded') !== 'true'; pop.setAttribute('aria-expanded', String(open)); if (target) target.hidden = !open; return; }
+    const pr = t.closest('.preset'); if (pr) { pr.parentElement.querySelectorAll('.preset').forEach((b) => b.setAttribute('aria-pressed', String(b === pr))); return; }
+    const mini = t.closest('.mini i, .matrix .cell i'); if (mini && !mini.classList.contains('na')) { mini.classList.toggle('on'); return; }
+    const head = t.closest('.lab-head, .lab-head2'); if (head && !t.closest('button')) { const body = head.nextElementSibling; const tw = head.querySelector('.tw'); if (body && (body.classList.contains('lab-body') || head.classList.contains('lab-head2'))) { let el = head.nextElementSibling; const hide = tw.textContent === '▼'; tw.textContent = hide ? '▶' : '▼'; if (body.classList.contains('lab-body')) body.hidden = hide; else while (el && !el.classList.contains('lab-head2')) { el.hidden = hide; el = el.nextElementSibling; } } return; }
+    const row = t.closest('.fam2, .mrow .nm, .matrix .nm, .onrow .nm, .res'); if (row && !t.closest('button, input, i')) { row.classList.toggle('on'); return; }
+    const tr = t.closest('table.pick tr'); if (tr && t.type === 'checkbox') { tr.classList.toggle('on', t.checked); return; }
+    const dd = t.closest('.dd'); if (dd) { dd.setAttribute('aria-expanded', String(dd.getAttribute('aria-expanded') !== 'true')); return; }
+  });
+  document.querySelectorAll('input[data-ind]').forEach((i) => { i.indeterminate = true; });
+  document.querySelectorAll('.m a').forEach((a) => a.addEventListener('click', (e) => e.preventDefault()));
+  // lightbox
+  document.addEventListener('click', (e) => { const im = e.target.closest('img[data-zoom]'); if (im) { $('#lightbox img').src = im.src; $('#lightbox').classList.add('show'); } else if (e.target.closest('#lightbox')) $('#lightbox').classList.remove('show'); });
+  // export
+  const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
+  const md = () => {
+    const now = new Date();
+    const lines = [`# Workshop feedback — panels, options bar, control style, themes`, `Exported ${now.toLocaleString()} · viewed on the ${state.ui.scheme || 'light'} scheme, ${state.ui.width === 'phone' ? 'phone' : 'desktop'} width`, ''];
+    for (const sec of WS.sections) {
+      const list = sec.themes ? sec.themes.map((t) => ({ id: 'T:' + t.slug, title: t.name })) : sec.options.map((o) => ({ id: o.id, title: o.title }));
+      const labels = sec.labels || VLABEL;
+      const judged = list.filter((o) => { const it = state.items[o.id]; return it && (it.verdict || it.comment || it.more || it.moreWhat); });
+      lines.push(`## ${sec.title}`);
+      if (!judged.length) { lines.push('_(no verdicts or comments)_', ''); continue; }
+      for (const o of judged) {
+        const it = state.items[o.id];
+        lines.push(`- **${o.id.startsWith('T:') ? '' : o.id + ' · '}${o.title}** — ${it.verdict ? labels[it.verdict].replace(/^\S+\s/, '').toUpperCase() : 'no verdict'}`);
+        if (it.comment) lines.push(`  - ${it.comment.trim().replace(/\n+/g, ' / ')}`);
+        if (it.more || it.moreWhat) lines.push(`  - more like this${it.moreWhat ? ': ' + it.moreWhat.trim() : ''}`);
+      }
+      const skipped = list.filter((o) => !judged.includes(o)).map((o) => o.id.replace(/^T:/, '')).join(', ');
+      if (skipped) lines.push(`- _No verdict on: ${skipped}_`);
+      lines.push('');
+    }
+    lines.push('## General', state.general?.trim() || '_(empty)_', '');
+    return lines.join('\n');
+  };
+  const download = (text) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/markdown' })); a.download = 'review-feedback.md'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+  const copy = async (text) => { try { await navigator.clipboard.writeText(text); return true; } catch { const ta = $('#exportText'); ta.focus(); ta.select(); try { return document.execCommand('copy'); } catch { return false; } } };
+  const doExport = async () => { const text = md(); $('#exportText').value = text; $('#exportBox').classList.add('show'); const ok = await copy(text); download(text); $('#exportNote').textContent = ok ? 'copied to the clipboard and downloaded' : 'downloaded (clipboard blocked: select the text and copy)'; toast(ok ? 'Feedback copied and downloaded' : 'Feedback downloaded'); };
+  $('#exportBtn').addEventListener('click', doExport); $('#exportBtn2').addEventListener('click', doExport);
+  $('#copyAgain').addEventListener('click', async () => toast((await copy($('#exportText').value)) ? 'Copied' : 'Select the text and copy'));
+  $('#dlAgain').addEventListener('click', () => download($('#exportText').value));
+  $('#closeExport').addEventListener('click', () => $('#exportBox').classList.remove('show'));
+  $('#resetBtn').addEventListener('click', () => { if (!confirm('Clear every verdict and comment on this page?')) return; state.items = {}; state.general = ''; save(); location.reload(); });
+})();
+</script>
+</body></html>
