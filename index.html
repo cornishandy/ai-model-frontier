@@ -146,10 +146,11 @@
   .fam .chip { font-size: 11px; padding: 1px 7px; }
   .dep { font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
 
-  main { overflow-y: auto; padding: 16px 20px 40px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  main { overflow-y: auto; padding: 0 20px 40px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
   /* the axis pickers stay in view while the page scrolls */
-  .toolbar.axes { position: sticky; top: 0; z-index: 12; background: var(--page); margin: -16px 0 -2px; padding: 14px 0 10px; box-shadow: 0 1px 0 var(--border); }
+  /* (main has no top padding: a sticky bar sticks below its scroll container's padding, which pushed it onto the row below) */
+  .toolbar.axes { position: sticky; top: 0; z-index: 12; background: var(--page); margin: 0 0 2px; padding: 14px 0 10px; box-shadow: 0 1px 0 var(--border); }
   .toolbar .group { display: flex; gap: 6px; align-items: center; }
   .toolbar .group > span { color: var(--muted); font-size: 12px; }
 
@@ -260,6 +261,15 @@
   table.data td.bar { position: relative; min-width: 70px; }
   table.data td.bar span { position: absolute; left: 0; top: 4px; bottom: 4px; background: var(--accent); opacity: .16; border-radius: 3px; }
   table.data tr.hl-row td { font-weight: 600; }
+  /* subscription math: multi-select filters, and the chart's dot for the table row under the mouse */
+  #planFilters { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 2px 0 6px; }
+  #planFilters .group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  #planFilters .group > span { color: var(--muted); font-size: 12px; margin-right: 2px; }
+  #planFilters .chip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; box-shadow: 0 0 0 1.5px var(--surface); }
+  #planFilters .chip.reset { border-style: dashed; }
+  #planChart { display: block; margin-top: 4px; }
+  #planChart .pd.hl circle { r: 8; stroke-width: 2.5; }
+  #planTable tbody tr { cursor: default; }
 
   /* celebration when the feed brings something new */
   #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
@@ -303,9 +313,9 @@
     .mobile-only { display: inline-flex; align-items: center; }
     .toolbar .group.mobile-only { display: flex; }
     button[aria-pressed="true"].mobile-only { background: var(--ink); color: var(--surface); }
-    main { overflow: visible; padding: 10px max(8px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); gap: 10px; }
+    main { overflow: visible; padding: 0 max(8px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); gap: 10px; }
     .toolbar { gap: 8px 12px; }
-    .toolbar.axes { top: var(--head-h, 0px); margin: -10px 0 -2px; padding: 8px 0; }
+    .toolbar.axes { top: var(--head-h, 0px); margin: 0 0 2px; padding: 8px 0; }
     .toolbar.opts { display: none; }
     body.opts-open .toolbar.opts { display: flex; }
     .toolbar .group { flex-wrap: wrap; }
@@ -404,7 +414,7 @@
       <label class="inline" title="Also list models Artificial Analysis marks as deprecated"><input type="checkbox" id="showDeprecated" /> Include deprecated</label>
       <label class="inline" title="List only models whose weights you can download and run yourself; also limits 'Who leads what' to them"><input type="checkbox" id="openOnly" /> Open weights only</label>
       <label class="inline" title="Leave out models a newer version has replaced (Claude Opus 5 once Opus 5.5 is out), lines a generation behind (GPT-5.6 Terra once GPT-6 is out, Claude 4.5 Haiku after Claude 5) and lines the lab has left behind for 6 months (o3, gpt-oss). They stay selected, so turning this off brings them back."><input type="checkbox" id="hideOlder" /> Hide older versions</label>
-      <label class="inline" title="Also list the labs with no model on Artificial Analysis' own Intelligence Index chart (the long tail: Amazon, IBM, Cohere, …). Off: only labs AA charts are listed, plus any lab you have something selected from."><input type="checkbox" id="allLabs" /> All labs</label>
+      <label class="inline" title="Also list the labs ranked below DeepSeek (by their best current model) and the labs with no model on Artificial Analysis' own Intelligence Index chart (MiniMax, NVIDIA, Mistral, Amazon, IBM, Cohere, …). Off: the big labs and AA-charted labs down to DeepSeek, plus any lab you have something selected from."><input type="checkbox" id="allLabs" /> All labs</label>
     </div>
     <div class="note" id="selCount" style="margin-top:6px"></div>
     <div id="modelList" style="margin-top:8px"></div>
@@ -450,6 +460,7 @@
       <button data-v="diagonal" title="Bands toward the corner that's better on both, on the chart's own scales (the diamond shape puts this straight up)">Diagonal</button>
     </div></div>
     <div class="group"><span title="How the good zone is drawn">Zone style</span><div class="seg" id="zoneStyleSeg"><button data-v="tint" title="A soft fill with a thin edge">Tint</button><button data-v="hatch" title="Diagonal hatching: shows the grid and dots through it most clearly">Hatch</button><button data-v="outline" title="Dashed outline only, no fill">Outline</button><button data-v="gradient" title="A fill that deepens toward the better-on-both corner">Gradient</button></div></div>
+    <div class="group"><span title="Recompute the score (and its cost per task) from only the benchmarks you trust: the metrics 'Your index' and 'Cost per task (…)', and the value-for-money ones, follow this">Your index</span><select class="basisSel" title="Which benchmarks 'Your index' and its cost per task are built from"></select><label class="inline" title="Most benchmarks outside AA's index are run at only one or two effort levels of a model. Estimate a missing result from the same model at the nearest effort level that has one, scaled by how their Intelligence Index scores compare (drawn faded). Off: a model needs real results covering 3/4 of the weight."><input type="checkbox" class="basisFill" /> fill gaps</label></div>
     <div class="group"><span title="Chart shape">Shape</span><div class="seg" id="shapeSeg"><button data-v="standard" title="Ordinary axes: Y up, X across">Standard</button><button data-v="diamond" title="Turned 45° so 'better on both' points straight up; left leans toward the X metric, right toward the Y metric (like dunksandthrees' EPM charts)">Diamond</button></div></div>
   </div>
 
@@ -477,7 +488,12 @@
     <summary title="Pick the plan you pay for: the table works out what the same money buys at API list prices, model by model">Subscription math <span class="note" style="font-weight:400">· what your plan's fee buys at API prices</span></summary>
     <div class="toolbar" style="margin:10px 0 6px">
       <div class="group"><span title="The subscription you pay for">Your plan</span><select id="planSel" title="Pick your plan, or Custom and type the fee"></select><label class="inline" title="Monthly fee in US dollars (edit it if yours differs)">$<input type="number" id="planPrice" min="0" step="1" style="width:72px" /> / month</label></div>
+      <div class="group"><span title="The score and cost per task the math uses: Artificial Analysis' index, or one rebuilt from only the benchmarks you trust (same setting as 'Your index' in the options)">Score from</span><select class="basisSel" title="Which benchmarks the score and cost per task come from"></select><label class="inline" title="Estimate missing results from the same model at the nearest effort level, scaled by their Intelligence Index (faded dots)"><input type="checkbox" class="basisFill" /> fill gaps</label></div>
+      <div class="group"><span title="Which models the chart and table compare">Models</span><div class="seg" id="planScopeSeg"><button data-v="chart" title="The models on the chart above">On the chart</button><button data-v="all" title="Every current model with cost data (respecting Hide older versions and Open weights only)">All current</button></div></div>
+      <div class="group"><span title="How the chart shows it">Chart</span><div class="seg" id="planViewSeg"><button data-v="scatter" title="Score against tasks a month for your fee, with the frontier: the best score at each budget">Score vs tasks</button><button data-v="bars" title="One row per model in the table's order: tasks a month for your fee (log scale), score at the right">Ranked rows</button><button data-v="off" title="Table only">Off</button></div></div>
     </div>
+    <div id="planFilters"></div>
+    <svg id="planChart" role="img"></svg>
     <table class="data" id="planTable"></table>
     <p class="note" id="planNote" style="margin:8px 0 0"></p>
   </details>
@@ -513,8 +529,7 @@
     <div class="seg lead-by" id="leadBySeg" title="Group benchmarks by the leading model or its lab"><button data-v="model" title="Group by the leading model">By model</button><button data-v="lab" title="Group by the leading model's lab">By lab</button></div>
     <div class="seg" id="menuSortSeg" title="Order within each section"><button data-v="date" title="Most recently updated first, within each section">Newest first</button><button data-v="default" title="The usual order, with related benchmarks together">Default order</button></div>
     <label class="inline"><input type="checkbox" id="activeOnly" /> Active only</label>
-    <label class="inline" title="Leave out benchmarks whose last update (newest result) is older than this"><span>Updated within</span><select id="benchAge"><option value="any">any time</option><option value="3m">3 months</option><option value="6m">6 months</option><option value="12m">a year</option></select></label>
-    <label class="inline" title="Leave out benchmarks with a report card below this grade (test-set privacy, saturation, frontier coverage, independence, currency and audit findings; hover a benchmark for its card)"><span>Grade</span><select id="minGrade"><option value="any">any</option><option value="C">C or better</option><option value="B">B or better</option></select></label>
+    <label class="inline" title="Leave out benchmarks with a report card below this grade (test-set privacy, saturation, frontier coverage, independence, currency and audit findings; hover a benchmark for its card)"><span>Grade</span><select id="minGrade"><option value="any">any</option><option value="C">C or better</option><option value="B">B or better</option><option value="A">A only</option></select></label>
     <div class="note" id="menuNote"></div>
   </div>
   <div class="menu-list" id="menuList" role="listbox"></div>
@@ -559,6 +574,8 @@
   const bench = (label, long, extra) => ({ label, long, fmt: pct, better: 'high', frac: true, ...extra });
   const METRICS = {
     intelligence: { label: 'Intelligence Index', long: 'Artificial Analysis Intelligence Index', fmt: one, better: 'high' },
+    // recomputed from the benchmarks you pick (see "your index" below); label and description follow the choice
+    myIndex: { label: 'Your index', long: 'Your index: the benchmarks you picked, 0–100', fmt: one, better: 'high' },
     // knowledge & reasoning
     hle: bench("Humanity's Last Exam", "Humanity's Last Exam"),
     gpqa: bench('GPQA Diamond', 'GPQA Diamond (graduate-level science)'),
@@ -594,6 +611,7 @@
     openness: { label: 'Openness Index', long: 'Artificial Analysis Openness Index', fmt: one, better: 'high' },
     // cost
     costPerTask: { label: 'Cost per task', long: 'Cost per Intelligence Index task (USD)', fmt: money, better: 'low', scale: 'linear' },
+    myCost: { label: 'Cost per task, your benchmarks', long: 'Cost per task on the benchmarks you picked (USD)', fmt: money, better: 'low', scale: 'linear' },
     costToRun: { label: 'Cost to run Intelligence Index', long: 'Cost to run the Intelligence Index (USD)', fmt: money, better: 'low', scale: 'log' },
     priceBlended: { label: 'Price (blended 3:1)', long: 'Price, USD per 1M tokens (3:1 input:output blend)', fmt: money, better: 'low', scale: 'log' },
     priceInput: { label: 'Input price', long: 'Input price, USD per 1M tokens', fmt: money, better: 'low', scale: 'log' },
@@ -671,12 +689,12 @@
     lmarenaText: 'People chat with two anonymous models side by side and vote for the better answer; ratings come from the votes, adjusted so formatting and length count less (style control).',
   };
   const GROUPS = {
-    'Knowledge & reasoning': ['intelligence', 'hle', 'gpqa', 'critpt', 'omniscience', 'omniscienceAccuracy', 'hallucination', 'ifbench', 'mmmuPro', 'aime25'],
+    'Knowledge & reasoning': ['intelligence', 'myIndex', 'hle', 'gpqa', 'critpt', 'omniscience', 'omniscienceAccuracy', 'hallucination', 'ifbench', 'mmmuPro', 'aime25'],
     'Coding & terminal': ['terminalBench40', 'terminalBench21', 'terminalbenchHard', 'terminalBenchScience', 'scicode', 'livecodebench'],
     'Agents & tool use': ['tau2', 'tauBanking', 'automationBench', 'enterpriseOps', 'apexAgents', 'itBench', 'analystAgent'],
     'Work & documents': ['gdpval', 'briefcase', 'gdpPdf', 'lcr', 'mlcr', 'harvey', 'openness'],
     'Independent benchmarks': [], // filled from data/external.js
-    'Cost': ['costPerTask', 'tasksPerDollar', 'pointsPerDollar', 'planTasks', 'costToRun', 'priceBlended', 'priceInput', 'priceOutput'],
+    'Cost': ['costPerTask', 'myCost', 'tasksPerDollar', 'pointsPerDollar', 'planTasks', 'costToRun', 'priceBlended', 'priceInput', 'priceOutput'],
     'Tokens & speed': ['tokensPerTask', 'outputTokens', 'outputSpeed', 'ttft', 'e2e', 'timePerTask', 'parameters'],
   };
   // Independent benchmarks (data/external.js): each source becomes a metric, plus a cost metric where the source reports one.
@@ -692,7 +710,7 @@
     }
   }
   const BENCH_GROUPS = Object.keys(GROUPS).filter((g) => g !== 'Cost' && g !== 'Tokens & speed');
-  const isBench = (k) => k !== 'openness' && BENCH_GROUPS.some((g) => GROUPS[g].includes(k));
+  const isBench = (k) => k !== 'openness' && k !== 'myIndex' && BENCH_GROUPS.some((g) => GROUPS[g].includes(k));
   // Each source names models its own way ("gemini-3.8-flash-high", "Gemini 3.8 Flash (High)", "openai/gpt-6-astra", "qwen3-8-max-0902").
   // Reduce family names to a common key: separators unified, dates dropped, words before version numbers.
   function famKey(s) {
@@ -884,6 +902,8 @@
   const lineKey = (m) => m.creatorSlug + ':' + m.familyName.replace(/\(\s*[a-z]*\.?\s*'?\s*\d{2,4}\s*\)/gi, '').replace(/\d+(?:\.\d+)*(?![\d.]*[bmkt]\b)/gi, '').replace(/[\s-]+/g, ' ').trim().toLowerCase();
   const FAMILY = new Map(); // family slug -> { key, older, why, shade }
   let AA_CHART_LABS = new Set(); // labs with a model on Artificial Analysis' own Intelligence Index chart
+  let LISTED_LABS = new Set(); // of those, the ones listed by default: down to DeepSeek, ranked by their best current model
+  const CUTOFF_LAB = 'deepseek';
   // "GPT-5.6 Terra" -> gpt, "Claude 4.5 Haiku" -> claude, "Gemma 4 31B" -> gemma, "o3" -> o: the brand a version number belongs to
   const brandOf = (name) => (name.match(/[a-z]+/i)?.[0] || '').toLowerCase();
   // The version in a family name: "GPT-5.6 Terra" 5.6, "Claude 4.5 Haiku" 4.5, "Kimi K3" 3, "DeepSeek V4.1 Flash" 4.1, "Qwen3.8 Max" 3.8;
@@ -896,22 +916,109 @@
     }
     return null;
   };
-  // Measures worked out from the others: value for money, and what your subscription fee buys at API prices.
-  let PLAN_FEE = 20; // the chosen plan's monthly fee; S isn't built yet when the data first loads
+  // ---------- your index: the score and cost recomputed from the benchmarks you trust ----------
+  // Artificial Analysis publishes each index evaluation's score, cost and output tokens per task, and its weight in the
+  // index. "Your index" is a weighted average of the benchmarks you pick (AA's own ten, by report-card grade, or whatever
+  // the axis picker lists), on 0–100: percentages as they are (lower-is-better ones turned round), GDPval and Briefcase
+  // Elo the way AA scales GDPval ((Elo − 500) ÷ 2000), AA-Omniscience from its −100…100, other Elo boards from the lowest
+  // to the highest score on them. AA's weight where it has one, 10% (its usual weight) otherwise. A model needs results
+  // covering 3/4 of the weight. "Cost per task, your benchmarks" averages AA's per-evaluation costs the same way, over the
+  // picked benchmarks AA publishes a cost for (its index evaluations). The value-for-money measures use both.
+  const BASES = { aa: 'AA\'s 10 index benchmarks (as published)', A: 'Grade A benchmarks only', B: 'Grade B or better', C: 'Grade C or better', listed: 'Everything the axis picker lists' };
+  const BASIS_SHORT = { aa: 'AA\'s 10', A: 'grade A', B: 'grade B+', C: 'grade C+', listed: 'picker list' };
+  const INDEX_W = { briefcase: 0.15, gdpval: 0.1, automationBench: 0.05, terminalBench40: 0.1, scicode: 0.1, hle: 0.1, gdpPdf: 0.1, critpt: 0.1, omniscience: 0.15, lcr: 0.05 }; // as of v4.3, if the data lacks them
+  const PARTS = new Set(['intelligence', 'omniscienceAccuracy', 'hallucination']); // the index itself, and two parts of AA-Omniscience
+  const ELO_AA = new Set(['gdpval', 'briefcase']), COVER = 0.75;
+  let BASIS = 'aa', BASIS_KEYS = [], FILL = true; // S isn't built yet when the data first loads
+  // Most non-index benchmarks are run at only one or two effort levels of a model. With gaps filled, a missing result is
+  // estimated from the same model at the nearest effort level that has one, scaled by how their Intelligence Index
+  // scores compare; such scores are drawn faded, like AA's own estimates.
+  const variants = new Map();
+  function fillGap(m, k) {
+    let best = null;
+    for (const o of variants.get(m.family) || []) if (o !== m && o[k] != null && o.intelligence > 0 && (!best || Math.abs(o.effortLevel - m.effortLevel) < Math.abs(best.effortLevel - m.effortLevel))) best = o;
+    return best ? Math.min(1, (norm(k, best[k]) * m.intelligence) / best.intelligence) : null;
+  }
+  const indexW = () => DATA.indexWeights || INDEX_W;
+  function basisKeys() {
+    const W = indexW();
+    if (BASIS === 'aa') return Object.entries(W).filter(([k]) => METRICS[k]);
+    const ok = BASIS === 'listed' ? (k) => (!S.activeOnly || isActive(k)) && gradeOk(k)
+      : (k) => { const c = reportCard(k); return c && isActive(k) && GRADE_ORDER.indexOf(c.letter) <= GRADE_ORDER.indexOf(BASIS); };
+    return BENCH_GROUPS.flatMap((g) => GROUPS[g]).filter((k) => isBench(k) && !PARTS.has(k) && ok(k)).map((k) => [k, W[k] ?? 0.1]);
+  }
+  const ranges = new Map();
+  function norm(k, v) {
+    const M = METRICS[k];
+    if (M.frac) return M.better === 'low' ? 1 - v : v;
+    if (ELO_AA.has(k)) return Math.max(0, Math.min(1, (v - 500) / 2000));
+    if (k === 'omniscience') return (v + 100) / 200;
+    let r = ranges.get(k);
+    if (!r) { const vs = ALL.map((m) => m[k]).filter((x) => x != null); r = [Math.min(...vs), Math.max(...vs)]; if (r[0] >= 0 && r[1] <= 1) r = [0, 1]; ranges.set(k, r); }
+    return r[1] > r[0] ? (v - r[0]) / (r[1] - r[0]) : 0.5;
+  }
+  // a dot is "estimated" when AA estimated its index, or when an axis shows your index and part of it was filled in
+  const MY_SCORED = new Set(['myIndex', 'pointsPerDollar']);
+  const isEst = (m) => m.estimated || (!!m.myEst && [S.x, S.y].some((k) => MY_SCORED.has(k)));
+  const put = (m, k, v) => { if (v == null || !Number.isFinite(v)) delete m[k]; else m[k] = v; };
+  // The two "your" metrics are labelled and described by the choice; the value-for-money ones say they follow it.
+  function applyBasis() {
+    BASIS = BASES[S.basis] ? S.basis : 'aa'; FILL = S.basisFill !== false;
+    derive();
+    const total = BASIS_KEYS.reduce((a, [, w]) => a + w, 0), short = BASIS_SHORT[BASIS], W = indexW();
+    const list = BASIS_KEYS.map(([k, w]) => `${METRICS[k].label} ${Math.round((100 * w) / total)}%`).join(', ');
+    const costed = BASIS_KEYS.filter(([k]) => W[k] != null).map(([k]) => METRICS[k].label);
+    Object.assign(METRICS.myIndex, {
+      label: `Your index (${short})`, long: `Your index (${short}): ${BASIS_KEYS.length} benchmarks averaged, 0–100`,
+      desc: BASIS === 'aa' ? 'Artificial Analysis\' Intelligence Index, unchanged. Pick a different "Your index" in the options (or under Subscription math) to recompute it from only the benchmarks you trust.'
+        : !BASIS_KEYS.length ? `No benchmark qualifies as "${BASES[BASIS]}" right now.`
+        : `${BASES[BASIS]}${BASIS === 'listed' ? ' (its Active only and Grade filters)' : ', still run on the frontier'}, weighted: ${list}. Percentages count as they are; Elo and other scales are rescaled to 0–100. A model needs results covering 3/4 of the weight${FILL ? '; gaps are filled from the same model at the nearest effort level, scaled by their Intelligence Index (faded dots)' : ''}.`,
+    });
+    Object.assign(METRICS.myCost, {
+      label: `Cost per task (${short})`, long: `Cost per task on your benchmarks (${short}), USD`,
+      desc: BASIS === 'aa' ? 'Cost per Intelligence Index task as Artificial Analysis publishes it (the same as Cost per task).'
+        : costed.length ? `Artificial Analysis' own cost per task for each evaluation, averaged with the same weights over the picked benchmarks it publishes a cost for: ${costed.join(', ')}${costed.length < BASIS_KEYS.length ? ` (the other ${BASIS_KEYS.length - costed.length} picked benchmarks have no published cost)` : ''}.`
+        : 'None of the picked benchmarks has a published cost: Artificial Analysis only publishes costs for its index evaluations.',
+    });
+    for (const k of ['tasksPerDollar', 'pointsPerDollar', 'planTasks']) METRICS[k].desc = DESC[k] + (BASIS === 'aa' ? '' : ` Uses your index and its cost per task (${short}).`);
+  }
+  // Measures worked out from the others: your index, value for money, and what your subscription fee buys at API prices.
+  let PLAN_FEE = 20; // the chosen plan's monthly fee
   function derive() {
     const fee = PLAN_FEE;
+    ranges.clear(); variants.clear();
+    for (const m of ALL) (variants.get(m.family) || variants.set(m.family, []).get(m.family)).push(m);
+    BASIS_KEYS = basisKeys();
+    const total = BASIS_KEYS.reduce((a, [, w]) => a + w, 0);
     for (const m of ALL) {
-      if (m.costPerTask > 0) { m.tasksPerDollar = 1 / m.costPerTask; m.pointsPerDollar = m.intelligence / m.costPerTask; m.planTasks = fee > 0 ? fee / m.costPerTask : undefined; }
-      else { delete m.tasksPerDollar; delete m.pointsPerDollar; delete m.planTasks; }
+      if (BASIS === 'aa') { put(m, 'myIndex', m.intelligence); put(m, 'myCost', m.costPerTask); delete m.myEst; }
+      else {
+        let sw = 0, sv = 0, ew = 0, cw = 0, cv = 0;
+        for (const [k, w] of BASIS_KEYS) {
+          let v = m[k] != null ? norm(k, m[k]) : null;
+          if (v == null && FILL && (v = fillGap(m, k)) != null) ew += w;
+          if (v != null) { sw += w; sv += w * v; }
+          const c = m.evals?.[k]?.[0]; if (c != null) { cw += w; cv += w * c; }
+        }
+        const ok = total && sw / total >= COVER;
+        put(m, 'myIndex', ok ? (100 * sv) / sw : null); put(m, 'myEst', ok && ew ? ew / sw : null);
+        put(m, 'myCost', cw ? cv / cw : null);
+      }
+      const cost = m.myCost > 0 ? m.myCost : null;
+      put(m, 'tasksPerDollar', cost && 1 / cost); put(m, 'pointsPerDollar', cost && m.myIndex != null ? m.myIndex / cost : null); put(m, 'planTasks', cost && fee > 0 ? fee / cost : null);
     }
   }
   function loadData(d) {
     DATA = d;
     ALL = d.models.map((m) => ({ ...m, label: m.shortName.replace(/ with fallback\)/, ')') }));
     BY_ID = new Map(ALL.map((m) => [m.id, m]));
-    joinExternal(); derive(); datesOf(); frontierOf();
+    joinExternal(); datesOf(); frontierOf(); derive();
     FAMILY.clear();
     AA_CHART_LABS = new Set(ALL.filter((m) => m.defaultSelected && !m.deprecated).map((m) => m.creatorSlug));
+    const labBest = new Map();
+    for (const m of ALL) if (!m.deprecated && m.intelligence > (labBest.get(m.creatorSlug) ?? -Infinity)) labBest.set(m.creatorSlug, m.intelligence);
+    const bar = labBest.get(CUTOFF_LAB) ?? -Infinity;
+    LISTED_LABS = new Set([...AA_CHART_LABS].filter((slug) => labBest.get(slug) >= bar));
     const newest = new Map(), labLines = new Map();
     for (const m of ALL) {
       const k = lineKey(m), cur = newest.get(k);
@@ -1093,8 +1200,9 @@
     grid: 'normal', axisText: 'normal',
     efforts: EFFORTS.slice(), selected: theoSelection(), pinned: [],
     showDeprecated: false, openOnly: false, hideOlder: false, allLabs: false, addEffort: 'all', theme: 'system', glow: 'off', activeSet: '',
-    zone: 'off', zoneStyle: 'tint', shape: 'standard', leadBy: 'model', menuSort: 'date', activeOnly: true, benchAge: 'any',
+    zone: 'off', zoneStyle: 'tint', shape: 'standard', leadBy: 'model', menuSort: 'date', activeOnly: true,
     focus: 'off', halo: 'thin', rowMetric: 'costPerTask', rowScale: 'linear', minGrade: 'any', plan: 'Claude Pro', planPrice: 20,
+    basis: 'aa', basisFill: true, planView: 'scatter', planScope: 'chart', planHideLabs: [], planHideEfforts: [], planMineOnly: false, planSort: { key: 'tasks', dir: -1 },
   };
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const S = { ...DEFAULT_STATE, ...load(STATE_KEY, {}) };
@@ -1105,7 +1213,7 @@
     S.x = metricOr(S.x, DEFAULT_STATE.x); S.y = metricOr(S.y, DEFAULT_STATE.y);
     S.xScale = scaleFor(S.x, S.xScale); S.yScale = scaleFor(S.y, S.yScale);
   }
-  fixAxes(); PLAN_FEE = +S.planPrice || 0; derive();
+  fixAxes(); PLAN_FEE = +S.planPrice || 0; applyBasis();
   S.selected = new Set(S.selected.filter((id) => BY_ID.has(id)));
   S.pinned = new Set(S.pinned.filter((id) => BY_ID.has(id)));
   S.efforts = new Set(S.efforts);
@@ -1370,9 +1478,10 @@
   // so whatever is on the chart can always be switched off here.
   // "Hide older versions": a model whose line has a newer version (Opus 5 once Opus 5.5 is out) is left out of the list and chart.
   const superseded = (m) => S.hideOlder && FAMILY.get(m.family)?.older;
-  // Labs listed: the big four, every lab with a model on Artificial Analysis' own Intelligence Index chart, and any lab
-  // you have something selected from; the long tail (Amazon, IBM, Cohere, …) only with "All labs" on. Searching finds everyone.
-  const labListed = (slug) => S.allLabs || TOP_LABS.includes(slug) || AA_CHART_LABS.has(slug);
+  // Labs listed: the big four, the labs on Artificial Analysis' own Intelligence Index chart that rank at or above DeepSeek
+  // (by their best current model), and any lab you have something selected from; the rest (MiniMax, NVIDIA, Mistral,
+  // Amazon, IBM, …) only with "All labs" on. Searching finds everyone.
+  const labListed = (slug) => S.allLabs || TOP_LABS.includes(slug) || LISTED_LABS.has(slug);
   function visibleCatalog({ keepSelected = true } = {}) {
     const q = search.trim().toLowerCase();
     const onChart = new Set(keepSelected ? [...S.selected].map((id) => BY_ID.get(id)?.family) : []);
@@ -1443,7 +1552,7 @@
     // the long tail of labs left out (nothing of theirs on AA's chart, nothing of theirs selected)
     const q = search.trim();
     const left = q || S.allLabs ? 0 : new Set(ALL.filter((m) => (S.showDeprecated || !m.deprecated) && !superseded(m) && !labs.has(m.creatorSlug)).map((m) => m.creatorSlug)).size;
-    if (left) html += `<div class="note" style="margin-top:10px">${left} more lab${left > 1 ? 's' : ''} with nothing on Artificial Analysis' chart · <a href="#" id="showAllLabs">show all labs</a></div>`;
+    if (left) html += `<div class="note" style="margin-top:10px">${left} more lab${left > 1 ? 's' : ''} ranked below DeepSeek or not on Artificial Analysis' chart · <a href="#" id="showAllLabs">show all labs</a></div>`;
     $('modelList').innerHTML = html || '<div class="note">No models match.</div>';
     $('showAllLabs')?.addEventListener('click', (e) => { e.preventDefault(); S.allLabs = true; $('allLabs').checked = true; save(); renderList(); });
     $('selCount').textContent = `${S.selected.size} selected · ${cat.length} in list`;
@@ -1546,7 +1655,7 @@
   function syncControls() {
     renderMetricMenus(); $('activeOnly').checked = S.activeOnly; $('markSel').value = S.markEffort; $('connect').checked = S.connect; $('fullFrontier').checked = S.fullFrontier;
     $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('hideOlder').checked = S.hideOlder; $('allLabs').checked = S.allLabs; $('addEffort').value = S.addEffort; $('themeSel').value = S.theme;
-    $('benchAge').value = S.benchAge; $('minGrade').value = S.minGrade;
+    $('minGrade').value = S.minGrade;
     // logit only makes sense for scores that are fractions (0–100%)
     for (const [id, k] of [['xScale', S.x], ['yScale', S.y]]) {
       const b = $(id).querySelector('[data-v="logit"]');
@@ -1554,6 +1663,9 @@
     }
     syncs.forEach((f) => f());
     if (typeof rowSyncs !== 'undefined') rowSyncs.forEach((f) => f());
+    if (typeof planSyncs !== 'undefined') planSyncs.forEach((f) => f());
+    document.querySelectorAll('.basisSel').forEach((sel) => { sel.value = S.basis; });
+    document.querySelectorAll('.basisFill').forEach((box) => { box.checked = S.basisFill !== false; box.closest('label').hidden = S.basis === 'aa'; });
   }
 
   // ---------- metric menus ----------
@@ -1578,11 +1690,9 @@
   // -> { groups, hidden (inactive benchmarks left out by "Active only") }
   function menuGroups(q, cur) {
     const match = (k) => !q || `${METRICS[k].label} ${METRICS[k].long}`.toLowerCase().includes(q);
-    // "Active only" leaves out retired benchmarks and "Updated within" old ones, except the one charted; searching still finds everything.
+    // "Active only" leaves out retired benchmarks and "Grade" low-graded ones, except the one charted; searching still finds everything.
     let hidden = 0;
-    const cutoff = S.benchAge === 'any' ? '' : new Date(Date.now() - { '3m': 91, '6m': 183, '12m': 365 }[S.benchAge] * 864e5).toISOString().slice(0, 10);
-    const recent = (k) => !cutoff || !isBench(k) || !UPDATED.has(k) || UPDATED.get(k).date >= cutoff;
-    const shown = (k) => q || k === cur || ((!S.activeOnly || isActive(k)) && recent(k) && gradeOk(k)) || (hidden++, false);
+    const shown = (k) => q || k === cur || ((!S.activeOnly || isActive(k)) && gradeOk(k)) || (hidden++, false);
     // "Newest first": most recently updated first within each section (sort is stable, so ties keep the usual order)
     const order = (items) => S.menuSort === 'date' ? items.sort((a, b) => (UPDATED.get(b.k)?.date || '').localeCompare(UPDATED.get(a.k)?.date || '')) : items;
     if (menuKind !== 'leaders') {
@@ -1613,13 +1723,14 @@
     const { groups, hidden } = menuGroups($('menuSearch').value.trim().toLowerCase(), cur);
     $('menuList').innerHTML = groups.map((g) => `<div class="mh${g.lead ? ' lead' : ''}">${g.head}</div>` +
       g.items.map(({ k, meta }) => `<div class="mi${isActive(k) ? '' : ' inactive'}" role="option" data-k="${esc(k)}" aria-selected="${k === cur}"><span class="mi-label">${esc(METRICS[k].label)}${gradeChip(k)}${benchFresh.has(k) ? ' <span class="pill-new" title="Updated since your last visit">NEW</span>' : ''}</span><span class="mi-meta">${meta}</span><span class="mi-date" title="${esc(updatedNote(k))}">${esc(updatedDay(k))}</span>${descOf(k) ? `<span class="mi-desc">${esc(descOf(k))}</span>` : ''}</div>`).join('')).join('')
-      + (hidden ? `<div class="mi-more" role="button" tabindex="0">${hidden} benchmark${hidden > 1 ? 's' : ''} hidden (${[S.activeOnly && 'inactive', S.benchAge !== 'any' && 'not updated recently', S.minGrade !== 'any' && `graded below ${S.minGrade}`].filter(Boolean).join(', ')}) · <u>Show all</u></div>` : '')
+      + (hidden ? `<div class="mi-more" role="button" tabindex="0">${hidden} benchmark${hidden > 1 ? 's' : ''} hidden (${[S.activeOnly && 'inactive', S.minGrade !== 'any' && (S.minGrade === 'A' ? 'graded below A' : `graded below ${S.minGrade}`)].filter(Boolean).join(', ')}) · <u>Show all</u></div>` : '')
       || '<div class="note" style="padding:10px 12px">Nothing matches.</div>';
     mtip.style.display = 'none';
   }
-  function showAllBenchmarks() { S.activeOnly = false; $('activeOnly').checked = false; S.benchAge = 'any'; $('benchAge').value = 'any'; S.minGrade = 'any'; $('minGrade').value = 'any'; save(); renderMenu(); }
-  $('benchAge').addEventListener('change', (e) => { S.benchAge = e.target.value; save(); renderMenu(); });
-  $('minGrade').addEventListener('change', (e) => { S.minGrade = e.target.value; save(); renderMenu(); });
+  // the picker's filters also decide "Your index" when it's built from "everything the picker lists"
+  const filtersChanged = () => { save(); renderMenu(); if (BASIS === 'listed') { applyBasis(); render(); } };
+  function showAllBenchmarks() { S.activeOnly = false; $('activeOnly').checked = false; S.minGrade = 'any'; $('minGrade').value = 'any'; filtersChanged(); }
+  $('minGrade').addEventListener('change', (e) => { S.minGrade = e.target.value; filtersChanged(); });
   function placeMenu() {
     const r = menuAnchor.getBoundingClientRect(), w = Math.min(menuKind === 'leaders' ? 460 : 340, innerWidth - 16);
     menu.style.width = w + 'px';
@@ -1678,7 +1789,7 @@
   $('menuList').addEventListener('mouseover', (e) => { const it = e.target.closest('.mi'); if (it && !it.classList.contains('active')) setActive(it, false); });
   $('menuList').addEventListener('click', (e) => { if (e.target.closest('.mi-more')) return showAllBenchmarks(); const it = e.target.closest('.mi'); if (it) pickMetric(it.dataset.k); });
   $('menuList').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('.mi-more')) showAllBenchmarks(); });
-  $('activeOnly').addEventListener('change', (e) => { S.activeOnly = e.target.checked; save(); renderMenu(); });
+  $('activeOnly').addEventListener('change', (e) => { S.activeOnly = e.target.checked; filtersChanged(); });
   menu.addEventListener('mouseleave', () => { mtip.style.display = 'none'; menu.querySelector('.mi.active')?.classList.remove('active'); });
   $('menuSearch').addEventListener('input', renderMenu);
   $('menuSearch').addEventListener('keydown', (e) => {
@@ -1978,7 +2089,7 @@
       const r = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25, onFront = frontSet.has(p.m.id);
       const layer = dimmed(p) ? fadeLayer : dotLayer;
       if (onFront && S.frontStyle === 'rings') layer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r: r + 3.5, fill: 'none', stroke: C.ink, 'stroke-width': 1, 'stroke-opacity': 0.45 }));
-      layer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r, fill: p.color, stroke: C.surface, 'stroke-width': 2, 'fill-opacity': p.m.estimated ? 0.45 : 1 }));
+      layer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r, fill: p.color, stroke: C.surface, 'stroke-width': 2, 'fill-opacity': isEst(p.m) ? 0.45 : 1 }));
     }
     plot.append(chipLayer);
 
@@ -2175,7 +2286,7 @@
       }[zone.style];
       extras.push(`<span><i class="zone-sw" style="${look}"></i>${esc(zone.legend)}</span>`);
     }
-    if (points.some((p) => p.m.estimated)) extras.push(`<span><i style="background:${css('--muted')};opacity:.45"></i>Estimated score</span>`);
+    if (points.some((p) => isEst(p.m))) extras.push(`<span><i style="background:${css('--muted')};opacity:.45"></i>Estimated score</span>`);
     $('legend').innerHTML = items.map((i) => `<span><i style="background:${i.color}"></i>${esc(i.name)}</span>`).join('') + extras.join('');
   }
 
@@ -2282,23 +2393,193 @@
   ];
   const PLAN_LAB = new Map(PLANS.flatMap(([, ps]) => ps.map(([n, , lab]) => [n, lab])));
   $('planSel').innerHTML = PLANS.map(([g, ps]) => `<optgroup label="${esc(g)}">${ps.map(([n, p]) => `<option value="${esc(n)}">${esc(n)} — $${p}</option>`).join('')}</optgroup>`).join('') + '<option value="custom">Custom fee…</option>';
+  const count = (n) => n >= 100 ? Math.round(n).toLocaleString() : String(+n.toPrecision(3));
+  // Columns: key, header, tooltip, value (for sorting), first click sorts high-to-low?
+  const PLAN_COLS = [
+    ['name', 'Model', '', (m) => m.label, false], ['lab', 'Lab', '', (m) => m.creator, false], ['effort', 'Effort', '', (m) => m.effortLevel, false],
+    ['cost', '$ / task', 'Cost per task at API list prices, on the benchmarks your score comes from', (m) => m.myCost, false],
+    ['tasks', 'Tasks a month', 'Your fee ÷ cost per task', (m) => m.planTasks, true], ['day', '…a day', 'Tasks a month ÷ 30', (m) => m.planTasks, true],
+    ['score', 'Score', '', (m) => m.myIndex, true], ['ppd', 'Points per $', 'Score ÷ cost per task: bang for the buck', (m) => m.pointsPerDollar, true],
+    ['mine', 'On your plan', 'Whether your plan\'s provider offers this model', null, true],
+  ];
+  let lastChosen = [];
   function renderPlan(models) {
+    lastChosen = models;
     $('planSel').value = PLAN_LAB.has(S.plan) ? S.plan : 'custom';
     $('planPrice').value = S.planPrice;
     const fee = +S.planPrice || 0, lab = PLAN_LAB.get(S.plan) || '', labSlugs = lab === 'xai' ? ['xai', 'spacexai'] : lab ? [lab] : null;
-    const rows = models.filter((m) => m.costPerTask > 0).sort((a, b) => a.costPerTask - b.costPerTask);
     const mine = (m) => !labSlugs || labSlugs.includes(m.creatorSlug);
-    $('planTable').innerHTML = !fee || !rows.length ? '' : `<thead><tr><th>Model</th><th>Effort</th><th title="Cost per Intelligence Index task at API list prices">$ / task</th><th title="Your fee ÷ cost per task">Tasks a month for $${fee}</th><th>…a day</th><th title="Intelligence Index">Index</th>${labSlugs ? '<th title="Whether this model is on your plan\'s provider">On your plan</th>' : ''}</tr></thead><tbody>` +
-      rows.map((m) => { const n = fee / m.costPerTask; return `<tr${labSlugs && mine(m) ? ' class="hl-row"' : ''}><td><i style="background:${familyColor(m)}"></i>${esc(m.familyName)}</td><td>${EFFORT_LABEL[m.effort]}</td><td class="n">${money(m.costPerTask)}</td><td class="n">${n >= 100 ? Math.round(n).toLocaleString() : +n.toPrecision(3)}</td><td class="n">${(n / 30) >= 100 ? Math.round(n / 30).toLocaleString() : +(n / 30).toPrecision(2)}</td><td class="n">${m.intelligence.toFixed(1)}</td>${labSlugs ? `<td>${mine(m) ? '✓' : ''}</td>` : ''}</tr>`; }).join('') + '</tbody>';
-    $('planNote').innerHTML = !fee ? 'Enter a monthly fee to see what it buys.' : !rows.length ? 'None of the selected models have cost-per-task data.' :
-      `At API list prices, $${fee} a month buys the number of Intelligence Index tasks shown (one task ≈ one hard benchmark question or agentic job). Plans meter usage by session and week, not by task, and heavy use can draw far more than the fee: SemiAnalysis' June 2026 stress test put ChatGPT Plus at about $700 and Claude Max 20x at about $8,000 a month of API-equivalent use when run to the caps, and ccusage logs of a Max 20x month show $2,000–3,000. The metric <b>Tasks a month on your plan</b> (Cost group, either axis) uses this fee.${labSlugs ? ' Highlighted rows are models your plan\'s provider offers.' : ''}`;
+    const pool = S.planScope === 'all' ? ALL.filter((m) => !m.deprecated && !superseded(m) && (!S.openOnly || m.openWeights)) : models;
+    const base = pool.filter((m) => m.myCost > 0);
+    // multi-select filters: every lab and effort level in the comparison, all on until you switch some off
+    const hideL = new Set(S.planHideLabs), hideE = new Set(S.planHideEfforts);
+    const labs = new Map(base.map((m) => [m.creatorSlug, m.creator])), efforts = EFFORTS.filter((e) => base.some((m) => m.effort === e));
+    const chip = (attr, v, on, label, dot) => `<button class="chip" ${attr}="${esc(v)}" aria-pressed="${on}" title="Click to show or hide; ${matchMedia('(hover: none)').matches ? 'long-press' : 'alt-click'} to show only this">${dot ? `<i style="background:${dot}"></i>` : ''}${esc(label)}</button>`;
+    const filtered = hideL.size || hideE.size || S.planMineOnly;
+    $('planFilters').innerHTML = !base.length ? '' :
+      `<div class="group"><span>Labs</span>${[...labs].sort((a, b) => a[1].localeCompare(b[1])).map(([slug, name]) => chip('data-lab', slug, !hideL.has(slug), name, labBase(slug))).join('')}</div>` +
+      `<div class="group"><span>Effort</span>${efforts.map((e) => chip('data-eff', e, !hideE.has(e), EFFORT_LABEL[e])).join('')}</div>` +
+      `<div class="group">${labSlugs ? chip('data-mine', '1', S.planMineOnly, 'Only on my plan') : ''}${filtered ? '<button class="chip reset" data-reset="1" title="Show everything again">Show all</button>' : ''}</div>`;
+    const rows = base.filter((m) => !hideL.has(m.creatorSlug) && !hideE.has(m.effort) && (!S.planMineOnly || mine(m)));
+    const col = PLAN_COLS.find(([k]) => k === S.planSort?.key) || PLAN_COLS[4], dir = S.planSort?.dir || -1;
+    const val = col[3] || ((m) => mine(m) ? 1 : 0);
+    rows.sort((a, b) => { const va = val(a) ?? -Infinity, vb = val(b) ?? -Infinity; return (va > vb ? 1 : va < vb ? -1 : 0) * dir || b.myIndex - a.myIndex; });
+    const cols = PLAN_COLS.filter(([k]) => k !== 'mine' || labSlugs);
+    const head = { tasks: `Tasks a month for $${fee}`, score: S.basis === 'aa' ? 'Index' : `Score (${BASIS_SHORT[BASIS]})` };
+    const cell = (k, m) => {
+      const n = m.planTasks;
+      switch (k) {
+        case 'name': return `<td><i style="background:${familyColor(m)}"></i>${esc(m.familyName)}</td>`;
+        case 'lab': return `<td>${esc(m.creator)}</td>`;
+        case 'effort': return `<td>${EFFORT_LABEL[m.effort]}</td>`;
+        case 'cost': return `<td class="n">${money(m.myCost)}</td>`;
+        case 'tasks': return `<td class="n">${n != null ? count(n) : '—'}</td>`;
+        case 'day': return `<td class="n">${n != null ? count(n / 30) : '—'}</td>`;
+        case 'score': return `<td class="n"${m.myEst ? ` title="${Math.round(m.myEst * 100)}% of this score is estimated from other effort levels"` : ''}>${m.myIndex != null ? (m.myEst ? '≈' : '') + m.myIndex.toFixed(1) : '—'}</td>`;
+        case 'ppd': return `<td class="n">${m.pointsPerDollar != null ? count(m.pointsPerDollar) : '—'}</td>`;
+        default: return `<td>${mine(m) ? '✓' : ''}</td>`;
+      }
+    };
+    $('planTable').innerHTML = !fee || !rows.length ? '' : `<thead><tr>${cols.map(([k, t, tip]) => `<th data-k="${k}"${tip ? ` title="${esc(tip)}"` : ''}>${esc(head[k] || t)}${col[0] === k ? (dir > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('')}</tr></thead><tbody>` +
+      rows.map((m) => `<tr data-id="${m.id}"${labSlugs && mine(m) ? ' class="hl-row"' : ''}>${cols.map(([k]) => cell(k, m)).join('')}</tr>`).join('') + '</tbody>';
+    renderPlanChart(fee ? rows : [], fee, labSlugs ? mine : null);
+    const scored = rows.filter((m) => m.myIndex != null).length;
+    $('planNote').innerHTML = !fee ? 'Enter a monthly fee to see what it buys.' : !base.length ? `None of the ${S.planScope === 'all' ? 'current' : 'charted'} models have cost-per-task data${S.basis !== 'aa' ? ' for the benchmarks your score comes from' : ''}.` : !rows.length ? 'The filters leave nothing to show.' :
+      `At API list prices, $${fee} a month buys the number of ${S.basis === 'aa' ? 'Intelligence Index' : 'benchmark'} tasks shown (one task ≈ one hard benchmark question or agentic job)${S.basis !== 'aa' ? `; score and cost come from ${BASES[BASIS].replace(/^./, (c) => c.toLowerCase())} (hover "Your index" in the Y list for the mix)` : ''}${scored < rows.length ? `; ${rows.length - scored} model${rows.length - scored > 1 ? 's lack' : ' lacks'} results for enough of them to score` : ''}. Click a header to sort. Plans meter usage by session and week, not by task, and heavy use can draw far more than the fee: SemiAnalysis' June 2026 stress test put ChatGPT Plus at about $700 and Claude Max 20x at about $8,000 a month of API-equivalent use when run to the caps, and ccusage logs of a Max 20x month show $2,000–3,000. The metric <b>Tasks a month on your plan</b> (Cost group, either axis) uses this fee.${labSlugs ? ' Bold rows (solid dots) are models your plan\'s provider offers.' : ''}`;
   }
+  // The chart: score against what the fee buys (the frontier is the best score at each budget), or ranked rows.
+  function renderPlanChart(rows, fee, mine) {
+    const svgP = $('planChart'), card = $('planCard'), cs = getComputedStyle(card);
+    svgP.replaceChildren();
+    const pts = rows.filter((m) => m.planTasks > 0 && m.myIndex != null);
+    if (S.planView === 'off' || !pts.length) { svgP.setAttribute('height', 0); return; }
+    const W = Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))), narrow = W < 560;
+    const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
+    const gridOp = S.grid === 'off' ? 0 : S.grid === 'faint' ? 0.5 : 1, num = 'font-variant-numeric:tabular-nums';
+    const tip = (m) => `${m.label}: ${count(m.planTasks)} tasks a month for $${fee} (${money(m.myCost)} a task) · score ${m.myIndex.toFixed(1)}${m.myEst ? ` (${Math.round(m.myEst * 100)}% estimated)` : ''}${mine && !mine(m) ? ' · not on your plan' : ''}`;
+    const dot = (m, x, y, r = 5.5) => {
+      const g = svgEl('g', { class: 'pd', 'data-id': m.id });
+      g.append(svgEl('circle', { cx: x, cy: y, r, fill: familyColor(m), 'fill-opacity': mine && !mine(m) ? 0.3 : m.myEst ? 0.5 : 1, stroke: mine && !mine(m) ? familyColor(m) : C.surface, 'stroke-width': 1.5 }));
+      g.append(svgEl('title', {}, tip(m)));
+      return g;
+    };
+    const tickLabels = (sc, fmt, minGap) => { const out = []; let last = -Infinity; for (const t of sc.ticks) { const p = sc.f(t); if (Math.abs(p - last) >= minGap) { out.push(t); last = p; } } return out; };
+    if (S.planView === 'bars') {
+      const list = pts, nameSize = 12, LW = narrow ? 0 : Math.min(230, Math.max(...list.map((m) => textW(m.familyName + effortTag(m), nameSize, 600))) + 16);
+      const RW = 46, RH = narrow ? 34 : 22, TOP = 24, H = TOP + list.length * RH + 6, x0 = LW + 6, x1 = W - RW - 8;
+      svgP.setAttribute('viewBox', `0 0 ${W} ${H}`); svgP.setAttribute('width', W); svgP.setAttribute('height', H);
+      const sc = makeScale(list.map((m) => m.planTasks), 'log', [x0, x1]);
+      for (const t of tickLabels(sc, count, 40)) {
+        const x = sc.f(t);
+        svgP.append(svgEl('line', { x1: x, x2: x, y1: TOP - 4, y2: H - 4, stroke: C.grid, 'stroke-opacity': gridOp }));
+        svgP.append(svgEl('text', { x, y: TOP - 9, 'text-anchor': 'middle', fill: C.muted, 'font-size': 10.5, style: num }, count(t)));
+      }
+      svgP.append(svgEl('text', { x: W - 4, y: TOP - 9, 'text-anchor': 'end', fill: C.muted, 'font-size': 10.5 }, 'Score'));
+      list.forEach((m, i) => {
+        const y0 = TOP + i * RH, yc = narrow ? y0 + 24 : y0 + RH / 2, x = sc.f(m.planTasks), color = familyColor(m), off = mine && !mine(m);
+        svgP.append(svgEl('text', { x: narrow ? x0 : LW - 8, y: narrow ? y0 + 11 : yc + 4, 'text-anchor': narrow ? 'start' : 'end', fill: off ? C.muted : C.ink, 'font-size': nameSize, 'font-weight': 600 }, m.familyName + effortTag(m)));
+        svgP.append(svgEl('line', { x1: x0, x2: x, y1: yc, y2: yc, stroke: color, 'stroke-width': 3, 'stroke-opacity': off ? 0.25 : 0.6, 'stroke-linecap': 'round' }));
+        svgP.append(dot(m, x, yc, 5));
+        svgP.append(svgEl('text', { x: x + 9, y: yc + 4, fill: C.ink2, 'font-size': 10.5, style: num }, count(m.planTasks)));
+        svgP.append(svgEl('text', { x: W - 4, y: yc + 4, 'text-anchor': 'end', fill: off ? C.muted : C.ink, 'font-size': 11.5, 'font-weight': 600, style: num }, m.myIndex.toFixed(1)));
+      });
+      return;
+    }
+    const H = narrow ? 320 : 400, M = { left: 46, right: narrow ? 10 : 20, top: 14, bottom: 42 };
+    svgP.setAttribute('viewBox', `0 0 ${W} ${H}`); svgP.setAttribute('width', W); svgP.setAttribute('height', H);
+    const sx = makeScale(pts.map((m) => m.planTasks), 'log', [M.left, W - M.right]), sy = makeScale(pts.map((m) => m.myIndex), 'linear', [H - M.bottom, M.top]);
+    for (const t of tickLabels(sx, count, 42)) {
+      const x = sx.f(t);
+      svgP.append(svgEl('line', { x1: x, x2: x, y1: M.top, y2: H - M.bottom, stroke: C.grid, 'stroke-opacity': gridOp }));
+      svgP.append(svgEl('text', { x, y: H - M.bottom + 15, 'text-anchor': 'middle', fill: C.muted, 'font-size': 10.5, style: num }, count(t)));
+    }
+    for (const t of sy.ticks) {
+      const y = sy.f(t); if (y < M.top - 1 || y > H - M.bottom + 1) continue;
+      svgP.append(svgEl('line', { x1: M.left, x2: W - M.right, y1: y, y2: y, stroke: C.grid, 'stroke-opacity': gridOp }));
+      svgP.append(svgEl('text', { x: M.left - 6, y: y + 3.5, 'text-anchor': 'end', fill: C.muted, 'font-size': 10.5, style: num }, String(+t.toFixed(1))));
+    }
+    svgP.append(svgEl('text', { x: (M.left + W - M.right) / 2, y: H - 6, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 11.5 }, `Tasks a month for $${fee} at API prices (log scale) → more`));
+    svgP.append(svgEl('text', { x: 12, y: (M.top + H - M.bottom) / 2, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 11.5, transform: `rotate(-90 12 ${(M.top + H - M.bottom) / 2})` }, `${S.basis === 'aa' ? 'Intelligence Index' : METRICS.myIndex.label} → better`));
+    // "one a day" and "ten a day" guides
+    for (const [n, t] of [[30, '1 a day'], [300, '10 a day'], [3000, '100 a day']]) {
+      const x = sx.f(n); if (x < M.left + 4 || x + 4 + textW(t, 10.5) > W - M.right) continue;
+      svgP.append(svgEl('line', { x1: x, x2: x, y1: M.top, y2: H - M.bottom, stroke: C.muted, 'stroke-dasharray': '3 4', 'stroke-opacity': 0.7 }));
+      svgP.append(svgEl('text', { ...halo(3), x: x + 4, y: M.top + 10, fill: C.muted, 'font-size': 10.5 }, t));
+    }
+    // the frontier: the best score you can get for at least this many tasks a month
+    const P = pts.map((m) => ({ m, x: sx.f(m.planTasks), y: sy.f(m.myIndex) })).sort((a, b) => b.m.planTasks - a.m.planTasks || b.m.myIndex - a.m.myIndex);
+    const front = []; let best = -Infinity;
+    for (const p of P) if (p.m.myIndex > best) { front.push(p); best = p.m.myIndex; }
+    if (front.length > 1) {
+      let d = `M${front[0].x},${front[0].y}`;
+      for (let i = 1; i < front.length; i++) d += `H${front[i].x}V${front[i].y}`;
+      svgP.append(svgEl('path', { d, fill: 'none', stroke: C.ink2, 'stroke-width': 1.5, 'stroke-opacity': 0.55 }));
+    }
+    for (const p of P.slice().reverse()) svgP.append(dot(p.m, p.x, p.y));
+    // names on the frontier models first, then the others where they fit
+    const boxes = P.map((p) => ({ x0: p.x - 6, y0: p.y - 6, x1: p.x + 6, y1: p.y + 6 })), frontSet = new Set(front);
+    for (let i = 1; i < front.length; i++) { // keep names off the staircase too
+      const a = front[i - 1], b = front[i];
+      boxes.push({ x0: b.x, y0: a.y - 1.5, x1: a.x, y1: a.y + 1.5 }, { x0: b.x - 1.5, y0: b.y, x1: b.x + 1.5, y1: a.y });
+    }
+    const free = (b) => b.x0 >= M.left && b.x1 <= W - M.right && b.y0 >= M.top && b.y1 <= H - M.bottom && !boxes.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+    for (const p of [...front, ...P.filter((p) => !frontSet.has(p))]) {
+      const t = p.m.familyName + effortTag(p.m), w = textW(t, 11, frontSet.has(p) ? 600 : 400);
+      for (const [dx, dy, anchor] of [[9, 4, 'start'], [-9, 4, 'end'], [-w / 2, -10, 'middle'], [-w / 2, 17, 'middle']]) {
+        const x0 = anchor === 'end' ? p.x + dx - w : anchor === 'middle' ? p.x + dx : p.x + dx, b = { x0, y0: p.y + dy - 10, x1: x0 + w, y1: p.y + dy + 3 };
+        if (!free(b)) continue;
+        boxes.push(b);
+        svgP.append(svgEl('text', { ...halo(3), x: anchor === 'middle' ? p.x : p.x + dx, y: p.y + dy, 'text-anchor': anchor, fill: mine && !mine(p.m) ? C.muted : familyColor(p.m), 'font-size': 11, 'font-weight': frontSet.has(p) ? 600 : 400 }, t));
+        break;
+      }
+    }
+  }
+  $('planFilters').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const solo = e.altKey || e.metaKey, all = (attr) => [...$('planFilters').querySelectorAll(`[${attr}]`)].map((x) => x.getAttribute(attr));
+    const flip = (key, attr, v) => {
+      const hide = new Set(S[key]);
+      if (solo) S[key] = all(attr).filter((x) => x !== v);
+      else { hide.has(v) ? hide.delete(v) : hide.add(v); S[key] = [...hide]; }
+    };
+    if (b.dataset.lab) flip('planHideLabs', 'data-lab', b.dataset.lab);
+    else if (b.dataset.eff) flip('planHideEfforts', 'data-eff', b.dataset.eff);
+    else if (b.dataset.mine) S.planMineOnly = !S.planMineOnly;
+    else if (b.dataset.reset) { S.planHideLabs = []; S.planHideEfforts = []; S.planMineOnly = false; }
+    save(); renderPlan(lastChosen);
+  });
+  // long-press a chip (phones) to show only that one
+  let pressTimer = null;
+  $('planFilters').addEventListener('touchstart', (e) => {
+    const b = e.target.closest('.chip[data-lab], .chip[data-eff]'); if (!b) return;
+    pressTimer = setTimeout(() => { pressTimer = 'fired'; b.dispatchEvent(new MouseEvent('click', { bubbles: true, altKey: true })); }, 550);
+  }, { passive: true });
+  $('planFilters').addEventListener('touchend', (e) => { if (pressTimer === 'fired') e.preventDefault(); clearTimeout(pressTimer); pressTimer = null; });
+  $('planTable').addEventListener('click', (e) => {
+    const k = e.target.closest('th')?.dataset.k; if (!k) return;
+    const col = PLAN_COLS.find(([c]) => c === k);
+    S.planSort = { key: k, dir: S.planSort?.key === k ? -S.planSort.dir : col[4] ? -1 : 1 };
+    save(); renderPlan(lastChosen);
+  });
+  // hovering a table row picks out its dot
+  $('planTable').addEventListener('mouseover', (e) => {
+    const id = e.target.closest('tr[data-id]')?.dataset.id;
+    $('planChart').querySelectorAll('.pd').forEach((g) => g.classList.toggle('hl', g.dataset.id === id));
+  });
+  $('planTable').addEventListener('mouseleave', () => $('planChart').querySelectorAll('.pd.hl').forEach((g) => g.classList.remove('hl')));
+  const planSyncs = [bindSeg('planScopeSeg', 'planScope'), bindSeg('planViewSeg', 'planView')];
   $('planSel').addEventListener('change', (e) => {
     const n = e.target.value; S.plan = n;
     if (n !== 'custom') S.planPrice = PLANS.flatMap(([, ps]) => ps).find(([name]) => name === n)[1];
     PLAN_FEE = +S.planPrice || 0; derive(); save(); render();
   });
   $('planPrice').addEventListener('change', (e) => { S.planPrice = Math.max(0, +e.target.value || 0); S.plan = 'custom'; PLAN_FEE = S.planPrice; derive(); save(); render(); });
+  // "Your index": one setting, shown in the options and under Subscription math
+  for (const sel of document.querySelectorAll('.basisSel')) {
+    sel.innerHTML = Object.entries(BASES).map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('');
+    sel.addEventListener('change', (e) => { S.basis = e.target.value; applyBasis(); save(); syncControls(); render(); });
+  }
+  for (const box of document.querySelectorAll('.basisFill')) box.addEventListener('change', (e) => { S.basisFill = e.target.checked; applyBasis(); save(); syncControls(); render(); });
 
   // ---------- hover / pin ----------
   const tip = $('tooltip');
@@ -2337,7 +2618,7 @@
       .filter((k) => m[k] != null)
       .map((k) => `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${METRICS[k].label}</td><td>${METRICS[k].fmt(m[k])}</td></tr>`).join('');
     tip.innerHTML = `<div class="t-name"><i style="background:${p.color}"></i>${esc(m.label)}</div>
-      <div class="t-sub">${esc(m.creator)} · ${EFFORT_LABEL[m.effort]} effort · ${m.openWeights ? 'open weights' : 'proprietary'}${m.releaseDate ? ' · ' + m.releaseDate : ''}${m.estimated ? ' · estimated' : ''}</div>
+      <div class="t-sub">${esc(m.creator)} · ${EFFORT_LABEL[m.effort]} effort · ${m.openWeights ? 'open weights' : 'proprietary'}${m.releaseDate ? ' · ' + m.releaseDate : ''}${m.estimated ? ' · estimated' : ''}${m.myEst && [S.x, S.y].some((k) => MY_SCORED.has(k)) ? ` · your index ${Math.round(m.myEst * 100)}% estimated` : ''}</div>
       <table>${rows}</table>${[...new Set([S.y, S.x].map((k) => METRICS[k].ext).filter(Boolean))].map((e) => { const r = m.ext?.[e.key]; return r ? `<div class="t-foot">${esc(e.label)} lists it as “${esc(r.name)}”${r.guessed ? ' (effort not stated)' : ''}</div>` : ''; }).join('')}<div class="t-foot">${p.ghost ? `On the frontier but not selected · ${touch ? 'tap again' : 'click'} to add it` : `${touch ? 'Tap again' : 'Click'} to ${S.pinned.has(m.id) ? 'unpin' : 'pin'}`}</div>`;
     tip.classList.toggle('docked', touch);
     tip.style.display = 'block';
@@ -2593,7 +2874,8 @@
   showMeta();
   // URL overrides, e.g. ?theme=dark&x=costPerTask&xScale=log&pin=claude-opus-5-5:low
   const qp = new URLSearchParams(location.search);
-  for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'colorBy', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale']) if (qp.get(k)) S[k] = qp.get(k);
+  for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'colorBy', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale', 'basis', 'planView', 'planScope']) if (qp.get(k)) S[k] = qp.get(k);
+  if (qp.get('basis')) applyBasis();
   if (qp.get('fullFrontier')) S.fullFrontier = qp.get('fullFrontier') === '1';
   if (qp.get('pin')) S.pinned = new Set(qp.get('pin').split(',').map((t) => { const [fam, eff] = t.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff)?.id; }).filter(Boolean));
   fixAxes(); syncControls(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
