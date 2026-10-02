@@ -108,6 +108,8 @@
         timePerTask: num(m.intelligenceIndexTimePerTask),
         parameters: num(m.parameters),
         ...Object.fromEntries(BENCHMARKS.map(([k, get]) => [k, num(get(m))])),
+        // each Intelligence Index evaluation's own cost and output tokens per task: { key: [usd, tokens] }
+        evals: evalsOf(m),
         defaultSelected: !!m.chartDefaultSelected,
       }))
       .sort((a, b) => b.intelligence - a.intelligence);
@@ -123,6 +125,38 @@
     gdpval: (m) => m.gdpval, briefcase: (m) => m.briefcaseBreakdown?.overall?.elo, gdpPdf: (m) => m.gdpPdfAllPass, mlcr: (m) => m.mlcrOverall, harvey: (m) => m.harveyLab,
     openness: (m) => m.openness?.opennessIndex,
   });
+
+  // The Intelligence Index evaluations (AA's slugs) under the page's metric keys.
+  const INDEX_EVALS = {
+    'aa-briefcase': 'briefcase', 'gdpval-aa': 'gdpval', 'automationbench-aa': 'automationBench', 'terminalbench-4-0': 'terminalBench40',
+    scicode: 'scicode', 'humanitys-last-exam': 'hle', 'gdp-pdf': 'gdpPdf', critpt: 'critpt', omniscience: 'omniscience',
+    'artificial-analysis-long-context-reasoning': 'lcr',
+  };
+  const round = (v) => +v.toPrecision(4);
+  function evalsOf(m) {
+    const out = {};
+    for (const e of m.intelligenceIndexEvaluations || []) {
+      const k = INDEX_EVALS[e.slug] || e.slug;
+      if (Number.isFinite(e.costPerTask)) out[k] = [round(e.costPerTask), Number.isFinite(e.outputTokensPerTask) ? Math.round(e.outputTokensPerTask) : null];
+    }
+    return Object.keys(out).length ? out : null;
+  }
+  // Each evaluation's weight in the index, read off a model with the full cost breakdown (weighted cost ÷ cost).
+  function indexWeightsOf(manifests) {
+    for (const man of manifests) for (const arr of Array.isArray(man) ? [man] : Object.values(man).filter(Array.isArray)) for (const m of arr) {
+      const weighted = m?.intelligenceIndexCostPerTask?.evaluations, evs = m?.intelligenceIndexEvaluations;
+      if (!Array.isArray(weighted) || !Array.isArray(evs) || weighted.length < 2) continue;
+      const w = {};
+      for (const e of weighted) {
+        const c = evs.find((x) => x.slug === e.slug)?.costPerTask;
+        if (!(c > 0) || !Number.isFinite(e.weightedCostPerTask)) { w.bad = 1; break; }
+        w[INDEX_EVALS[e.slug] || e.slug] = Math.round((e.weightedCostPerTask / c) * 1000) / 1000;
+      }
+      const sum = Object.values(w).reduce((a, b) => a + b, 0);
+      if (!w.bad && Math.abs(sum - 1) < 0.01) return w;
+    }
+    return null;
+  }
 
   // The site's "what's new" feed: models added, articles published, …
   const changelogOf = (manifests) => {
@@ -141,16 +175,16 @@
     })).sort((a, b) => b.index - a.index);
   };
 
-  // -> { v, scrapedAt, source, models, changelog, codingAgents }
+  // -> { v, scrapedAt, source, models, indexWeights, changelog, codingAgents }
   async function scrape({ fetchOpts = {}, log = () => {} } = {}) {
     const manifests = await loadManifests(fetchOpts, log);
     // Most models have only some benchmarks: leave the missing ones out rather than storing nulls.
     const models = buildModels(manifests).map((m) => Object.fromEntries(Object.entries(m).filter(([, v]) => v != null)));
     if (!models.length) throw new Error('Decoded the data but found no models — the format may have changed.');
-    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, changelog: changelogOf(manifests), codingAgents: codingAgentsOf(manifests) };
+    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, indexWeights: indexWeightsOf(manifests), changelog: changelogOf(manifests), codingAgents: codingAgentsOf(manifests) };
   }
   // Bump when the saved shape changes, so the page ignores copies saved by an older version.
-  const VERSION = 2;
+  const VERSION = 3; // 3: per-evaluation costs and index weights
 
   globalThis.AAData = { scrape, VERSION };
 })();

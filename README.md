@@ -74,9 +74,10 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   6 months (o3, gpt-oss, Llama 4). A model released in the last 60 days is never counted as a generation behind, and a
   brand that's still shipping keeps its recent models (Gemma 4 while Gemini 4 is out). Hover a model's name for the
   reason; the same models draw dashed. They stay selected, so unticking brings them back. Saved with sets.
-- **Other labs**: only labs with a model on Artificial Analysis' own Intelligence Index chart are listed (Meta, Xiaomi,
-  Alibaba, Z AI, StepFun, Kimi, DeepSeek, …), plus any lab you have something selected from; **All labs** (next to Hide
-  older versions, or the "show all labs" link at the end of the list) brings in the long tail. Searching finds everyone.
+- **Other labs**: only labs with a model on Artificial Analysis' own Intelligence Index chart that rank at or above
+  DeepSeek by their best current model are listed (Meta, Xiaomi, Alibaba, Z AI, StepFun, Kimi, DeepSeek), plus any lab
+  you have something selected from; **All labs** (next to Hide older versions, or the "show all labs" link at the end of
+  the list) brings in the rest (MiniMax, NVIDIA, Mistral and the long tail). Searching finds everyone.
 - **Axis pickers**: searchable lists; hover a metric to see what it measures (from Artificial Analysis' evaluation pages,
   or the independent source's own page), how many models have it, and its current top 3. The chosen benchmark's
   description also sits under the chart title. On touch screens the description shows under each entry.
@@ -90,8 +91,8 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   frontier, i.e. with a result for today's top model on the Intelligence Index and at least 3 of the top 5 families.
   Retired ones (AIME 2025, IFBench, GPQA Diamond once new models stopped getting it, WeirdML v2, …) are hidden, with a
   "Show all" link at the end of the list; searching still finds them, and the charted one stays listed. The hover card
-  says which frontier models a benchmark is missing. **Updated within** (3 months, 6 months, a year) also leaves out
-  benchmarks whose newest result is older than that, and **Grade** leaves out those with a report card below C or B.
+  says which frontier models a benchmark is missing. **Grade** also leaves out those with a report card below C, below B,
+  or below A.
 - **Report cards**: every benchmark gets a letter grade (A–F) in the pickers, the hover card and under the chart title,
   computed from: whether the test set is private (0–2), saturation in the current scores (0–3: top three current models
   bunched within 2 points, or a top score over 95%, scores 0; a spread over 5 points with the top under 80% scores 3),
@@ -125,10 +126,26 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - **By effort level** (under the chart): one row per selected model, a dot per reasoning effort, on cost per task, total
   cost, tokens per task, total tokens, time per task or whatever is on an axis, linear or log, sorted best first, with
   the values under the dots (like the dot rows on slopalytics.com). Letters in the dots are the effort levels.
+- **Your index** (in the options, and "Score from" under Subscription math): rebuilds the score and its cost per task
+  from only the benchmarks you trust: AA's 10 index benchmarks as published (the default), Grade A only, Grade B or
+  better, Grade C or better (graded benchmarks still run on the frontier), or everything the axis picker lists (its
+  Active only and Grade filters). The score is a weighted average on 0–100 (percentages as they are, GDPval and Briefcase
+  Elo scaled the way AA scales GDPval, AA-Omniscience from −100…100, other Elo boards from lowest to highest; AA's weight
+  where it has one, 10% otherwise), and a model needs results covering 3/4 of the weight. Artificial Analysis publishes
+  each index evaluation's own cost and tokens per task (kept in the data as `evals`, with the index weights as
+  `indexWeights`), so **Cost per task (…)** averages those over the picked benchmarks it has costs for. Most benchmarks
+  outside the index are run at only one or two effort levels, so **fill gaps** (on by default) estimates a missing
+  result from the same model at the nearest effort level, scaled by their Intelligence Index, and draws those dots faded.
+  The metrics **Your index** and **Cost per task (…)** go on either axis; Tasks per dollar, Index points per dollar,
+  Tasks a month on your plan and the subscription table all use them.
 - **Subscription math** (under that): pick the plan you pay for (ChatGPT, Claude, Google AI, SuperGrok, Copilot, Cursor,
-  T3 Chat, Perplexity, or a custom fee) and the table shows, model by model, how many Intelligence Index tasks a month the
-  same money buys at API list prices, with your plan's provider highlighted. The fee also drives the metric **Tasks a month
-  on your plan** (Cost group, either axis), next to the new **Tasks per dollar** and **Index points per dollar**. Plans
+  T3 Chat, Perplexity, or a custom fee) and see, model by model, how many tasks a month the same money buys at API list
+  prices. A chart plots the score against tasks a month (log scale, with the frontier: the best score at each budget,
+  and guides at 1, 10 and 100 a day), or shows ranked rows; models from your plan's provider are solid, the rest faded.
+  The table sorts by any column; Labs and Effort chips filter both (alt-click or long-press to show only one), as does
+  "Only on my plan", and **Models** switches between the models on the chart and every current model. The fee also drives
+  the metric **Tasks a month on your plan** (Cost group, either axis), next to **Tasks per dollar** and **Index points
+  per dollar**. Plans
   meter usage by session and week rather than by task, and measured API-equivalent use of a plan run to its caps is far
   above the fee (SemiAnalysis' June 2026 stress test; ccusage logs), so the table is a yardstick, not a bill. Prices are
   the providers' published monthly fees as of early October 2026 (openai.com/chatgpt/pricing, claude.com/pricing,
