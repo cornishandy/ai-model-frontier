@@ -72,7 +72,8 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   once Opus 5.5 is; GPT-6 Sol once GPT-6.1 Sol is), a line that's a generation behind its brand (GPT-5.6 Terra, GPT-5.3
   Codex and GPT-5.5 Instant once GPT-6 is out; Claude 4.5 Haiku after Claude 5), and a line the lab has left behind for
   6 months (o3, gpt-oss, Llama 4). A model released in the last 60 days is never counted as a generation behind, and a
-  brand that's still shipping keeps its recent models (Gemma 4 while Gemini 4 is out). Hover a model's name for the
+  brand that's still shipping keeps its recent models. Google's Gemma models (small, open weights, far behind
+  Gemini) always count as older. Hover a model's name for the
   reason; the same models draw dashed. They stay selected, so unticking brings them back. Saved with sets.
 - **Other labs**: only labs with a model on Artificial Analysis' own Intelligence Index chart that rank at or above
   DeepSeek by their best current model are listed (Meta, Xiaomi, Alibaba, Z AI, StepFun, Kimi, DeepSeek), plus any lab
