@@ -413,7 +413,7 @@
     <div class="row" style="margin-top:6px">
       <label class="inline" title="Also list models Artificial Analysis marks as deprecated"><input type="checkbox" id="showDeprecated" /> Include deprecated</label>
       <label class="inline" title="List only models whose weights you can download and run yourself; also limits 'Who leads what' to them"><input type="checkbox" id="openOnly" /> Open weights only</label>
-      <label class="inline" title="Leave out models a newer version has replaced (Claude Opus 5 once Opus 5.5 is out), lines a generation behind (GPT-5.6 Terra once GPT-6 is out, Claude 4.5 Haiku after Claude 5) and lines the lab has left behind for 6 months (o3, gpt-oss). They stay selected, so turning this off brings them back."><input type="checkbox" id="hideOlder" /> Hide older versions</label>
+      <label class="inline" title="Leave out models a newer version has replaced (Claude Opus 5 once Opus 5.5 is out), lines a generation behind (GPT-5.6 Terra once GPT-6 is out, Claude 4.5 Haiku after Claude 5) and lines the lab has left behind for 6 months (o3, gpt-oss), and Google's small Gemma models. They stay selected, so turning this off brings them back."><input type="checkbox" id="hideOlder" /> Hide older versions</label>
       <label class="inline" title="Also list the labs ranked below DeepSeek (by their best current model) and the labs with no model on Artificial Analysis' own Intelligence Index chart (MiniMax, NVIDIA, Mistral, Amazon, IBM, Cohere, …). Off: the big labs and AA-charted labs down to DeepSeek, plus any lab you have something selected from."><input type="checkbox" id="allLabs" /> All labs</label>
     </div>
     <div class="note" id="selCount" style="margin-top:6px"></div>
@@ -901,6 +901,8 @@
   // "(Nov '24)" or "(0902)" go too, so a dated re-release is a newer version of the same line.
   const lineKey = (m) => m.creatorSlug + ':' + m.familyName.replace(/\(\s*[a-z]*\.?\s*'?\s*\d{2,4}\s*\)/gi, '').replace(/\d+(?:\.\d+)*(?![\d.]*[bmkt]\b)/gi, '').replace(/[\s-]+/g, ' ').trim().toLowerCase();
   const FAMILY = new Map(); // family slug -> { key, older, why, shade }
+  // Side lines of the big labs that "Hide older versions" always hides, however new: small models far behind the lab's own frontier.
+  const SIDE_LINES = [['google', /gemma/i, 'a side line: Gemma is Google\'s small open-weights family, far behind Gemini']];
   let AA_CHART_LABS = new Set(); // labs with a model on Artificial Analysis' own Intelligence Index chart
   let LISTED_LABS = new Set(); // of those, the ones listed by default: down to DeepSeek, ranked by their best current model
   const CUTOFF_LAB = 'deepseek';
@@ -1028,7 +1030,7 @@
     // out); a generation behind the brand's newest (GPT-5.6 Terra once GPT-6 is out, Claude 4.5 Haiku after Claude 5); or
     // left behind: no release in the line for 6 months after the lab moved on (o3, gpt-oss, Llama 4). A family released in
     // the last 60 days is never a generation behind, and a brand still shipping keeps its recent families (Gemma 4 while
-    // Gemini 4 is out). Dates are relative to the data, not the clock, so the standalone copy doesn't drift.
+    // Gemini 4 is out, though Gemma is hidden anyway as a side line). Dates are relative to the data, not the clock, so the standalone copy doesn't drift.
     const famRel = new Map(), famDep = new Map(), labNewest = new Map(), brandNewest = new Map(), brandGen = new Map();
     const brandKey = (m) => m.creatorSlug + ':' + brandOf(m.familyName);
     for (const m of ALL) {
@@ -1051,6 +1053,8 @@
     const olderWhy = (m) => {
       const k = lineKey(m), top = newest.get(k);
       if (top.family !== m.family) return `superseded by ${top.familyName}`;
+      const side = SIDE_LINES.find(([lab, re]) => m.creatorSlug === lab && re.test(m.familyName));
+      if (side) return side[2];
       const rel = famRel.get(m.family); if (!rel || days(today, rel) < 60) return '';
       const g = brandGen.get(brandKey(m)), v = versionOf(m.familyName);
       if (g && v != null && Math.floor(v) < g.major && rel < g.since) return `a generation behind: ${m.familyName.match(/[a-z]+/i)?.[0] || 'version'} ${g.major} is out`;
