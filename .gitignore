@@ -4,3 +4,7 @@ AI Model Frontier.html
 data/models.json
 # personal backup of an old saved view (it's also in the sync gist)
 my-earlier-view.json
+
+# screenshots used by the workshop mock-ups
+mockups/shots/
+before.html

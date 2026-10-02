@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Workshop: control panels</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.1);
+    --hover: rgba(11, 11, 11, 0.05);
+    --accent: #2a78d6;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+    --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+    --other: #a8a69f;
+    --e-minimal: #86b6ef; --e-low: #5598e7; --e-medium: #2a78d6; --e-default: #256abf;
+    --e-high: #1c5cab; --e-xhigh: #104281; --e-max: #0d366b; --e-none: #c3c2b7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"]):not([data-theme="white"]):not([data-theme="sepia"])) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --hover: rgba(255, 255, 255, 0.06);
+      --accent: #3987e5;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+      --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --other: #6b6a65;
+      --e-minimal: #184f95; --e-low: #1c5cab; --e-medium: #2a78d6; --e-default: #3987e5;
+      --e-high: #5598e7; --e-xhigh: #86b6ef; --e-max: #b7d3f6; --e-none: #52514e;
+    }
+  }
+  :root[data-theme="dark"], :root[data-theme="midnight"], :root[data-theme="black"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --hover: rgba(255, 255, 255, 0.06);
+    --accent: #3987e5;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --other: #6b6a65;
+    --e-minimal: #184f95; --e-low: #1c5cab; --e-medium: #2a78d6; --e-default: #3987e5;
+    --e-high: #5598e7; --e-xhigh: #86b6ef; --e-max: #b7d3f6; --e-none: #52514e;
+  }
+  /* Theme variants: surfaces and text only. Series colors come from the light or dark set above. */
+  :root[data-theme="white"] {
+    --page: #f3f4f6; --surface: #ffffff; --ink: #111418; --ink-2: #4b5059; --muted: #868b94;
+    --grid: #e5e7eb; --axis: #c8cbd1; --border: rgba(17, 20, 24, 0.1); --hover: rgba(17, 20, 24, 0.05);
+  }
+  :root[data-theme="sepia"] {
+    --page: #efe7d6; --surface: #f8f2e5; --ink: #2a2217; --ink-2: #5c4f3c; --muted: #8e8069;
+    --grid: #e4d9c2; --axis: #c9ba9b; --border: rgba(42, 34, 23, 0.12); --hover: rgba(42, 34, 23, 0.06); --other: #a99d86;
+  }
+  :root[data-theme="midnight"] {
+    --page: #0b1120; --surface: #111a2e; --ink: #f1f5f9; --ink-2: #c3cad6; --muted: #8792a6;
+    --grid: #1e2a42; --axis: #2c3a55; --border: rgba(226, 232, 240, 0.1); --hover: rgba(226, 232, 240, 0.06); --other: #5f6b80;
+  }
+  :root[data-theme="black"] {
+    --page: #000000; --surface: #000000; --grid: #1f1f1f; --axis: #2e2e2e; --border: rgba(255, 255, 255, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page); color: var(--ink);
+    display: grid; grid-template-columns: 320px 1fr; grid-template-rows: auto 1fr;
+  }
+  header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .sub-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  a { color: inherit; }
+  a.src { color: var(--accent); font-size: 12px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+  a.src:hover { text-decoration: underline; }
+  #whatsNew { position: relative; }
+  .badge { display: inline-block; min-width: 17px; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: var(--s2); color: #fff; font-size: 11px; font-weight: 600; line-height: 17px; text-align: center; }
+  header .meta.error, .note.error { color: #e66767; }
+  button:disabled { opacity: .5; cursor: default; }
+  header .spacer { flex: 1; }
+
+  button, select, input[type="text"], input[type="search"] {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px;
+  }
+  button { cursor: pointer; }
+  button:hover { background: var(--hover); }
+  button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  select { padding-right: 4px; }
+  label.inline { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); white-space: nowrap; }
+
+  /* segmented control */
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 10px; background: var(--surface); color: var(--ink-2); }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+  aside {
+    border-right: 1px solid var(--border); background: var(--surface);
+    overflow-y: auto; padding: 14px 14px 40px; display: flex; flex-direction: column; gap: 16px;
+  }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .row > select { flex: 1; min-width: 0; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip {
+    border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; font-size: 12px;
+    background: transparent; color: var(--ink-2);
+  }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .chip.missing { opacity: .45; }
+
+  #modelList { display: flex; flex-direction: column; gap: 10px; }
+  .lab { border-top: 1px solid var(--border); padding-top: 8px; }
+  .lab-head { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; user-select: none; }
+  .lab-head .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .lab-head .count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; border: 0; background: none; padding: 1px 4px; }
+  .lab-head .count:hover { color: var(--ink); background: var(--hover); }
+  .lab-head .tw { width: 10px; flex: none; color: var(--muted); font-size: 10px; transition: transform .12s; }
+  .lab:not(.collapsed) > .lab-head .tw { transform: rotate(90deg); }
+  .lab.collapsed > .lab-body { display: none; }
+  .lab.sub { border-top: 0; padding: 6px 0 0 18px; }
+  .lab.sub > .lab-head { font-weight: 500; }
+  .fam { display: grid; grid-template-columns: 1fr; gap: 3px; padding: 5px 0 5px 18px; }
+  .fam-name { cursor: pointer; color: var(--ink-2); display: flex; gap: 6px; align-items: baseline; }
+  .fam-name:hover { color: var(--ink); }
+  .fam-name .score { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; margin-left: auto; }
+  .fam-name .range { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 78px; text-align: right; }
+  .fam-name svg { flex: none; align-self: center; }
+  .fam { opacity: .55; }
+  .fam.any { opacity: 1; }
+  .fam.any .fam-name { color: var(--ink); font-weight: 600; }
+  .fam .chips { padding-left: 30px; }
+  .fam .chip { font-size: 11px; padding: 1px 7px; }
+  .dep { font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+
+  main { overflow-y: auto; padding: 16px 20px 40px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  /* the axis pickers stay in view while the page scrolls */
+  .toolbar.axes { position: sticky; top: 0; z-index: 12; background: var(--page); margin: -16px 0 -2px; padding: 14px 0 10px; box-shadow: 0 1px 0 var(--border); }
+  .toolbar .group { display: flex; gap: 6px; align-items: center; }
+  .toolbar .group > span { color: var(--muted); font-size: 12px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 10px; position: relative; }
+  .card h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .card .sub { color: var(--ink-2); font-size: 12px; margin: 2px 0 8px; }
+  .card .desc { color: var(--ink-2); font-size: 12px; margin: -4px 0 8px; max-width: 1000px; line-height: 1.45; }
+  .card .desc:empty { display: none; }
+  #chart { width: 100%; display: block; }
+  #chart text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 4px 2px; color: var(--ink-2); font-size: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .note { color: var(--muted); font-size: 12px; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; min-width: 220px; max-width: 320px;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.14); padding: 10px 12px; font-size: 12px; display: none;
+  }
+  #tooltip .t-name { font-weight: 600; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+  #tooltip .t-name i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  #tooltip .t-sub { color: var(--muted); margin-bottom: 6px; }
+  #tooltip table { border-collapse: collapse; width: 100%; }
+  #tooltip td { padding: 1px 0; color: var(--ink-2); }
+  #tooltip td:last-child { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  #tooltip tr.hl td { color: var(--ink); font-weight: 600; }
+  #tooltip .t-foot { color: var(--muted); margin-top: 6px; font-size: 11px; }
+
+  /* Metric pickers: a button that opens a searchable list. Hovering an entry shows what it measures and who leads it;
+     on touch screens the description sits under each entry instead. */
+  .picker { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 210px; max-width: 320px; text-align: left; }
+  .picker .pk-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .picker::after { content: '▾'; color: var(--muted); font-size: 11px; }
+  #leadersBtn { min-width: 0; }
+  .menu {
+    position: fixed; z-index: 40; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 36px rgba(0,0,0,.18);
+  }
+  .menu-head { padding: 8px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .menu-head input { flex: 1 1 100%; min-width: 0; }
+  .menu-head .note { flex-basis: 100%; }
+  .menu-list { overflow-y: auto; padding: 0 0 6px; position: relative; overscroll-behavior: contain; }
+  .mh { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: 9px 12px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+  .mh.lead { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--ink); border-top: 1px solid var(--border); }
+  .mh i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .mh .n { margin-left: auto; font-weight: 400; color: var(--muted); }
+  .mi { padding: 5px 12px; cursor: pointer; display: grid; grid-template-columns: 1fr auto auto; gap: 1px 10px; align-items: baseline; }
+  .mi.active { background: var(--hover); }
+  .mi[aria-selected="true"] .mi-label { font-weight: 600; }
+  .mi[aria-selected="true"] .mi-label::before { content: '✓ '; }
+  .mi-meta { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* when each benchmark last got a new result */
+  .mi-date { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3.9em; text-align: right; }
+  .upd { color: var(--muted); font-weight: 400; }
+  /* benchmarks no longer run on the current frontier (shown with "Active only" off, or when searching) */
+  .mi.inactive .mi-label { color: var(--muted); }
+  .mi-more { margin-top: 4px; padding: 8px 12px 4px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; cursor: pointer; }
+  /* benchmark report cards: a letter grade beside each benchmark */
+  .grade { display: inline-block; min-width: 17px; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; color: #fff; background: var(--muted); vertical-align: 1px; }
+  .grade.gA, .grade.gB { background: var(--s3); } .grade.gC { background: var(--s4); } .grade.gD, .grade.gF { background: var(--s8); }
+  #mtip ul.rc { margin: 4px 0 0; padding-left: 16px; color: var(--ink-2); line-height: 1.35; } #mtip ul.rc li { margin: 1px 0; }
+  #mtip .verdict { margin: 6px 0 0; color: var(--ink); }
+  .mi-more:hover u { color: var(--ink); }
+  .mi-desc { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.35; display: none; }
+  #mtip {
+    position: fixed; z-index: 41; width: 300px; display: none; pointer-events: none; font-size: 12px; padding: 10px 12px;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.14);
+  }
+  #mtip h4 { margin: 0 0 4px; font-size: 13px; }
+  #mtip p { margin: 0 0 6px; color: var(--ink-2); line-height: 1.4; }
+  #mtip table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  #mtip td { padding: 2px 0; color: var(--ink-2); }
+  #mtip td:first-child { width: 16px; color: var(--muted); }
+  #mtip td.n { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  #mtip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  #mtip .eff { color: var(--muted); }
+  @media (hover: none) { .mi-desc { display: block; } #mtip { display: none !important; } }
+  /* good-zone legend swatch, one look per zone style */
+  .legend i.zone-sw { border-radius: 2px; width: 14px; }
+
+  details.card summary { cursor: pointer; font-weight: 600; }
+  table.data { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+  table.data th, table.data td { padding: 5px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+  table.data th { color: var(--muted); font-weight: 500; cursor: pointer; user-select: none; white-space: nowrap; }
+  table.data td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  table.data tr:hover td { background: var(--hover); }
+  table.data i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+  /* What's new: Artificial Analysis' own changelog */
+  .feed { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2px 20px; }
+  .feed li { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; min-width: 0; }
+  .feed li.fresh { background: color-mix(in srgb, var(--s4) 14%, transparent); }
+  .feed .when { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; width: 44px; flex: none; }
+  .feed .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .feed .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+  .feed .title:hover { text-decoration: underline; }
+  .feed .kind { color: var(--muted); font-size: 11px; flex: none; }
+  .feed .score { color: var(--ink-2); font-size: 11px; font-variant-numeric: tabular-nums; flex: none; }
+  .feed .add { font-size: 11px; padding: 1px 7px; border-radius: 999px; flex: none; }
+  .feed .add[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .pill-new { font-size: 10px; font-weight: 700; letter-spacing: .04em; color: var(--s2); flex: none; }
+  .card-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .card-head .spacer { flex: 1; }
+  .card-head a { font-size: 12px; color: var(--accent); text-decoration: none; }
+
+  /* Coding agents table: inline bars behind the numbers */
+  table.data td.bar { position: relative; min-width: 70px; }
+  table.data td.bar span { position: absolute; left: 0; top: 4px; bottom: 4px; background: var(--accent); opacity: .16; border-radius: 3px; }
+  table.data tr.hl-row td { font-weight: 600; }
+
+  /* celebration when the feed brings something new */
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+  #toast {
+    position: fixed; left: 50%; top: 18px; z-index: 51; transform: translate(-50%, calc(-100% - 40px)); visibility: hidden;
+    transition: transform .45s cubic-bezier(.2, 1.4, .4, 1), visibility 0s .45s;
+    display: flex; align-items: center; gap: 12px; max-width: min(660px, calc(100vw - 24px));
+    background: var(--ink); color: var(--surface); border-radius: 12px; padding: 10px 12px 10px 16px; box-shadow: 0 10px 40px rgba(0,0,0,.25);
+  }
+  #toast.show { transform: translate(-50%, 0); visibility: visible; transition-delay: 0s; }
+  #toast .msg { min-width: 0; }
+  #toast .msg b { display: block; font-size: 14px; }
+  #toast .msg span { display: block; font-size: 12px; opacity: .75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toast button { background: var(--surface); color: var(--ink); border: 0; flex: none; }
+  #toast button.x { background: transparent; color: var(--surface); opacity: .7; padding: 4px 6px; }
+
+  .mobile-only, .sheet-head, #scrim, .toolbar .group.mobile-only { display: none; }
+  #tooltip.docked { left: 8px !important; right: 8px; top: auto !important; bottom: calc(10px + env(safe-area-inset-bottom)); max-width: none; }
+
+  /* Phones: chart first, full width. Models live in a slide-up sheet; secondary controls behind "Options". */
+  @media (max-width: 860px) {
+    html, body { height: auto; }
+    body { display: block; min-height: 100dvh; -webkit-text-size-adjust: 100%; }
+    header {
+      position: sticky; top: 0; z-index: 15; flex-wrap: wrap; gap: 6px 8px;
+      padding: calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+    }
+    header h1 { font-size: 15px; }
+    /* second row: source link + data age, with the "what's new" button at its end */
+    header::after { content: ''; order: 9; flex-basis: 100%; }
+    header .sub-head { order: 10; flex: 1 1 0; min-width: 0; }
+    header #whatsNew { order: 11; padding: 1px 8px; font-size: 12px; }
+    header .meta { font-size: 11px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    a.src { font-size: 11px; }
+    .feed { grid-template-columns: 1fr; }
+    #toast { top: calc(10px + env(safe-area-inset-top)); left: 10px; right: 10px; max-width: none; transform: translateY(calc(-100% - 40px)); }
+    #toast.show { transform: none; }
+    header button { padding: 6px 10px; }
+    @media (max-width: 380px) { header h1 { font-size: 14px; } header button { padding: 6px 8px; } header { column-gap: 6px; } }
+    .desk-only { display: none !important; }
+    .mobile-only { display: inline-flex; align-items: center; }
+    .toolbar .group.mobile-only { display: flex; }
+    button[aria-pressed="true"].mobile-only { background: var(--ink); color: var(--surface); }
+    main { overflow: visible; padding: 10px max(8px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); gap: 10px; }
+    .toolbar { gap: 8px 12px; }
+    .toolbar.axes { top: var(--head-h, 0px); margin: -10px 0 -2px; padding: 8px 0; }
+    .toolbar.opts { display: none; }
+    body.opts-open .toolbar.opts { display: flex; }
+    .toolbar .group { flex-wrap: wrap; }
+    .toolbar:first-child .group { flex: 1 1 100%; flex-wrap: nowrap; min-width: 0; }
+    .toolbar:first-child .group select, .toolbar:first-child .group .picker { flex: 1; min-width: 0; max-width: none; }
+    .seg button { padding: 6px 9px; }
+    /* the good-zone choices don't fit one row on a phone: let them wrap, with a line between rows */
+    #zoneSeg { flex-wrap: wrap; }
+    #zoneSeg button { flex: 1 1 auto; white-space: nowrap; box-shadow: 0 1px 0 var(--border); }
+    /* iOS zooms the page when focusing text smaller than 16px */
+    select, input[type="text"], input[type="search"] { font-size: 16px; }
+    .card { padding: 10px 10px 8px; border-radius: 8px; }
+    .card h3 { font-size: 14px; }
+    .card .sub { display: none; }
+    .card .desc { margin-top: 2px; }
+    #tableCard { overflow-x: auto; }
+
+    aside {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; height: 85dvh;
+      border: 0; border-top: 1px solid var(--border); border-radius: 14px 14px 0 0;
+      box-shadow: 0 -8px 30px rgba(0,0,0,.18); padding: 0 16px calc(40px + env(safe-area-inset-bottom));
+      transform: translateY(105%); transition: transform .25s ease; overscroll-behavior: contain;
+    }
+    body.sheet-open aside { transform: none; }
+    body.sheet-open { overflow: hidden; }
+    .sheet-head {
+      display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1;
+      background: var(--surface); padding: 12px 0 10px; margin-bottom: -6px; border-bottom: 1px solid var(--border); font-weight: 600;
+    }
+    #scrim { position: fixed; inset: 0; z-index: 25; background: rgba(0,0,0,.3); }
+    body.sheet-open #scrim { display: block; }
+  }
+
+  /* ---- mock-up page ---- */
+  body { display: block; padding: 20px 24px 60px; max-width: 1240px; margin: 0 auto; }
+  h1.w { font-size: 20px; margin: 0 0 4px; } p.w { color: var(--ink-2); max-width: 820px; margin: 0 0 18px; }
+  section.opt { border-top: 1px solid var(--border); padding: 22px 0 8px; }
+  section.opt > h2.w { font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--ink); margin: 0 0 2px; }
+  section.opt > p.w { margin-bottom: 14px; }
+  .frame { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .twocol { display: grid; grid-template-columns: 320px 320px; gap: 24px; align-items: start; }
+  .colhead { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+  /* current sidebar, condensed copy */
+  .side { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  .side h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  /* proposed sidebar */
+  .side2 { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+  .side2 h2 { font-size: 12px; font-weight: 700; color: var(--ink); margin: 0 0 6px; text-transform: none; letter-spacing: 0; display: flex; align-items: baseline; gap: 8px; }
+  .side2 h2 .note { font-weight: 400; }
+  .side2 .row.set select { flex: 1; } .side2 .more { padding: 5px 9px; font-weight: 700; }
+  .side2 .chips .chip { font-size: 12px; padding: 2px 9px; }
+  .lab2 { border-top: 1px solid var(--border); padding-top: 6px; }
+  .lab-head2 { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; padding: 4px 0; }
+  .lab-head2 .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; } .lab-head2 .count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+  .lab-head2 .tw { color: var(--muted); font-size: 10px; width: 10px; }
+  .fam2 { display: grid; grid-template-columns: 18px 1fr auto auto; gap: 8px; align-items: baseline; padding: 4px 0 4px 18px; font-size: 13px; }
+  .fam2 .tick { color: var(--muted); font-size: 12px; } .fam2.on .tick { color: var(--ink); }
+  .fam2 .nm { color: var(--ink-2); } .fam2.on .nm { color: var(--ink); font-weight: 600; }
+  .fam2 .sc, .fam2 .rg { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; } .fam2 .rg { min-width: 74px; text-align: right; }
+  .fam2.on .sc { color: var(--ink-2); }
+  .chips.under { padding: 0 0 6px 44px; } .chips.under .chip { font-size: 11px; padding: 1px 8px; }
+  /* proposed toolbars */
+  .form { display: grid; grid-template-columns: 110px 1fr; gap: 8px 14px; align-items: center; max-width: 820px; }
+  .form .lbl { text-align: right; font-weight: 600; font-size: 12px; color: var(--ink); }
+  .form .sub { grid-column: 1 / -1; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; margin: 8px 0 -2px; }
+  .form .hint { color: var(--muted); font-size: 12px; margin-left: 8px; }
+  .dd { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 13px; }
+  .dd b { font-weight: 600; } .dd span { color: var(--muted); } .dd::after { content: '▾'; color: var(--muted); font-size: 11px; }
+  .ddrow { display: flex; flex-wrap: wrap; gap: 8px; }
+  .menu.demo { position: static; width: 300px; margin-top: 10px; }
+  .menu.demo .mi { grid-template-columns: 1fr; } .menu.demo .mi .d { color: var(--muted); font-size: 11px; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .tabs button { border: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--ink-2); padding: 7px 12px; font-weight: 500; }
+  .tabs button[aria-selected="true"] { color: var(--ink); font-weight: 700; box-shadow: inset 0 -2px 0 var(--ink); }
+  .toolbar.now { opacity: .9; }
+</style></head>
+<body>
+<h1 class="w">Workshop: the models panel and the options bar</h1>
+<p class="w">Three ways to lay out the options above the chart, and one redesign of the models panel, drawn with the page's own styles. Nothing here is wired up; it's for choosing a direction.</p>
+
+<section class="opt">
+  <h2 class="w">Models panel: current vs. proposed</h2>
+  <p class="w">Proposed: the saved-set controls collapse into one row with a “⋯” menu; names are full-contrast 13px with the numbers in aligned columns; effort chips appear only under models you've selected (one line otherwise); filters move behind a “Filters” button that shows how many are on; lab headers stay visible while the list scrolls.</p>
+  <div class="twocol">
+    <div><div class="colhead">Current</div>
+      <div class="side">
+        <section><h2>Saved sets</h2>
+          <div class="row"><select style="flex:1"><option>★ Frontier labs — every effort</option></select></div>
+          <div class="row" style="margin-top:6px"><button class="primary">Save as…</button><button>Update</button><button>Delete</button></div>
+          <div class="row" style="margin-top:6px"><button>Export</button><button>Import</button></div>
+          <div class="row" style="margin-top:8px"><span class="note" style="flex:1">Saved sets match GitHub · checked just now</span><button>Sync</button></div>
+        </section>
+        <section><h2>Efforts shown</h2>
+          <div class="chips"><button class="chip missing">Non-reasoning</button><button class="chip missing">Minimal</button><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Medium</button><button class="chip missing">Default</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
+          <div class="row" style="margin-top:6px"><span class="note">Selecting a model adds:</span><select><option>all efforts</option></select></div>
+        </section>
+        <section><h2>Models</h2>
+          <div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1"></div>
+          <div class="row" style="margin-top:6px"><button>AA defaults</button><button>Top 20</button><button>Clear</button></div>
+          <div class="row" style="margin-top:6px"><label class="inline"><input type="checkbox"> Include deprecated</label><label class="inline"><input type="checkbox"> Open weights only</label><label class="inline"><input type="checkbox" checked> Hide older versions</label><label class="inline"><input type="checkbox"> All labs</label></div>
+          <div class="note" style="margin-top:6px">32 selected · 99 in list</div>
+          <div id="modelList" style="margin-top:8px">
+            <div class="lab"><div class="lab-head"><span class="tw">▶</span><span class="swatch" style="background:var(--s2)"></span>Anthropic<button class="count">15/15</button></div><div class="lab-body">
+              <div class="fam any"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--s2)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--s2)"/></svg>Claude Opus 5.5 <span class="score">57.6</span><span class="range">$0.55–5.98</span></div><div class="chips"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Medium</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div></div>
+              <div class="fam"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--s2)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--s2)"/></svg>Claude Fable 5.1 <span class="score">53.4</span><span class="range">$2.37–7.63</span></div><div class="chips"><button class="chip">Low</button><button class="chip">Medium</button><button class="chip">High</button><button class="chip">XHigh</button><button class="chip">Max</button></div></div>
+            </div></div>
+            <div class="lab"><div class="lab-head"><span class="tw">▶</span><span class="swatch" style="background:var(--ink)"></span>OpenAI<button class="count">10/16</button></div><div class="lab-body">
+              <div class="fam any"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--ink)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--ink)"/></svg>GPT-6 Astra <span class="score">52.7</span><span class="range">$0.82–3.26</span></div><div class="chips"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Medium</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div></div>
+              <div class="fam"><div class="fam-name"><svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(--ink)" stroke-width="2"/><circle cx="12" cy="5" r="3.2" fill="var(--ink)"/></svg>GPT-6 Luna <span class="score">38.1</span><span class="range">$0.0045–0.068</span></div><div class="chips"><button class="chip">Non-reasoning</button><button class="chip">Low</button><button class="chip">Medium</button><button class="chip">High</button><button class="chip">XHigh</button><button class="chip">Max</button></div></div>
+            </div></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div><div class="colhead">Proposed</div>
+      <div class="side2">
+        <div>
+          <div class="row set"><select><option>★ Frontier labs — every effort</option></select><button class="more" title="Save as…, Update, Delete, Export, Import, Sync, Send to phone">⋯</button></div>
+          <div class="note" style="margin-top:4px">In sync with GitHub · checked 2 min ago</div>
+        </div>
+        <div><h2>Efforts <span class="note">on the chart</span></h2>
+          <div class="chips"><button class="chip missing">None</button><button class="chip missing">Min</button><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip missing">Def</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
+        </div>
+        <div><h2>Models <span class="note">32 selected · 99 listed</span></h2>
+          <div class="row"><input type="search" placeholder="Search models or labs…" style="flex:1"><button title="Include deprecated · Open weights only · Hide older versions ✓ · All labs">Filters <b>1</b> ▾</button></div>
+          <div class="row" style="margin-top:6px"><button>AA defaults</button><button>Top 20</button><button>Clear</button><span class="note" style="margin-left:auto">adds: all efforts ▾</span></div>
+          <div style="margin-top:8px">
+            <div class="lab2"><div class="lab-head2"><span class="tw">▼</span><i class="sw" style="background:var(--s2)"></i>Anthropic<span class="count">15/15</span></div>
+              <div class="fam2 on"><span class="tick">●</span><span class="nm">Claude Opus 5.5</span><span class="sc">57.6</span><span class="rg">$0.55–5.98</span></div>
+              <div class="chips under"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
+              <div class="fam2 on"><span class="tick">●</span><span class="nm">Claude Sonnet 5.5</span><span class="sc">56.0</span><span class="rg">$0.42–7.67</span></div>
+              <div class="chips under"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
+              <div class="fam2"><span class="tick">○</span><span class="nm">Claude Fable 5.1</span><span class="sc">53.4</span><span class="rg">$2.37–7.63</span></div>
+            </div>
+            <div class="lab2"><div class="lab-head2"><span class="tw">▼</span><i class="sw" style="background:var(--ink)"></i>OpenAI<span class="count">10/16</span></div>
+              <div class="fam2 on"><span class="tick">●</span><span class="nm">GPT-6 Astra</span><span class="sc">52.7</span><span class="rg">$0.82–3.26</span></div>
+              <div class="chips under"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
+              <div class="fam2 on"><span class="tick">●</span><span class="nm">GPT-6.1 Sol</span><span class="sc">51.8</span><span class="rg">$0.13–0.72</span></div>
+              <div class="chips under"><button class="chip" aria-pressed="true">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button><button class="chip" aria-pressed="true">XHigh</button><button class="chip" aria-pressed="true">Max</button></div>
+              <div class="fam2"><span class="tick">○</span><span class="nm">GPT-6 Luna</span><span class="sc">38.1</span><span class="rg">$0.0045–0.068</span></div>
+            </div>
+            <div class="lab2"><div class="lab-head2"><span class="tw">▼</span><i class="sw" style="background:var(--s1)"></i>Google<span class="count">4/15</span></div>
+              <div class="fam2 on"><span class="tick">●</span><span class="nm">Gemini 4 Argon</span><span class="sc">52.6</span><span class="rg">$1.99</span></div>
+              <div class="fam2 on"><span class="tick">●</span><span class="nm">Gemini 3.8 Flash</span><span class="sc">40.9</span><span class="rg">$0.93–1.24</span></div>
+              <div class="chips under"><button class="chip">Low</button><button class="chip" aria-pressed="true">Med</button><button class="chip" aria-pressed="true">High</button></div>
+              <div class="fam2"><span class="tick">○</span><span class="nm">Gemma 4 26B A4B</span><span class="sc">16.7</span><span class="rg">—</span></div>
+            </div>
+            <div class="lab2"><div class="lab-head2"><span class="tw">▶</span><i class="sw" style="background:var(--s3)"></i>SpaceXAI<span class="count">3/3</span></div></div>
+            <div class="lab2"><div class="lab-head2"><span class="tw">▶</span><i class="sw" style="background:var(--other)"></i>Other labs<span class="count">0/60</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="opt">
+  <h2 class="w">Options bar, as it is now</h2>
+  <p class="w">Thirteen groups of segmented buttons over three rows; the grey labels are 12px and the rows wrap differently at every width.</p>
+  <div class="frame">
+    <div class="toolbar now"><div class="group"><span>Pareto</span><div class="seg"><button>Off</button><button aria-pressed="true">Step</button><button>Line</button></div><div class="seg"><button aria-pressed="true">Shade</button><button>Fade</button><button>Rings</button></div><label class="inline"><input type="checkbox"> all models</label></div><div class="group"><span>Guides</span><div class="seg"><button aria-pressed="true">Hover</button><button>Pinned</button><button>Frontier</button><button>All</button></div></div><div class="group"><span>Spotlight</span><div class="seg"><button aria-pressed="true">Off</button><button>Pinned</button></div></div><div class="group"><span>Labels</span><div class="seg"><button aria-pressed="true">Auto</button><button>Auto+</button><button>Ladder</button><button>Models</button><button>Every dot</button><button>None</button></div></div><div class="group"><span>Color</span><div class="seg"><button aria-pressed="true">Lab</button><button>Effort</button><button>Open/closed</button></div></div><div class="group"><span>Mark</span><select><option>High</option></select><div class="seg"><button aria-pressed="true">Hash</button><button>Ring</button><button>Square</button></div></div><label class="inline"><input type="checkbox" checked> Line through effort levels</label></div>
+    <div class="toolbar now" style="margin-top:10px"><div class="group"><span>Grid</span><div class="seg"><button aria-pressed="true">Normal</button><button>Faint</button><button>Off</button></div></div><div class="group"><span>Axis text</span><div class="seg"><button aria-pressed="true">Normal</button><button>Faint</button></div></div><div class="group"><span>Glow</span><div class="seg"><button aria-pressed="true">Off</button><button>On</button></div></div><div class="group"><span>Theme</span><select><option>Paper</option></select></div></div>
+    <div class="toolbar now" style="margin-top:10px"><div class="group"><span>Good zone</span><div class="seg"><button aria-pressed="true">Off</button><button>Quadrant</button><button>Near frontier</button><button>Top tier</button><button>Sweet spot</button><button>Beats pinned</button><button>Diagonal</button></div></div><div class="group"><span>Zone style</span><div class="seg"><button aria-pressed="true">Tint</button><button>Hatch</button><button>Outline</button><button>Gradient</button></div></div><div class="group"><span>Shape</span><div class="seg"><button aria-pressed="true">Standard</button><button>Diamond</button></div></div></div>
+  </div>
+</section>
+
+<section class="opt">
+  <h2 class="w">Option A: a settings sheet with labelled rows</h2>
+  <p class="w">One control per row, bold label on the left, grouped under four headings, with a one-line hint where it helps. It opens from a “Display ▾” button beside the axes and can stay open. Easy to scan, takes more height.</p>
+  <div class="frame">
+    <div class="form">
+      <div class="sub">Frontier</div>
+      <div class="lbl">Pareto frontier</div><div><div class="seg"><button>Off</button><button aria-pressed="true">Step</button><button>Line</button></div> <span class="hint">the models nothing else beats on both axes</span></div>
+      <div class="lbl">Frontier style</div><div><div class="seg"><button aria-pressed="true">Shade</button><button>Fade</button><button>Rings</button></div> <label class="inline" style="margin-left:10px"><input type="checkbox"> compute over all models</label></div>
+      <div class="lbl">Good zone</div><div><div class="seg"><button aria-pressed="true">Off</button><button>Quadrant</button><button>Near frontier</button><button>Top tier</button><button>Sweet spot</button><button>Beats pinned</button><button>Diagonal</button></div></div>
+      <div class="lbl">Zone style</div><div><div class="seg"><button aria-pressed="true">Tint</button><button>Hatch</button><button>Outline</button><button>Gradient</button></div></div>
+      <div class="sub">Labels &amp; marks</div>
+      <div class="lbl">Labels</div><div><div class="seg"><button aria-pressed="true">Auto</button><button>Auto+</button><button>Ladder</button><button>Models</button><button>Every dot</button><button>None</button></div></div>
+      <div class="lbl">Spotlight</div><div><div class="seg"><button aria-pressed="true">Off</button><button>Pinned</button></div> <span class="hint">click a dot to pin it; everything else dims</span></div>
+      <div class="lbl">Guides</div><div><div class="seg"><button aria-pressed="true">Hover</button><button>Pinned</button><button>Frontier</button><button>All</button></div></div>
+      <div class="lbl">Mark effort</div><div><select><option>High</option></select> <div class="seg" style="margin-left:6px"><button aria-pressed="true">Hash</button><button>Ring</button><button>Square</button></div> <label class="inline" style="margin-left:10px"><input type="checkbox" checked> line through effort levels</label></div>
+      <div class="sub">Look</div>
+      <div class="lbl">Color by</div><div><div class="seg"><button aria-pressed="true">Lab</button><button>Effort</button><button>Open/closed</button></div></div>
+      <div class="lbl">Grid &amp; axis text</div><div><div class="seg"><button aria-pressed="true">Normal</button><button>Faint</button><button>Off</button></div> <div class="seg" style="margin-left:6px"><button aria-pressed="true">Normal</button><button>Faint</button></div> <label class="inline" style="margin-left:10px"><input type="checkbox"> glow</label></div>
+      <div class="lbl">Theme</div><div><select><option>Auto (match device)</option></select></div>
+      <div class="lbl">Shape</div><div><div class="seg"><button aria-pressed="true">Standard</button><button>Diamond</button></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="opt">
+  <h2 class="w">Option B: one row of dropdowns that show their current value</h2>
+  <p class="w">Each setting is a button reading “Labels: Auto ▾”; the menu lists the choices with a one-line explanation each (the same menu style as the axis pickers). Fits in one or two rows at any width, and the current state is readable at a glance. Two clicks to change a setting instead of one.</p>
+  <div class="frame">
+    <div class="ddrow"><span class="dd"><span>Pareto</span><b>Step · Shade</b></span><span class="dd"><span>Good zone</span><b>Off</b></span><span class="dd"><span>Labels</span><b>Auto</b></span><span class="dd"><span>Spotlight</span><b>Off</b></span><span class="dd"><span>Guides</span><b>Hover</b></span><span class="dd"><span>Mark</span><b>High · hash</b></span><span class="dd"><span>Color</span><b>Lab</b></span><span class="dd"><span>Look</span><b>Grid normal · no glow</b></span><span class="dd"><span>Theme</span><b>Paper</b></span><span class="dd"><span>Shape</span><b>Standard</b></span></div>
+    <div class="menu demo"><div class="menu-head" style="padding:8px 12px;font-weight:600">Labels</div><div class="menu-list">
+      <div class="mi" aria-selected="true"><span class="mi-label">Auto</span><span class="d">Model names, plus effort tags on dots where they fit</span></div>
+      <div class="mi"><span class="mi-label">Auto+</span><span class="d">Like Auto, and the top dot also gets its effort level</span></div>
+      <div class="mi"><span class="mi-label">Ladder</span><span class="d">Names in a column beside the plot, joined to their lines</span></div>
+      <div class="mi"><span class="mi-label">Models</span><span class="d">One label per model, at its highest-effort dot</span></div>
+      <div class="mi"><span class="mi-label">Every dot</span><span class="d">Model and effort on every dot, even where they overlap</span></div>
+      <div class="mi"><span class="mi-label">None</span><span class="d">No labels; hover a dot for its name</span></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="opt">
+  <h2 class="w">Option C: tabs</h2>
+  <p class="w">Four tabs (Frontier · Labels &amp; marks · Look · Zones), each showing one short row of the familiar segmented controls. The least visual noise, but settings on other tabs are out of sight.</p>
+  <div class="frame">
+    <div class="tabs"><button aria-selected="true">Frontier</button><button>Labels &amp; marks</button><button>Look</button><button>Zones</button></div>
+    <div class="toolbar"><div class="group"><span>Pareto</span><div class="seg"><button>Off</button><button aria-pressed="true">Step</button><button>Line</button></div></div><div class="group"><span>Style</span><div class="seg"><button aria-pressed="true">Shade</button><button>Fade</button><button>Rings</button></div></div><label class="inline"><input type="checkbox"> compute over all models</label><div class="group"><span>Guides</span><div class="seg"><button aria-pressed="true">Hover</button><button>Pinned</button><button>Frontier</button><button>All</button></div></div></div>
+  </div>
+</section>
+</body></html>
