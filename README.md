@@ -5,17 +5,22 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 **Live site: https://cornishandy.github.io/ai-model-frontier/**
 
 - **Deploys**: a GitHub Actions workflow (`.github/workflows/deploy.yml`) re-scrapes all the data and deploys the site
-  on every push to `main` and every 12 hours (00:17 and 12:17 UTC). The fresh data goes into the deployed site only,
-  nothing is committed; if a source is down, the copy committed in `data/` is deployed instead.
+  on every push to `main` and every 30 minutes (:17 and :47 past each hour UTC). GitHub's schedule is best effort:
+  scheduled runs have been starting 4–8 hours late, and under load some may be dropped. The fresh data goes into the
+  deployed site only, nothing is committed. If the scrape fails on a scheduled or manual run, the run fails and the previous
+  deployment stays up; on a push, the copy committed in `data/` is deployed instead (with the new code).
   Run it by hand from the repo's Actions tab ("Deploy site" → Run workflow).
   GitHub pauses scheduled workflows after 60 days without repo activity; re-enable it in the Actions tab if that happens.
 - **Update data** button (top right) pulls the latest numbers straight from artificialanalysis.ai
-  in the browser and saves them locally. It only runs when you press it (the deployed site already refreshes every 12 hours).
-  When the browser can't read artificialanalysis.ai's page ("Failed to fetch"), the button falls back to the site's own
-  copy of the data (the one the deploy refreshed, so at most 12 hours old) and says so. The usual cause is on their side:
-  some cached copies of their HTML pages are served without the `access-control-allow-origin` header for minutes at a
-  time (the data files always have it), so a cross-origin read is refused until the cache turns over; an ad blocker or a
-  VPN can do the same. The deploy's scraper runs in Node, which has no CORS rule, so the 12-hourly refresh is unaffected.
+  in the browser and saves them locally. It only runs when you press it (the deployed site refreshes on its own schedule).
+  Their HTML pages are usually served without the `access-control-allow-origin` header, so a browser isn't allowed to
+  read them directly; the button then reads them through the Jina Reader service (`r.jina.ai`), which adds the header.
+  That copy only supplies the names and keys of the encrypted data files: the files themselves come straight from
+  artificialanalysis.ai (they always allow cross-origin reads), and AES-GCM rejects any key that doesn't belong to them,
+  so the relay can't alter the numbers. The keys change every 10–20 minutes, so the relay is asked for a fresh copy
+  (`X-No-Cache`). If that fails too (relay down or rate-limited, an ad blocker, a VPN), the button falls back to the
+  site's own copy, if that's newer, and says so. The deploy's scraper runs in Node, which has no CORS rule,
+  so it reads the pages directly.
 - `node scrape.mjs` refreshes the built-in data (`data/models.js`, `data/external.js`) and builds `AI Model Frontier.html`,
   a single self-contained copy that works offline. The Artificial Analysis scraper lives in `aa-data.js` (shared with the
   page), the independent benchmarks in `external.mjs`.

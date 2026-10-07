@@ -1,13 +1,15 @@
-# Builds and deploys the site to GitHub Pages on every push to main and every 12 hours,
-# refreshing the data first. The fresh data goes into the deployed site only (no commits);
-# if a source is down, the copy committed in data/ is deployed instead.
+# Builds and deploys the site to GitHub Pages on every push to main and every 30 minutes,
+# refreshing the data first. The fresh data goes into the deployed site only (no commits).
+# GitHub's schedule is best effort: scheduled runs often start hours late, and some may be dropped under load.
+# If the scrape fails on a scheduled or manual run, the job fails and the previous deployment stays up (deploying the copy
+# committed in data/ would roll the site back); on a push it deploys with the committed copy.
 name: Deploy site
 
 on:
   push:
     branches: [main]
   schedule:
-    - cron: '17 */12 * * *' # 00:17 and 12:17 UTC; GitHub may start scheduled runs a little late
+    - cron: '17,47 * * * *' # every 30 min, away from :00 and :30 (busiest for GitHub's scheduler)
   workflow_dispatch:
 
 permissions:
@@ -22,6 +24,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # a stuck scrape mustn't hold up the next runs
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -32,7 +35,7 @@ jobs:
           node-version: 22
       - name: Refresh data
         run: node scrape.mjs
-        continue-on-error: true
+        continue-on-error: ${{ github.event_name == 'push' }}
         env:
           GITHUB_TOKEN: ${{ github.token }} # for the commit dates of benchmarks hosted on GitHub
       - name: Assemble site

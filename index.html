@@ -2955,19 +2955,22 @@
     const btn = $('updateData'), label = btn.innerHTML; btn.disabled = true; btn.textContent = 'Updating…';
     showMeta('fetching the latest numbers…');
     try {
-      let d, how = '';
+      let d, why = '';
+      // Straight from artificialanalysis.ai; pages the browser may not read directly come through a reader service (see aa-data.js).
       try { d = await window.AAData.scrape(); }
       catch (err) {
-        // The browser couldn't read artificialanalysis.ai's page ("Failed to fetch"). Usually it's the site's own cache:
-        // some cached copies of its HTML pages go out without the CORS header, for minutes at a time (the data files
-        // always have it), so a cross-origin read is refused. It can also be an ad blocker, a VPN or a network hiccup.
-        // Fall back to this site's own copy, which the deploy refreshes every 12 hours.
+        // Neither worked (or an ad blocker, a VPN or the network got in the way): fall back to this site's own copy, which
+        // the deploy refreshes on a 30-minute schedule (GitHub often runs it late).
         const site = await siteCopy();
         if (!site) throw err;
-        d = site; how = ` · artificialanalysis.ai refused the direct read just now (${err.message}; its cache sometimes drops the CORS header, so try again later), so this is the site's own copy (refreshed every 12 h)`;
+        d = site; why = `artificialanalysis.ai couldn't be read just now (${err.message})`;
+        // a copy only replaces what's on show if it's newer (and a current shape beats an older one, as at startup)
+        if (((currentShape(d) - currentShape(DATA)) || d.scrapedAt.localeCompare(DATA.scrapedAt)) <= 0) { showMeta(`${why}, and the site's own copy has nothing newer`, true); return; }
       }
-      if (d.scrapedAt <= DATA.scrapedAt) { showMeta(`no newer data yet${how}`, !!how); return; }
-      store(DATA_KEY, JSON.stringify(d)); // if storage is full, still use it for this session
+      // A fresh scrape always counts (it's newer by definition), but say so when nothing in it actually changed.
+      const content = (x) => JSON.stringify([x.models, x.indexWeights, x.changelog, x.codingAgents]);
+      const changed = content(d) !== content(DATA);
+      const saved = store(DATA_KEY, JSON.stringify(d)); // if storage is full, still use it for this session
       const before = new Set(ALL.map((m) => m.id));
       loadData(d);
       const added = ALL.filter((m) => !before.has(m.id) && !m.deprecated).length;
@@ -2975,23 +2978,30 @@
       S.pinned = new Set([...S.pinned].filter((id) => BY_ID.has(id)));
       if (!S.selected.size) S.selected = new Set(theoSelection());
       save(); renderMetricMenus(); renderList(); render(); renderAgents(); checkNews();
-      showMeta((before.size && added ? `updated · ${added} new model${added > 1 ? 's' : ''}` : 'updated') + how, !!how);
+      showMeta((!changed ? 'checked · no changes' : why ? 'updated from the site\'s own copy' : 'updated') + (before.size && added ? ` · ${added} new model${added > 1 ? 's' : ''}` : '') +
+        (why ? ` · ${why}` : '') + (saved ? '' : ' · shown until you close the page (this browser wouldn\'t save it)'), !!why);
     } catch (err) {
-      const why = /failed to fetch|load failed|networkerror/i.test(err.message) ? `${err.message}: artificialanalysis.ai refused the direct read (its cache sometimes drops the CORS header; try again in a few minutes), or an ad blocker, VPN or network hiccup got in the way` : err.message;
+      const why = /failed to fetch|load failed|networkerror/i.test(err.message) ? `${err.message}: couldn't reach artificialanalysis.ai; check the connection, or an ad blocker or VPN may be in the way` : err.message;
       showMeta(`update failed (${why}) — still showing the previous data`, true);
     } finally {
       updating = false; btn.disabled = false; btn.innerHTML = label;
     }
   }
-  // This site's own data file (the deploy refreshes it every 12 hours); null when the page isn't served from the site.
+  // This site's own data file, which the deploy refreshes on a 30-minute schedule: the newer of the copy next to this page
+  // and the published one (a local, plain-http or standalone copy isn't refreshed by the deploy). Null if neither loads.
+  const PUBLISHED_DATA = 'https://cornishandy.github.io/ai-model-frontier/data/models.js';
   async function siteCopy() {
-    if (!/^https?:$/.test(location.protocol)) return null;
-    try {
-      const res = await fetch(`data/models.js?t=${Date.now()}`, { cache: 'no-store' });
-      if (!res.ok) return null;
-      const d = JSON.parse((await res.text()).replace(/^\s*window\.AA_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
-      return d?.models?.length && currentShape(d) ? d : null;
-    } catch { return null; }
+    const urls = new Set([PUBLISHED_DATA]);
+    if (/^https?:$/.test(location.protocol)) urls.add(new URL('data/models.js', location.href).href);
+    const copies = await Promise.all([...urls].map(async (url) => {
+      try {
+        const res = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout?.(20000) });
+        if (!res.ok) return null;
+        const d = JSON.parse((await res.text()).replace(/^\s*window\.AA_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
+        return d?.models?.length && currentShape(d) ? d : null;
+      } catch { return null; }
+    }));
+    return copies.filter(Boolean).sort((a, b) => b.scrapedAt.localeCompare(a.scrapedAt))[0] || null;
   }
   $('updateData').addEventListener('click', updateData);
   $('syncBtn').addEventListener('click', syncButton);

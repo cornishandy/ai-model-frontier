@@ -3,10 +3,17 @@
 //
 // The site embeds encrypted data "manifests" in its Next.js RSC payload:
 // AES-256-GCM, key in the page, IV = sha256(key)[0..12], gzip-compressed JSON.
-// The site serves these with `Access-Control-Allow-Origin: *`, so a page opened from disk can fetch them.
+// The site serves these with `Access-Control-Allow-Origin: *`, so a page opened from disk can fetch them. Its HTML pages
+// usually lack that header, though, so a browser may not read them; then a page is read through a reader service that
+// adds it (RELAYS). The keys change every 10-20 minutes, so they have to come from a current copy of the page.
 (() => {
   const BASE = 'https://artificialanalysis.ai';
   const PAGES = ['/models', '/'];
+  // A relay only supplies the manifests' names and keys: the manifests themselves still come straight from the site, and
+  // AES-GCM rejects a key that doesn't belong to them, so a relay can't alter the numbers. X-No-Cache: a cached copy's
+  // keys have usually expired.
+  const RELAYS = [(url) => ['https://r.jina.ai/' + url, { cache: 'no-store', headers: { 'X-Return-Format': 'html', 'X-No-Cache': 'true' } }]];
+  const MANIFEST_RE = /"manifest":\{"path":"([^"]+)","key":"([0-9a-f]+)"/g;
 
   function rscPayload(html) {
     const re = /self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)<\/script>/g;
@@ -25,22 +32,38 @@
   }
 
   async function loadManifests(fetchOpts, log) {
-    const get = async (path) => {
-      const res = await fetch(BASE + path, fetchOpts);
-      if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+    if (!globalThis.crypto?.subtle || typeof DecompressionStream === 'undefined') {
+      throw new Error(globalThis.isSecureContext === false ? 'browsers only decode the data on https or localhost pages' : 'this browser can\'t decode the data');
+    }
+    const get = async (url, opts = fetchOpts) => {
+      const res = await fetch(url, { signal: AbortSignal.timeout?.(30000), ...opts });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res;
     };
-    const seen = new Map();
-    for (const page of PAGES) {
-      const rsc = rscPayload(await (await get(page)).text());
-      for (const m of rsc.matchAll(/"manifest":\{"path":"([^"]+)","key":"([0-9a-f]+)"/g)) {
-        if (seen.has(m[1])) continue;
-        seen.set(m[1], await decrypt(await (await get(m[1])).arrayBuffer(), m[2]));
-        log(`decrypted ${m[1]} (from ${page})`);
+    // A page's manifests [{ path, key, page }]: read directly, else through each relay in turn.
+    const readPage = async (page) => {
+      const errs = [];
+      for (const relay of [null, ...RELAYS]) {
+        const [url, opts] = relay ? relay(BASE + page) : [BASE + page, fetchOpts];
+        try {
+          const found = [...rscPayload(await (await get(url, opts)).text()).matchAll(MANIFEST_RE)].map((m) => ({ path: m[1], key: m[2], page }));
+          // Each page's manifests hold different parts of the data (the changelog and coding agents come from /), so a page
+          // without any is a failed read (a changed layout, or an error page), not a partial success.
+          if (!found.length) throw new Error('no data manifests in the page');
+          if (relay) log(`read ${page} through ${new URL(url).host} (${errs[0]})`);
+          return found;
+        } catch (err) { errs.push(`${relay ? 'via ' + new URL(url).host : 'direct'}: ${err.message}`); }
       }
-    }
-    if (!seen.size) throw new Error('No data manifests found — the site layout may have changed.');
-    return [...seen.values()];
+      throw new Error(`${page} — ${errs.join('; ')}`);
+    };
+    const list = [];
+    for (const found of await Promise.all(PAGES.map(readPage))) for (const m of found) if (!list.some((x) => x.path === m.path)) list.push(m);
+    return Promise.all(list.map(async ({ path, key, page }) => {
+      const buf = await (await get(BASE + path).catch((err) => { throw new Error(`${path}: ${err.message}`); })).arrayBuffer();
+      const out = await decrypt(buf, key).catch((err) => { throw new Error(`${path}: ${err.name === 'OperationError' ? 'its key didn\'t match (the site may have just changed it); try again' : err.message}`); });
+      log(`decrypted ${path} (from ${page})`);
+      return out;
+    }));
   }
 
   const median = (xs) => {
