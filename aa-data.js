@@ -60,7 +60,10 @@
     for (const found of await Promise.all(PAGES.map(readPage))) for (const m of found) if (!list.some((x) => x.path === m.path)) list.push(m);
     return Promise.all(list.map(async ({ path, key, page }) => {
       const buf = await (await get(BASE + path).catch((err) => { throw new Error(`${path}: ${err.message}`); })).arrayBuffer();
-      const out = await decrypt(buf, key).catch((err) => { throw new Error(`${path}: ${err.name === 'OperationError' ? 'its key didn\'t match (the site may have just changed it); try again' : err.message}`); });
+      const out = await decrypt(buf, key).catch((err) => {
+        if (err.name !== 'OperationError') throw new Error(`${path}: ${err.message}`);
+        throw Object.assign(new Error(`${path}: its key didn't match (the site may have just changed it); try again`), { keyMismatch: true });
+      });
       log(`decrypted ${path} (from ${page})`);
       return out;
     }));
@@ -200,7 +203,16 @@
 
   // -> { v, scrapedAt, source, models, indexWeights, changelog, codingAgents }
   async function scrape({ fetchOpts = {}, log = () => {} } = {}) {
-    const manifests = await loadManifests(fetchOpts, log);
+    let manifests;
+    try { manifests = await loadManifests(fetchOpts, log); }
+    catch (err) {
+      // The pages and the manifests are cached separately, so just as the site changes its keys a page's key can briefly
+      // belong to the manifest's next or previous version. Give the caches a moment and read everything again, once.
+      if (!err.keyMismatch) throw err;
+      log(`${err.message.replace(/; try again$/, '')}; reading again`);
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      manifests = await loadManifests(fetchOpts, log);
+    }
     // Most models have only some benchmarks: leave the missing ones out rather than storing nulls.
     const models = buildModels(manifests).map((m) => Object.fromEntries(Object.entries(m).filter(([, v]) => v != null)));
     if (!models.length) throw new Error('Decoded the data but found no models — the format may have changed.');
