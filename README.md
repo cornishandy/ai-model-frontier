@@ -8,7 +8,7 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   on every push to `main` and every 30 minutes (:17 and :47 past each hour UTC). GitHub's schedule is best effort:
   scheduled runs have been starting 4–8 hours late, and under load some may be dropped. The fresh data goes into the
   deployed site only, nothing is committed. If the scrape fails on a scheduled or manual run, the run fails and the previous
-  deployment stays up; on a push, the copy committed in `data/` is deployed instead (with the new code).
+  deployment stays up. If it fails on a push, the copy committed in `data/` is deployed with the new code.
   Run it by hand from the repo's Actions tab ("Deploy site" → Run workflow).
   GitHub pauses scheduled workflows after 60 days without repo activity; re-enable it in the Actions tab if that happens.
 - **Update data** button (top right) pulls the latest numbers straight from artificialanalysis.ai

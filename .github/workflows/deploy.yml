@@ -2,7 +2,7 @@
 # refreshing the data first. The fresh data goes into the deployed site only (no commits).
 # GitHub's schedule is best effort: scheduled runs often start hours late, and some may be dropped under load.
 # If the scrape fails on a scheduled or manual run, the job fails and the previous deployment stays up (deploying the copy
-# committed in data/ would roll the site back); on a push it deploys with the committed copy.
+# committed in data/ would roll the site back). If it fails on a push, the job still deploys the committed copy with the new code.
 name: Deploy site
 
 on:
