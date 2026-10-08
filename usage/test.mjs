@@ -810,3 +810,59 @@ test('Antigravity: a call stored as step, generation and retry counts once; copi
   assert.equal(gone.instances.find(i=>i.id==='antigravity').requestUnit,'turns');
   assert(gone.coverage.some(c=>c.code==='missing_source'&&c.source==='antigravity-db'));
 });
+test('Antigravity: response ids, identical calls, per-instance fallback, bad times and oversized counters',async()=>{
+  const h=cloneHome(),dayMs=864e5,earlier=day2-2*dayMs,same=agUsage(100,0,10,0);
+  put(path.join(h,'.t3/userdata/settings.json'),{providerInstances:{antigravity:{driver:'antigravity',config:{}},ag2:{driver:'antigravity',displayName:'Antigravity 2',config:{}}},usageModelAliases:{}});
+  const own=path.join(h,'.gemini/antigravity/conversations'),ids=(u,...xs)=>Buffer.concat([u,...xs.map(([k,v])=>pb([k,v]))]);
+  // Two genuinely separate calls with identical counters keep their own day and model.
+  agDb(path.join(own,'twins.db'),{steps:[agStep('gemini-pro-agent',same,earlier,false),agStep('claude-sonnet-4-6',same,day2,false)],gens:[agGen('gemini-pro-default',same,earlier),agGen('claude-sonnet-4-6',same,day2)]});
+  // A retry with a different response id is another attempt; one id seen with two counter readings is one call.
+  const a=ids(agUsage(300,0,30,0),[11,'response-a']),b=ids(agUsage(300,0,30,0),[11,'response-b']);
+  agDb(path.join(own,'ids.db'),{steps:[pb([8,agTime(day2)],[9,a],[24,pb([8,'gemini-3.8-flash-high'])],[28,pb([2,b])]),pb([8,agTime(day2)],[9,ids(agUsage(100,0,10,0),[11,'response-c'])],[24,pb([8,'gemini-3.8-flash-high'])])],gens:[agGen('gemini-3.8-flash',ids(agUsage(110,0,10,0),[11,'response-c']),day2)]});
+  // A timestamp outside 2015..now+2 days falls back to the file's time instead of failing the run.
+  agDb(path.join(own,'far-future.db'),{steps:[pb([8,pb([1,253402300800])],[9,agUsage(7,0,1,0)],[24,pb([8,'gemini-3.8-flash-high'])])]});
+  // A counter beyond 2^53 fails only its own file.
+  agDb(path.join(own,'oversized.db'),{steps:[pb([8,agTime(day2)],[9,pb([2,2**53],[3,10])],[24,pb([8,'gemini-3.8-flash-high'])])]});
+  // ag2 has no files of its own, so its T3 turn stays as the fallback (as turns) while antigravity's is excluded.
+  const t=new DatabaseSync(path.join(h,'.t3/userdata/statev2.sqlite'));
+  t.prepare('INSERT INTO orchestration_v2_projection_provider_threads VALUES(?,?,?,?,?)').run('b','b','antigravity','antigravity','ag2');
+  t.prepare('INSERT INTO orchestration_v2_projection_provider_sessions VALUES(?,?,?,?,?)').run('b','gemini-3.8-flash-high','antigravity','antigravity','ag2');
+  t.prepare('INSERT INTO orchestration_v2_projection_provider_turns VALUES(?,?,?,?,?,?,?)').run('b','b','t',null,new Date(day2-1000).toISOString(),new Date(day2+1000).toISOString(),JSON.stringify({turnTokenUsage:{...usage,inputTokens:250,cachedInputTokens:0,outputTokens:25},modelSelection:{model:'gemini-3.8-flash-high'}}));t.close();
+  const r=await collect({...options,home:h}),q=r.payload,rows=q.days.flatMap(d=>d.r),inst=id=>q.instances.findIndex(i=>i.id===id);
+  const calls=(model,day)=>rows.filter(x=>q.models[x[0]].id===model&&x[1]===inst('antigravity')&&(!day||q.days.find(d=>d.r.includes(x)).d===day));
+  assert.deepEqual(calls('gemini-pro-agent','2026-10-05').map(x=>x.slice(3,5)),[[1,100]]);
+  assert.deepEqual(calls('claude-sonnet-4-6','2026-10-07').map(x=>x.slice(3,5)),[[1,100]]);
+  const flash=calls('gemini-3.8-flash-high');
+  assert.equal(flash.reduce((n,x)=>n+x[3],0),4); // response-a, response-b, response-c (merged) and the far-future call
+  assert.equal(flash.reduce((n,x)=>n+x[4],0),300+300+110+7); // 817 if response-c counted twice, 417 if response-b were dropped
+  assert.equal(r.checks.antigravityUnreadable,1);assert(q.coverage.some(c=>c.code==='unreadable_history'&&c.count===1));
+  assert.equal(q.instances[inst('ag2')].requestUnit,'turns');assert.equal(rows.filter(x=>x[1]===inst('ag2')).reduce((n,x)=>n+x[4],0),250);
+  assert.equal(q.instances[inst('antigravity')].requestUnit,'calls');assert.equal(r.checks.t3OverlapExcluded,2);
+});
+test('Antigravity: mixed-id mirrors keep their day, ids join across copies, copies cover their instance, fixed-width counters fail',async()=>{
+  const h=cloneHome(),dayMs=864e5,earlier=day2-2*dayMs,same=agUsage(100,0,10,0),withIds=(u,...xs)=>Buffer.concat([u,...xs.map(([k,v])=>pb([k,v]))]);
+  put(path.join(h,'.t3/userdata/settings.json'),{providerInstances:{antigravity:{driver:'antigravity',config:{}},ag2:{driver:'antigravity',config:{}}},usageModelAliases:{}});
+  const own=path.join(h,'.gemini/antigravity/conversations'),ag2=path.join(h,'.t3/userdata/providers/antigravity',createHash('sha256').update('ag2').digest('hex'),'antigravity-acp/conversations');
+  // Two identical-counter calls; only the later step has a response id. Each keeps its own day and model.
+  agDb(path.join(own,'mirror.db'),{steps:[agStep('gemini-pro-agent',same,earlier,false),pb([8,agTime(day2)],[9,withIds(same,[11,'response-x'])],[24,pb([8,'claude-sonnet-4-6'])])],gens:[agGen('gemini-pro-default',same,earlier),agGen('claude-sonnet-4-6',same,day2)]});
+  // Copies of one conversation: ids arrive later (subset, then a bridge), and an id-less copy meets an id-bearing one.
+  agDb(path.join(own,'copies.db'),{steps:[pb([8,agTime(day2)],[9,withIds(agUsage(500,0,50,0),[11,'response-b'])],[24,pb([8,'gemini-3.8-flash-high'])]),agStep('gemini-3.8-flash-high',agUsage(600,0,60,0),day2,false)]});
+  agDb(path.join(ag2,'copies.db'),{steps:[pb([8,agTime(day2)],[9,withIds(agUsage(510,0,50,0),[11,'response-b'],[12,'response-a'])],[24,pb([8,'gemini-3.8-flash-high'])]),pb([8,agTime(day2)],[9,withIds(agUsage(600,0,60,0),[11,'response-d'])],[24,pb([8,'gemini-3.8-flash-high'])])]});
+  // A counter sent as fixed32 fails its file instead of reading as 0.
+  agDb(path.join(own,'fixed.db'),{steps:[pb([8,agTime(day2)],[9,Buffer.concat([Buffer.from([2*8+5,100,0,0,0]),pb([3,10])])],[24,pb([8,'gemini-3.8-flash-high'])])]});
+  // ag2's store holds only copies, yet its T3 turn for the same use must not count again.
+  const t=new DatabaseSync(path.join(h,'.t3/userdata/statev2.sqlite'));
+  t.prepare('INSERT INTO orchestration_v2_projection_provider_threads VALUES(?,?,?,?,?)').run('b','b','antigravity','antigravity','ag2');
+  t.prepare('INSERT INTO orchestration_v2_projection_provider_sessions VALUES(?,?,?,?,?)').run('b','gemini-3.8-flash-high','antigravity','antigravity','ag2');
+  t.prepare('INSERT INTO orchestration_v2_projection_provider_turns VALUES(?,?,?,?,?,?,?)').run('b','b','t',null,new Date(day2-1000).toISOString(),new Date(day2+1000).toISOString(),JSON.stringify({turnTokenUsage:{...usage,inputTokens:600,cachedInputTokens:0,outputTokens:60},modelSelection:{model:'gemini-3.8-flash-high'}}));t.close();
+  const r=await collect({...options,home:h}),q=r.payload,rows=q.days.flatMap(d=>d.r),inst=id=>q.instances.findIndex(i=>i.id===id);
+  const dayOf=x=>q.days.find(d=>d.r.includes(x)).d,by=(model)=>rows.filter(x=>q.models[x[0]].id===model);
+  assert.deepEqual(by('gemini-pro-agent').map(x=>[dayOf(x),x[3],x[4]]),[['2026-10-05',1,100]]);
+  assert.deepEqual(by('claude-sonnet-4-6').map(x=>[dayOf(x),x[3],x[4]]),[['2026-10-07',1,100]]);
+  // response-b (max 510) and the 600 call, once each: 1,110 input over 2 calls
+  assert.deepEqual(by('gemini-3.8-flash-high').map(x=>[x[1],x[3],x[4]]),[[inst('antigravity'),2,1110]]);
+  assert.equal(r.checks.antigravityUnreadable,1);assert.equal(r.checks.antigravityFiles,3);
+  assert.equal(inst('ag2'),-1); // its only use is the copies (counted under antigravity) and the excluded T3 turn
+  assert.equal(r.checks.t3OverlapExcluded,3);
+  const json=JSON.stringify(q);for(const id of ['response-a','response-b','response-d','response-x'])assert(!json.includes(id));
+});

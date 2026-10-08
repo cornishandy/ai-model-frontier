@@ -241,6 +241,7 @@ function readOpenCode(home, noProjects, warn, note) {
 
 // Antigravity keeps each call's usage as protobuf metadata in the conversation's SQLite file (the files T3 Code's usage
 // page reads). Only counters, model names and times are decoded; conversation text is never selected.
+const PB_FIXED = Symbol('fixed-width');
 function pbFields(bytes) {
   let offset = 0;
   const out = new Map();
@@ -264,8 +265,9 @@ function pbFields(bytes) {
       requireThat(wire === 1 || wire === 2 || wire === 5, 'Antigravity: invalid protobuf');
       const length = wire === 2 ? varint() : wire === 1 ? 8 : 4;
       requireThat(typeof length === 'number' && length <= bytes.length - offset, 'Antigravity: invalid protobuf');
-      value = bytes.subarray(offset, offset += length);
-      if (wire !== 2) continue;
+      // Fixed-width values are kept only as a marker, so a counter sent that way fails instead of reading as 0.
+      value = wire === 2 ? bytes.subarray(offset, offset + length) : PB_FIXED;
+      offset += length;
     }
     if (!out.has(field)) out.set(field, []);
     out.get(field).push(value);
@@ -273,6 +275,8 @@ function pbFields(bytes) {
   return out;
 }
 const pbNum = (m, k) => typeof m.get(k)?.[0] === 'number' ? m.get(k)[0] : 0;
+// Counters must be plain varints within safe integers: an oversized or mistyped one fails the file, never reads as 0.
+const pbCount = (m, k) => { const v = m.get(k)?.[0]; requireThat(v === undefined || isCount(v), 'Antigravity: invalid counter'); return v ?? 0; };
 const pbBytes = (m, k) => m.get(k)?.[0] instanceof Uint8Array ? m.get(k)[0] : undefined;
 const pbMsg = (m, k) => pbBytes(m, k) === undefined ? new Map() : pbFields(pbBytes(m, k));
 const pbText = (m, k) => {
@@ -280,7 +284,13 @@ const pbText = (m, k) => {
   if (b === undefined) return '';
   try { return new TextDecoder('utf-8', { fatal: true }).decode(b).trim(); } catch { fail('Antigravity: invalid text field'); }
 };
-const pbTime = m => { const t = pbNum(m, 1) * 1e3 + Math.floor(pbNum(m, 2) / 1e6); return pbNum(m, 1) > 0 && t < 8.64e15 ? t : null; };
+// Seconds + nanos, kept only from 2015 to two days ahead; anything else falls back to the conversation's or file's time.
+const pbTime = m => {
+  const s = m.get(1)?.[0], n = m.get(2)?.[0] ?? 0;
+  if (!Number.isSafeInteger(s) || !Number.isSafeInteger(n) || n < 0 || n > 999999999) return null;
+  const t = s * 1e3 + Math.floor(n / 1e6);
+  return t >= Date.UTC(2015, 0, 1) && t <= Date.now() + 2 * 864e5 ? t : null;
+};
 // T3 Code's table of Antigravity's numeric model ids (older builds recorded only these).
 const AG_MODEL_IDS = { 246: 'gemini-2.5-pro', 312: 'gemini-2.5-flash', 313: 'gemini-2.5-flash-thinking', 329: 'gemini-2.5-flash-thinking', 330: 'gemini-2.5-flash-lite', 281: 'claude-sonnet-4', 282: 'claude-sonnet-4', 290: 'claude-opus-4', 291: 'claude-opus-4', 333: 'claude-sonnet-4-5', 334: 'claude-sonnet-4-5', 340: 'claude-haiku-4-5', 341: 'claude-haiku-4-5', 1026: 'claude-opus-4-6', 1035: 'claude-sonnet-4-6', 1016: 'gemini-3.1-pro', 1036: 'gemini-3.1-pro', 1037: 'gemini-3.1-pro', 1018: 'gemini-3-flash-preview', 1084: 'gemini-3-flash-preview', 1047: 'gemini-3-flash-preview' };
 function agModelName(name, id) {
@@ -306,8 +316,9 @@ function agEntry(bytes, step) {
   return { model: agModelName(pbText(model, step ? 12 : 19) || pbText(model, step ? 8 : 21), pbNum(model, step ? 1 : 3)), ts: step ? pbTime(pbMsg(data, 8)) ?? pbTime(pbMsg(data, 1)) : pbTime(pbMsg(pbMsg(data, 9), 4)), usages };
 }
 // Antigravity stores one call up to three times: as a step, as a generation, and again as an identical "retry" copy
-// (T3 Code's usage page adds all three). Identical counters within one conversation are one call; when one side lists
-// the same counters twice, they count twice.
+// (T3 Code's usage page adds all three). Within one entry, a usage repeating an earlier one (same counters, no
+// conflicting response id) is that copy. Each remaining usage is ranked among the same side's usages with the same
+// counters, so readAntigravity can line up the nth step with the nth generation.
 function agFile(file, fallbackTs) {
   const rows = fetchDatabaseRows(file, 'Antigravity', db => {
     const tables = new Set(query(db, "SELECT name FROM sqlite_master WHERE type='table'", 'Antigravity').map(r => r.name));
@@ -320,78 +331,98 @@ function agFile(file, fallbackTs) {
   });
   let trajectoryTs = null, stored = 0;
   for (const r of rows.trajectory) { requireThat(r.data instanceof Uint8Array, 'Antigravity: invalid metadata row'); trajectoryTs ??= pbTime(pbMsg(pbFields(r.data), 2)); }
-  const calls = new Map();
+  const occ = [], ranks = new Map();
   const add = (entry, side) => {
-    const seen = new Set();
+    const kept = [];
     for (const u of entry.usages) {
-      const output = Math.max(pbNum(u, 3), pbNum(u, 9) + pbNum(u, 10)), t = [pbNum(u, 2), pbNum(u, 5), pbNum(u, 4), output, Math.min(output, pbNum(u, 9))];
+      const output = Math.max(pbCount(u, 3), pbCount(u, 9) + pbCount(u, 10)), t = [pbCount(u, 2), pbCount(u, 5), pbCount(u, 4), output, Math.min(output, pbCount(u, 9))];
       if (t[0] + t[1] + t[2] + t[3] === 0) continue;
       stored++;
-      const id = [2, 3, 4, 5, 9, 10].map(k => pbNum(u, k)).join(',');
-      if (seen.has(id)) continue;
-      seen.add(id);
-      if (!calls.has(id)) calls.set(id, { id, t: tokens(t, 'Antigravity'), step: 0, gen: 0, stepModel: '', genModel: '', enumModel: AG_MODEL_IDS[pbNum(u, 1)] ?? '', idModel: agModelName('', pbNum(u, 1)), ts: null, quality: -1 });
-      const c = calls.get(id), ts = entry.ts ?? trajectoryTs ?? fallbackTs, quality = entry.ts !== null ? 2 : trajectoryTs !== null ? 1 : 0;
-      c[side]++;
-      if (side === 'step') c.stepModel ||= entry.model; else c.genModel ||= entry.model;
-      if (quality > c.quality || (quality === c.quality && ts < c.ts)) Object.assign(c, { ts, quality });
+      const tuple = [2, 3, 4, 5, 9, 10].map(k => pbCount(u, k)).join(','), ids = [11, 12, 7].flatMap(k => { const id = pbText(u, k); return id ? [`${k}:${id}`] : []; });
+      const twin = kept.find(o => o.tuple === tuple && (!o.ids.length || !ids.length || o.ids.some(id => ids.includes(id))));
+      if (twin) { twin.ids.push(...ids.filter(id => !twin.ids.includes(id))); continue; }
+      const rank = ranks.get(side + tuple) ?? 0;
+      ranks.set(side + tuple, rank + 1);
+      const o = { side, tuple, rank, ids, t: tokens(t, 'Antigravity'), ts: entry.ts ?? trajectoryTs ?? fallbackTs, quality: entry.ts !== null ? 2 : trajectoryTs !== null ? 1 : 0, model: entry.model, enumModel: AG_MODEL_IDS[pbNum(u, 1)] ?? '', idModel: agModelName('', pbNum(u, 1)) };
+      kept.push(o); occ.push(o);
     }
   };
   for (const r of rows.steps) add(agEntry(r.metadata, true), 'step');
   for (const r of rows.gens) add(agEntry(r.data, false), 'gen');
-  return { stored, calls: [...calls.values()].map(c => ({ id: c.id, t: c.t, ts: c.ts, quality: c.quality, n: Math.max(c.step, c.gen), model: c.enumModel || c.stepModel || c.genModel || c.idModel || 'antigravity-unknown' })) };
+  return { stored, occ };
 }
-// T3 Code's Antigravity stores: the app's own folders and each Antigravity instance's profile in T3 Code. Copies of a
-// conversation (same file name) under several of them count once.
+// T3 Code's Antigravity stores: the app's own folders and each Antigravity instance's profile in T3 Code. Usages are
+// one call when they share a response id (anywhere; each counter's maximum is kept, as T3 Code merges them), or when
+// they hold the same place in one conversation: the nth step and the nth generation with the same counters, in this
+// file and in copies of it (same file name). Usages whose response ids conflict are never merged. So copies collapse,
+// while two genuinely identical calls stay two, each with its own time and model.
 function readAntigravity(home, agInstances, warn, note) {
   const fallback = agInstances.includes('antigravity') ? 'antigravity' : agInstances[0] ?? 'antigravity';
   const roots = ['antigravity', 'antigravity-cli', 'antigravity-ide', 'antigravity-backup'].map(n => [path.join(home, '.gemini', n), fallback])
     .concat([[path.join(home, '.config/antigravity'), fallback]], agInstances.map(id => [path.join(home, '.t3/userdata/providers/antigravity', createHash('sha256').update(id).digest('hex'), 'antigravity-acp'), id]));
-  const visited = new Set(), calls = new Map();
+  const visited = new Map(), all = [], covered = new Set();
   let found = false, files = 0, unreadable = 0, stored = 0;
   for (const [root, instance] of roots) {
     if (!lstat(root)) continue;
     found = true;
+    // A store folder that is itself a link is followed, as T3 Code does; links inside it are neither followed nor read.
     let dir;
     try { dir = fs.realpathSync(root); if (lstat(path.join(dir, 'conversations'))) dir = fs.realpathSync(path.join(dir, 'conversations')); } catch { unreadable++; continue; }
     const walk = d => {
       let entries;
       try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { unreadable++; return; }
-      // Symlinks are neither followed nor read.
       for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
         const file = path.join(d, e.name);
         if (e.isDirectory()) { walk(file); continue; }
         if (!e.isFile() || !e.name.endsWith('.db')) continue;
         let real, read;
-        try { real = fs.realpathSync(file); if (visited.has(real)) continue; visited.add(real); read = agFile(file, fs.statSync(file).mtimeMs); }
-        catch { unreadable++; continue; }
+        try {
+          real = fs.realpathSync(file);
+          // An instance whose store holds call records covers its own T3 turns, even when the records are copies.
+          if (visited.has(real)) { if (visited.get(real)) covered.add(instance); continue; }
+          read = agFile(file, fs.statSync(file).mtimeMs);
+          visited.set(real, read.occ.length > 0);
+        } catch { unreadable++; continue; }
         files++; stored += read.stored;
+        if (read.occ.length) covered.add(instance);
         const session = path.basename(file, '.db');
-        for (const c of read.calls) {
-          const key = `${session}\0${c.id}`, prior = calls.get(key);
-          if (!prior) { calls.set(key, { ...c, session, instance }); continue; }
-          prior.n = Math.max(prior.n, c.n);
-          if (prior.model === 'antigravity-unknown') prior.model = c.model;
-          if (c.quality > prior.quality || (c.quality === prior.quality && c.ts < prior.ts)) Object.assign(prior, { ts: c.ts, quality: c.quality });
-        }
+        for (const o of read.occ) all.push({ ...o, session, instance });
       }
     };
     walk(dir);
   }
+  const parent = all.map((_, i) => i), idsOf = all.map(o => new Set(o.ids));
+  const find = i => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
+  const join = (a, b, unlessConflict) => {
+    a = find(a); b = find(b);
+    if (a === b || (unlessConflict && idsOf[a].size && idsOf[b].size && ![...idsOf[a]].some(x => idsOf[b].has(x)))) return;
+    if (b < a) [a, b] = [b, a];
+    parent[b] = a;
+    for (const x of idsOf[b]) idsOf[a].add(x);
+  };
+  const byId = new Map(), byPlace = new Map();
+  all.forEach((o, i) => { for (const id of o.ids) { if (byId.has(id)) join(i, byId.get(id)); else byId.set(id, i); } });
+  all.forEach((o, i) => { const k = `${o.session}\0${o.tuple}\0${o.rank}`; if (byPlace.has(k)) join(i, byPlace.get(k), true); else byPlace.set(k, i); });
+  const groups = new Map();
+  all.forEach((o, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(o); });
+  const events = [...groups.values()].map(g => {
+    const best = g.reduce((a, o) => o.quality > a.quality || (o.quality === a.quality && o.ts < a.ts) ? o : a), pick = f => g.map(f).find(Boolean);
+    return { source: 'antigravity-db', model: pick(o => o.enumModel) || pick(o => o.side === 'step' && o.model) || pick(o => o.model) || pick(o => o.idModel) || 'antigravity-unknown', instance: g[0].instance, driver: 'antigravity', requestUnit: 'calls', project: null, session: `antigravity:${g[0].session}`, ts: best.ts, requests: 1, t: g.reduce((a, o) => a.map((n, i) => Math.max(n, o.t[i])), [0, 0, 0, 0, 0]), providerCost: null };
+  });
   if (!found && agInstances.length) { warn('Antigravity conversation folders are missing'); note('missing_source', 'antigravity-db'); }
   if (unreadable) { warn(`${unreadable} Antigravity conversation files or folders could not be read; their use is omitted`); note('unreadable_history', 'antigravity-db', unreadable); }
-  const events = [...calls.values()].map(c => ({ source: 'antigravity-db', model: c.model, instance: c.instance, driver: 'antigravity', requestUnit: 'calls', project: null, session: `antigravity:${c.session}`, ts: c.ts, requests: c.n, t: c.t.map(x => x * c.n), providerCost: null }));
-  return { events, files, unreadable, collapsed: stored - events.reduce((a, e) => a + e.requests, 0) };
+  // T3 turns stay the fallback for every Antigravity instance not in covered.
+  return { events, covered, files, unreadable, collapsed: stored - events.length };
 }
 
-function readT3(home, noProjects, openCodeEvents, warn, note, antigravityCovered = false) {
+function readT3(home, noProjects, openCodeEvents, warn, note, antigravityCovered = new Set()) {
   const file = path.join(home, '.t3/userdata/statev2.sqlite');
   if (!fs.existsSync(file)) { warn('T3 state database is missing'); note('missing_source', 't3-turns'); return { events: [], excluded: 0, covered: 0, absent: 0 }; }
   const rows = fetchDatabaseRows(file, 'T3 state', db => query(db, `SELECT t.provider_turn_id,t.provider_thread_id,t.started_at,t.completed_at,json_extract(t.payload_json,'$.turnTokenUsage') usage,coalesce(a.provider_instance_id,r.provider_instance_id,pt.provider_instance_id,s.provider_instance_id,a.provider,r.provider,pt.provider,s.provider) instance,coalesce(a.provider,r.provider,pt.driver,s.driver,pt.provider,s.provider) driver,coalesce(json_extract(t.payload_json,'$.modelSelection.model'),json_extract(a.payload_json,'$.modelSelection.model'),json_extract(r.payload_json,'$.modelSelection.model')) model,p.workspace_root FROM orchestration_v2_projection_provider_turns t LEFT JOIN orchestration_v2_projection_run_attempts a ON a.attempt_id=t.run_attempt_id LEFT JOIN orchestration_v2_projection_runs r ON r.run_id=a.run_id LEFT JOIN orchestration_v2_projection_provider_threads pt ON pt.provider_thread_id=t.provider_thread_id LEFT JOIN orchestration_v2_projection_provider_sessions s ON s.provider_session_id=pt.provider_session_id LEFT JOIN projection_threads th ON th.thread_id=t.thread_id LEFT JOIN projection_projects p ON p.project_id=th.project_id`, 'T3 state'));
   const events = []; let excluded = 0, covered = 0, absent = 0;
   for (const r of rows) {
-    // Antigravity's own records are complete when present; its T3 turns would count the same use again.
-    const eligible = (r.driver === 'antigravity' && !antigravityCovered) || r.driver === 'opencode';
+    // An Antigravity instance with its own call records: its T3 turns would count the same use again.
+    const eligible = (r.driver === 'antigravity' && !antigravityCovered.has(r.instance)) || r.driver === 'opencode';
     if (!eligible) { if (r.usage !== null) excluded++; continue; }
     if (r.usage === null) { absent++; note(r.driver === 'antigravity' ? 'antigravity_without_counters' : 'missing_counters', 't3-turns'); continue; }
     let u; try { u = JSON.parse(r.usage); } catch { fail('T3 state: invalid usage JSON'); }
@@ -503,7 +534,7 @@ export async function collect({ home = os.homedir(), aaFile = path.join(here, '.
   const cache = await readCache(home, noProjects, warning);
   const oc = readOpenCode(home, noProjects, warning, note);
   const ag = readAntigravity(home, Object.keys(instances).filter(id => instances[id].driver === 'antigravity' && safeId(id)), warning, note);
-  const t3 = readT3(home, noProjects, oc.events, warning, note, ag.events.length > 0);
+  const t3 = readT3(home, noProjects, oc.events, warning, note, ag.covered);
   const events = [...cache.events, ...oc.events, ...ag.events, ...t3.events];
   requireThat(events.length > 0, 'No verified usage records found');
   // Sensitive basenames are omitted; infrequent names share one anonymous group.

@@ -166,17 +166,26 @@ never process arguments or diagnostic output.
   instance id>/antigravity-acp`), `conversations/*.db` when that folder exists.
   Only the `steps.metadata`, `gen_metadata.data` and `trajectory_metadata_blob.data`
   protobuf blobs are read, through the same WAL-only read-only snapshot, and only
-  their counters, model names and times are decoded. Antigravity stores each call
-  up to three times (a step, a generation, and an identical retry copy), and T3
-  Code's page adds all three; here identical counters within one conversation are
-  one call (a side listing them twice counts twice), and the same conversation file
-  name in several folders counts once. A step's model (the one asked for) names the
+  their counters, model names, times and response ids are decoded (ids stay in
+  memory, for matching). Antigravity stores each call up to three times (a step, a
+  generation, and an identical retry copy), and T3 Code's page adds all three. Here:
+  within one entry a usage repeating an earlier one (same counters, no conflicting
+  response id) is that copy; usages sharing a response id anywhere are one call,
+  keeping each counter's maximum (as T3 Code merges them); and usages holding the
+  same place in one conversation (the nth step and the nth generation with the same
+  counters, in that file and in same-name copies of it) are one call unless their
+  response ids conflict. So copies collapse, while two genuinely identical calls stay
+  two, each with its own time and model. A step's model (the one asked for) names the
   call, then the generation's; calls with neither are `antigravity-unknown`,
   unpriced. `gemini-pro-agent`/`gemini-pro-default` price as Gemini 3.1 Pro unless
-  T3's `usageModelAliases` says otherwise. Unreadable or non-WAL files are skipped
-  with an `unreadable_history` note; symlinks are not followed. When Antigravity
-  calls are found, T3's Antigravity turns are excluded (they would count the same
-  use again); otherwise those turns remain the fallback.
+  T3's `usageModelAliases` says otherwise. Times outside 2015 to two days ahead fall
+  back to the conversation's, then the file's. A counter that isn't a varint safe
+  integer (oversized or fixed-width), an unreadable or a non-WAL file fails only that
+  file (`unreadable_history`). Links
+  inside the folders are not followed; a folder that is itself a link is, as in T3
+  Code. An Antigravity instance whose store holds call records (copies included) has
+  its T3 turns excluded (they would count the same use again); any other instance
+  keeps its T3 turns as the fallback.
 - When OpenCode has completed metered messages, its combined history is
   authoritative and all T3 OpenCode turns are excluded. Each recorded T3 turn is
   reconciled against message tokens in its time window; mismatches warn about
