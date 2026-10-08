@@ -216,7 +216,8 @@ daily average, your plan budget, the previous period, the top or median model, o
   `node usage/collect.mjs --link` (the part after `#` never reaches a server), and keeps them in this browser's storage
   only, not in saved sets or sync. **Forget on this device** removes them. Anyone with the link can read the numbers,
   so treat it like a password.
-- Antigravity has no token counts in T3 Code yet, so its use isn't counted; a few models have no API price.
+- Antigravity is read from its own conversation files, counting each call once (T3 Code's Tokens tab counts most calls
+  three times, because Antigravity stores each one three times). A few models have no API price.
   Details and commands: `usage/README.md`.
 
 ## Syncing between devices

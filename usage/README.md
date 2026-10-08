@@ -160,6 +160,23 @@ never process arguments or diagnostic output.
   cache counters are disjoint. OpenCode output excludes reasoning, which is added
   once to output. Completed metered messages are requests; zero-token/zero-cost
   error placeholders and unfinished messages are omitted.
+- Antigravity usage comes from its own conversation files, the ones T3 Code's
+  usage page reads: `~/.gemini/antigravity{,-cli,-ide,-backup}`, `~/.config/antigravity`
+  and each Antigravity instance's T3 profile (`providers/antigravity/<sha256 of the
+  instance id>/antigravity-acp`), `conversations/*.db` when that folder exists.
+  Only the `steps.metadata`, `gen_metadata.data` and `trajectory_metadata_blob.data`
+  protobuf blobs are read, through the same WAL-only read-only snapshot, and only
+  their counters, model names and times are decoded. Antigravity stores each call
+  up to three times (a step, a generation, and an identical retry copy), and T3
+  Code's page adds all three; here identical counters within one conversation are
+  one call (a side listing them twice counts twice), and the same conversation file
+  name in several folders counts once. A step's model (the one asked for) names the
+  call, then the generation's; calls with neither are `antigravity-unknown`,
+  unpriced. `gemini-pro-agent`/`gemini-pro-default` price as Gemini 3.1 Pro unless
+  T3's `usageModelAliases` says otherwise. Unreadable or non-WAL files are skipped
+  with an `unreadable_history` note; symlinks are not followed. When Antigravity
+  calls are found, T3's Antigravity turns are excluded (they would count the same
+  use again); otherwise those turns remain the fallback.
 - When OpenCode has completed metered messages, its combined history is
   authoritative and all T3 OpenCode turns are excluded. Each recorded T3 turn is
   reconciled against message tokens in its time window; mismatches warn about
@@ -170,7 +187,7 @@ never process arguments or diagnostic output.
   snapshots are never used. Historical models come from the turn/attempt/run's
   captured `modelSelection.model`, never the provider session's mutable current
   model. Missing captured selection uses `unattributed` with unknown cost, even
-  if a settings alias or rate tries to price it. Antigravity turns without
+  if a settings alias or rate tries to price it. Fallback Antigravity turns without
   telemetry are omitted with a warning, rather than priced as zero.
 - `instances[].requestUnit` is `calls` for native per-call logs and verified Grok
   `modelCalls`, or `turns` for T3 aggregate fallback. A turn may contain many calls;
@@ -178,8 +195,8 @@ never process arguments or diagnostic output.
   The summary lists calls and turns separately. `days[].r[3]` follows its instance
   unit; mixed-unit `hours[][2]` is activity, not an API call total.
 - Encrypted `coverage[]` notes use fixed codes, source IDs, model indexes and
-  counts: unpriced models, partial native history, missing telemetry (including
-  Antigravity), unreported subagents, incomplete records, missing raw files,
+  counts: unpriced models, partial native history, unreadable Antigravity files,
+  missing telemetry (including fallback Antigravity turns), unreported subagents, incomplete records, missing raw files,
   cache snapshot freshness, current standard rates and omitted tier premiums.
   A missing source may appear here even when it has no metered `sources[]` row.
   See the shared schema's “Additive fields (U1 round 3)” section.

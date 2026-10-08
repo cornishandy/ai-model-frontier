@@ -3847,8 +3847,8 @@
   const uAAPrice = (m) => { const [c, w] = U_CACHE_MULT[m.creatorSlug] || [0.25, 1]; return { in: m.priceInput, cachedIn: m.priceInput * c, cacheWrite: m.priceInput * w, out: m.priceOutput }; };
   // the same tokens at a price table (USD per 1M); writes with no price of their own are billed as plain input
   const uPrice = (r, p) => (r.inp * p.in + r.cr * (p.cachedIn ?? p.in) + r.cw * (p.cacheWrite || p.in) + r.out * p.out) / 1e6;
-  // How you pay each T3 Code provider unless the data or you say otherwise. Antigravity is listed even with no use
-  // recorded (T3 Code doesn't log its token counts yet), so its fee still counts in the plan totals.
+  // How you pay each T3 Code provider unless the data or you say otherwise. Antigravity is listed even when no use of it
+  // was found, so its fee still counts in the plan totals.
   const U_BILLING = { claudeAgent: 'subscription', codex: 'subscription', antigravity: 'subscription', codex_openai_api: 'api', opencode: 'api' };
   // Daily paces and spikes use an exponentially weighted average: each day counts 25%, the one before 19%, then 14%, …
   const U_ALPHA = 0.25;
@@ -3867,7 +3867,7 @@
   }
   // Coverage notes (optional in the payload): what the collector knows it couldn't count. Only the codes below, in this
   // page's words, ever reach the screen (plus an escaped model label and a count): the collector's own wording never does.
-  const U_SRC = { 't3-usage-cache': 'T3 Code usage scan', 'opencode-db': 'OpenCode database', 't3-turns': 'T3 Code turn history', pricing: 'price table' };
+  const U_SRC = { 't3-usage-cache': 'T3 Code usage scan', 'opencode-db': 'OpenCode database', 'antigravity-db': 'Antigravity conversation files', 't3-turns': 'T3 Code turn history', pricing: 'price table' };
   const uOwn = (o, k) => (Object.hasOwn(o, k) ? o[k] : undefined);
   const uPl = (n, one, many = one + 's') => `${count(n)} ${n === 1 ? one : many}`;
   // code → [gap: it leaves real use out of the figures, so the status line mentions it; the status line's short phrase
@@ -3879,6 +3879,7 @@
       (c) => `${c.m ? `<b>${c.m}:</b> ` : ''}${uPl(c.n, c.source === 't3-turns' ? 'turn' : 'request')} with no known price, so left out of the dollar figures (their tokens and counts are still shown).`],
     missing_counters: [1, (n) => `${uPl(n, 'turn')} without token counts`, (c) => `${uPl(c.n, 'turn')} from other providers with no token counts in T3 Code's records: missing data, not zero use, so they aren't in the token or dollar figures.`],
     unattributed_model: [1, (n) => `${uPl(n, 'turn')} with no known model`, (c) => `${uPl(c.n, 'turn')} where T3 Code didn't capture which model was chosen. Their tokens are kept under “Unattributed model”, with no price, so they add nothing to the dollar figures.`],
+    unreadable_history: [1, (n) => `${uPl(n, 'Antigravity file')} unreadable`, (c) => `Antigravity: ${uPl(c.n, 'conversation file')} couldn't be read, so the use in them isn't counted.`],
     partial_history: [1, () => 'OpenCode history only partly matched', (c) => `OpenCode: ${uPl(c.n, 'turn')} that T3 Code measured don't match OpenCode's own history exactly. OpenCode's database is treated as the record, so those turns are left out rather than counted twice.`],
     incomplete_usage: [1, (n) => `${uPl(n, 'unfinished record')} left out`, (c) => `${uPl(c.n, 'usage record')} from unfinished or incomplete work left out.`],
     missing_source: [1, () => 'a usage source was unavailable', (c) => `A source of usage wasn't available on the Mac, so its use isn't in these numbers${c.s ? ` (${c.s})` : ''}.`],
@@ -3953,7 +3954,7 @@
         rows.push(r);
       }
     }
-    // Antigravity: listed (and counted as a subscription) even though T3 Code has no token counts for it yet
+    // Antigravity: listed (and counted as a subscription) even when no token counts for it were found
     for (const x of instances) if (x.driver === 'antigravity' || x.id === 'antigravity') x.untracked = !rows.some((r) => instances[r.inst] === x && r.tokens > 0);
     if (!instances.some((x) => x.driver === 'antigravity' || x.id === 'antigravity')) instances.push({ id: 'antigravity', label: 'Antigravity', driver: 'antigravity', billing: 'subscription', unit: 'calls', untracked: true });
     const sessions = new Array(n).fill(0);
@@ -4448,18 +4449,18 @@
     const A = P.A, ms = Math.max(0, P.mStart), opts = (cur) => `<option value=""${cur ? '' : ' selected'}>— pick —</option>` + PLANS.map(([g, ps]) => `<optgroup label="${esc(g)}">${ps.map(([n, p]) => `<option value="${esc(n)}"${n === cur ? ' selected' : ''}>${esc(n)} — $${p}</option>`).join('')}</optgroup>`).join('') + `<option value="custom"${cur === 'custom' ? ' selected' : ''}>Custom fee</option>`;
     const colors = uColors(U_GROUPS.instance, U.instances.map((_, i) => i).sort((a, b) => uSum(U.rows.filter((r) => r.inst === b)).cost - uSum(U.rows.filter((r) => r.inst === a)).cost));
     let fees = 0, subVal = 0, subProj = 0, paid = 0;
-    // every provider in the data, used or not (and Antigravity, whose use T3 Code can't count yet)
+    // every provider in the data, used or not (and Antigravity, even when none of its use was found)
     const body = U.instances.map((inst, i) => {
       const rows = U.rows.filter((r) => r.inst === i), pl = usagePlanOf(i), mtd = uSum(rows, ms, A).cost, none = inst.untracked;
       const proj = usageProject(P, uDaily(rows, (r) => r.cost), mtd, uSum(rows, A, A).cost);
       const sub = pl.billing === 'subscription', seen = rows.reduce((a, r) => a + r.turns, 0);
       if (sub && pl.fee) { fees += pl.fee; subVal += mtd; subProj += proj; } else if (pl.billing === 'api') paid += mtd;
       const value = none ? '<span class="note">not counted</span>' : sub ? (pl.fee ? `<b>${uTimes(mtd / pl.fee)}</b> your fee` : '<span class="note">enter the fee</span>') : pl.billing === 'api' ? `paid ≈ ${money(mtd)}` : '<span class="note">set the billing</span>';
-      return `<tr data-inst="${esc(inst.id)}"><td><i style="background:${colors.get(i)}"></i>${esc(inst.label || inst.id)}${none ? `<span class="u-why">T3 Code doesn't record Antigravity token counts yet, so its use isn't counted${seen ? ` (${esc(uPl(seen, 'turn'))} seen)` : ''}; its fee still counts in the totals.</span>` : ''}</td>
+      return `<tr data-inst="${esc(inst.id)}"><td><i style="background:${colors.get(i)}"></i>${esc(inst.label || inst.id)}${none ? `<span class="u-why">No Antigravity token counts were found on the Mac, so its use isn't counted${seen ? ` (${esc(uPl(seen, 'turn'))} seen)` : ''}; its fee still counts in the totals.</span>` : ''}</td>
         <td><select data-f="billing" title="How you pay for this provider"><option value="subscription"${sub ? ' selected' : ''}>Subscription</option><option value="api"${pl.billing === 'api' ? ' selected' : ''}>Pay as you go</option><option value="unknown"${pl.billing === 'unknown' ? ' selected' : ''}>Unknown</option></select></td>
         <td>${sub ? `<select data-f="plan" title="${pl.guessed ? 'Guessed from the provider\'s name or your Subscription math plan: pick yours' : 'Your plan with this provider'}">${opts(pl.plan)}</select>${pl.guessed ? ' <span class="note" title="Guessed: pick your plan to confirm">?</span>' : ''}` : '<span class="note">—</span>'}</td>
         <td class="n">${sub ? `$<input type="number" data-f="fee" min="0" step="1" value="${pl.fee}" title="Monthly fee in US dollars" />` : ''}</td>
-        <td class="n">${none ? '—' : money(mtd)}</td><td class="n" title="${none ? 'No token counts for Antigravity in T3 Code yet' : sub ? 'API-equivalent so far this month ÷ the monthly fee' : pl.billing === 'api' ? 'Pay as you go: the bill is about the API-equivalent cost (list prices, before any discounts)' : 'Set the billing to see what it\'s worth'}">${value}</td>
+        <td class="n">${none ? '—' : money(mtd)}</td><td class="n" title="${none ? 'No Antigravity token counts were found on the Mac' : sub ? 'API-equivalent so far this month ÷ the monthly fee' : pl.billing === 'api' ? 'Pay as you go: the bill is about the API-equivalent cost (list prices, before any discounts)' : 'Set the billing to see what it\'s worth'}">${value}</td>
         <td class="n">${none ? '—' : `${money(proj)}${sub && pl.fee ? ` <span class="note">${uTimes(proj / pl.fee)}</span>` : ''}`}</td></tr>`;
     }).join('');
     $('usagePlanTable').innerHTML = `<thead><tr><th>Provider</th><th title="Subscriptions are a flat fee; pay-as-you-go providers bill the tokens">Billing</th><th>Plan</th><th title="Monthly fee in US dollars">Fee / month</th><th title="API-equivalent cost so far this month">This month</th><th title="For subscriptions: API-equivalent this month ÷ fee; for pay as you go: what you've spent">Value</th><th title="${esc(`Month to date + the daily pace × the days left, where ${U_PACE_DEF}`)}">Month-end pace</th></tr></thead><tbody>${body}</tbody>` +
@@ -4537,7 +4538,7 @@
       li('Where the numbers come from.', `${src ? `${src}, ` : ''}added up on your Mac by <code>usage/collect.mjs</code>: requests and token counts per day, model and provider${U.projOff ? '' : ' and project folder'}, nothing else (no prompts, titles or paths). It publishes about hourly, only when something changed; this page checks GitHub at most every 10 minutes (Refresh checks now). These are as of ${esc(when)}; days are ${esc(d.tz || 'local')} time.`) +
       li('API-equivalent, not your bill.', 'Each request\'s tokens at the model\'s current API list price (LiteLLM\'s table, which T3 Code uses; a few from Artificial Analysis or the provider\'s own reported cost). Subscriptions charge a flat fee, so this measures how much you use and what a plan is worth to you.') +
       (U.anyTurns ? li('Requests and turns.', `A request is one model API call. For ${turnPs.join(', ')}, T3 Code only reports <i>turns</i> (one turn can contain several calls), so those are shown as turns: never added to request totals, $ / request, tokens / request or a request-based <i>1.0 =</i>. Their tokens and dollars count as usual. The hourly grid mixes both, so it's called <i>activity</i>.`) : '') +
-      li('Not counted.', `${cov('antigravity_without_counters') ? '' : 'Antigravity (Gemini): T3 Code doesn\'t record its token counts yet. '}${unpriced.length && !cov('unpriced_model') ? `${unpriced.map((x) => `${esc(x.m.label)} (${esc(uReqs(x.req, x.turns))})`).join(', ')}: no known price, so left out of the dollar figures. ` : ''}${cov('service_tier_premiums_omitted') ? '' : 'Fast or priority tiers, long-context premiums and the 1-hour cache premium aren\'t modelled. '}${cov('current_standard_prices') ? '' : 'Every day is priced at today\'s list prices (past price changes aren\'t). '}Reasoning figures cover only the models whose logs report reasoning.`) +
+      li('Not counted.', `${U.instances.some((x) => x.untracked) && !cov('antigravity_without_counters') ? 'Antigravity (Gemini): no token counts for it were found on the Mac. ' : ''}${unpriced.length && !cov('unpriced_model') ? `${unpriced.map((x) => `${esc(x.m.label)} (${esc(uReqs(x.req, x.turns))})`).join(', ')}: no known price, so left out of the dollar figures. ` : ''}${cov('service_tier_premiums_omitted') ? '' : 'Fast or priority tiers, long-context premiums and the 1-hour cache premium aren\'t modelled. '}${cov('current_standard_prices') ? '' : 'Every day is priced at today\'s list prices (past price changes aren\'t). '}Reasoning figures cover only the models whose logs report reasoning.`) +
       (notes.length ? li('What the collector flagged.', `Its own list of what it couldn't count or could only estimate (all time, not just the period above):<ul>${notes.map((x) => `<li>${x.html}${x.src ? ` <span class="note">· ${x.src}</span>` : ''}</li>`).join('')}</ul>`) : '') +
       li('How the figures are worked out.', `<i>Month-end pace</i>: month to date + the daily pace × the days left, where ${esc(U_PACE_DEF)}. <i>Spike</i>: a day's API $ over $5 and above the usual day + 2.5 standard deviations, both weighted the same way over the days before it. <i>Cache savings</i> are net: what cache reads and writes would have cost at the full input price minus what they cost, so writes (billed above the input price) can make them negative. <i>Cheaper but close</i>: the cheapest current model on the site scoring within 3 points on ${esc(uIndexName())} (or better), priced on your token counts; a different model would use a different number of tokens, so it compares prices, not outcomes. <i>1.0 =</i>: every reference is an amount per day.`) +
       li('Privacy.', 'Only these totals leave the Mac, encrypted (AES-256-GCM) in a secret gist; GitHub sees ciphertext. The unlock link is the password: anyone who has it can read these numbers, so only send it to your own devices. <code>node usage/collect.mjs --rotate</code> makes a new key and a new gist and deletes the old one, so old links stop working.');

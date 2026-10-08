@@ -52,7 +52,7 @@ const options={home,aaFile,projects:true,tz:'America/New_York',now:new Date('202
 const result=await collect(options),p=result.payload;
 
 test('combined sources normalize tokens, count Grok calls, remove copies and join aliases',()=>{
-  assert.equal(validatePayload(p),true);assert.deepEqual(result.checks,{cacheSamples:4,cacheDuplicates:2,syntheticDropped:1,openCodeMigrationDuplicates:1,openCodeZeroUsageDropped:1,t3OverlapExcluded:1,openCodeTurnsReconciled:1,t3MissingTelemetry:0});
+  assert.equal(validatePayload(p),true);assert.deepEqual(result.checks,{cacheSamples:4,cacheDuplicates:2,syntheticDropped:1,openCodeMigrationDuplicates:1,openCodeZeroUsageDropped:1,t3OverlapExcluded:1,openCodeTurnsReconciled:1,t3MissingTelemetry:0,antigravityFiles:0,antigravityCopiesCollapsed:0,antigravityUnreadable:0});
   assert.deepEqual(p.projects,['ai-model-frontier']);assert.deepEqual(p.range,{first:'2026-10-06',last:'2026-10-07'});
   const all=p.days.flatMap(d=>d.r);assert.equal(all.reduce((n,r)=>n+r[3],0),10);
   const rowFor=id=>all.find(r=>p.models[r[0]].id===id);
@@ -175,7 +175,7 @@ if(method==='POST'){
   }
 }else if(method==='PATCH'){const id=endpoint.split('/')[1];out={...s.gists[id],...body};s.gists[id]=out;}
 else if(method==='DELETE'){const id=endpoint.split('/')[1];if(s.mode==='delete-false-404'||s.mode==='changed-account'||s.mode==='reduced-scope'){status=1;http=404;}else if(s.mode.includes('delete-failure')){status=1;http=503;}else if(s.mode==='delete-auth-failure'){status=1;http=401;}else if(s.mode==='delete-network-failure'){status=1;http=null;}else if(!s.gists[id]){status=1;http=404;}else{delete s.gists[id];out=null;http=204;if(s.mode==='lost-delete-reply'){status=1;http=null;}}}
-else if(endpoint.startsWith('users/')){if(s.mode.startsWith('list-failure')){status=1;}else{const publicGists=Object.values(s.gists).filter(g=>g.public===true||s.mode.startsWith('listed'));out=[[],publicGists];}}
+else if(endpoint.startsWith('users/')){if(s.mode.startsWith('list-failure')){status=1;}else{out=[[],Object.values(s.gists).map(g=>({id:g.id,public:g.public===true||s.mode.startsWith('listed')}))];if(s.mode==='list-unflagged')out=[[{id:'f'.repeat(32)}]];}}
 else if(endpoint==='gists'){out=[Object.values(s.gists)];}
 else if(endpoint==='user'){out={login:s.mode==='changed-account'?'different-account':'fixture-owner'};if(s.mode==='auth-failure'){status=1;http=401;}}
 else {out=s.gists[endpoint.split('/')[1]];if(!out||s.mode==='changed-account'||s.mode==='reduced-scope'){status=1;http=404;}}
@@ -216,9 +216,10 @@ test('mocked gh exercises CLI boolean create, public-list verification, skip, PA
   await assert.rejects(()=>publishPayload(q,cfg.config,cfg.file,{runner:()=>({status:1,stderr:'sensitive output'})}),/authentication locally/);
 });
 test('public or listed new gists are deleted, unverified lists abort, config remains unchanged',async()=>{
-  for(const mode of ['public','listed','list-failure']) {
+  // Signed in, GitHub lists the owner's secret gists too (public: false): 'listed' means listed as public.
+  for(const mode of ['public','listed','list-failure','list-unflagged']) {
     const cfg=resetConfig(),before=fs.readFileSync(cfg.file,'utf8'),h=ghHarness();h.mode(mode);
-    await assert.rejects(()=>publishPayload(p,cfg.config,cfg.file,h),/secret|public list|authentication/);
+    await assert.rejects(()=>publishPayload(p,cfg.config,cfg.file,h),/secret|public list|gist list|authentication/);
     assert.deepEqual(JSON.parse(fs.readFileSync(cfg.file)),JSON.parse(before));assert.deepEqual(h.state().gists,{});assert.equal(h.state().calls.at(-1).method,'DELETE');
   }
 });
@@ -615,7 +616,7 @@ test('EPERM liveness is held and release removes only the current nonce',async()
 
 test('coverage notes enforce code-specific sources, scope counts and model references',()=>{
   const note={code:'unpriced_model',source:'pricing',modelIdx:null,count:1};
-  for(const c of [note,{...note,source:'t3-usage-cache'},{code:'cache_snapshot',source:'t3-usage-cache',modelIdx:null,count:2},{code:'missing_source',source:'pricing',modelIdx:null,count:1},{code:'current_standard_prices',source:'pricing',modelIdx:0,count:1},{code:'partial_history',source:'t3-turns',modelIdx:null,count:1},{code:'missing_counters',source:'opencode-db',modelIdx:null,count:1},{code:'unpriced_model',source:'t3-usage-cache',modelIdx:0,count:1}]) {
+  for(const c of [note,{...note,source:'t3-usage-cache'},{code:'cache_snapshot',source:'t3-usage-cache',modelIdx:null,count:2},{code:'missing_source',source:'pricing',modelIdx:null,count:1},{code:'current_standard_prices',source:'pricing',modelIdx:0,count:1},{code:'partial_history',source:'t3-turns',modelIdx:null,count:1},{code:'missing_counters',source:'opencode-db',modelIdx:null,count:1},{code:'unreadable_history',source:'opencode-db',modelIdx:null,count:1},{code:'missing_source',source:'antigravity-db',modelIdx:null,count:2},{code:'unpriced_model',source:'t3-usage-cache',modelIdx:0,count:1}]) {
     const q=structuredClone(p);q.coverage=[c];assert.throws(()=>validatePayload(q),/Coverage/);
   }
 });
@@ -757,4 +758,55 @@ test('independently known two-call OpenCode turn remains one labelled fallback t
     restore.prepare("UPDATE session_message SET data=? WHERE id='m1'").run(JSON.stringify(om));
     restore.prepare("UPDATE message SET data=? WHERE id='m1'").run(JSON.stringify({...om,role:'assistant',modelID:'glm-5.3-flash',providerID:'opencode'}));restore.close();
   }
+});
+
+// Antigravity fixtures: protobuf usage metadata in WAL SQLite files, laid out the way Antigravity writes them.
+const pbv=n=>{const o=[];let v=BigInt(n);do{let b=Number(v&127n);v>>=7n;if(v)b|=128;o.push(b);}while(v);return o;};
+const pb=(...fields)=>Buffer.from(fields.flatMap(([no,v])=>typeof v==='number'?[...pbv(no*8),...pbv(v)]:(b=>[...pbv(no*8+2),...pbv(b.length),...b])(Buffer.isBuffer(v)?v:Buffer.from(v))));
+const agUsage=(input,cached,output,reasoning)=>pb([2,input],[5,cached],[3,output],[9,reasoning]);
+const agTime=ms=>pb([1,Math.floor(ms/1000)],[2,(ms%1000)*1e6]);
+const agStep=(model,usage,ms,retry=true)=>pb([3,'private-step-marker'],[8,agTime(ms)],[9,usage],...(model?[[24,pb([8,model])]]:[]),...(retry?[[28,pb([2,usage])]]:[]));
+const agGen=(model,usage,ms)=>pb([1,pb([3,326],[4,usage],[9,pb([4,agTime(ms)])],[17,pb([2,usage])],[19,model])]);
+function agDb(file,{steps=[],gens=[],wal=true}={}){
+  fs.mkdirSync(path.dirname(file),{recursive:true});
+  const d=new DatabaseSync(file);if(wal)d.exec('PRAGMA journal_mode=WAL');
+  d.exec('CREATE TABLE steps(idx INTEGER,metadata BLOB,content TEXT); CREATE TABLE gen_metadata(idx INTEGER,data BLOB); CREATE TABLE trajectory_metadata_blob(data BLOB)');
+  steps.forEach((s,i)=>d.prepare('INSERT INTO steps VALUES(?,?,?)').run(i,s,'private-ag-content-marker'));
+  gens.forEach((g,i)=>d.prepare('INSERT INTO gen_metadata VALUES(?,?)').run(i,g));d.close();
+}
+test('Antigravity: a call stored as step, generation and retry counts once; copies, symlinks and bad files never double count',async()=>{
+  const h=cloneHome(),u1=agUsage(1000,9000,300,120),u2=agUsage(200,800,40,10),u3=agUsage(50,0,5,0),u4=agUsage(70,30,9,0),u5=agUsage(400,600,60,20);
+  put(path.join(h,'.t3/userdata/settings.json'),{providerInstances:{claudeAgent:{driver:'claudeAgent',displayName:'Claude',config:{}},antigravity:{driver:'antigravity',displayName:'Antigravity · Google AI Pro',config:{apiKey:'private-secret-marker'}}},usageModelAliases:{'gemini-3.8-flash-high':'gemini-3.8-flash'}});
+  const rates=JSON.parse(fs.readFileSync(path.join(h,'.t3/userdata/usage-model-rates.json'),'utf8'));rates.document['gemini-3.1-pro-preview']={input_cost_per_token:2e-6,output_cost_per_token:12e-6,cache_read_input_token_cost:.2e-6};put(path.join(h,'.t3/userdata/usage-model-rates.json'),rates);
+  const profile=path.join(h,'.t3/userdata/providers/antigravity',createHash('sha256').update('antigravity').digest('hex'),'antigravity-acp'),own=path.join(h,'.gemini/antigravity/conversations');
+  put(path.join(profile,'acp_token.json'),{refresh_token:'private-secret-marker'});
+  const convA={steps:[agStep('gemini-pro-agent',u1,day2),agStep('gemini-3.8-flash-high',u2,day2,false),agStep('',u4,day2,false),agStep('gemini-3.8-flash-high',agUsage(0,0,0,0),day2)],gens:[agGen('gemini-pro-default',u1,day2),agGen('gemini-3.8-flash',u3,day2)]};
+  agDb(path.join(profile,'conversations/private-conversation-a.db'),convA);
+  agDb(path.join(own,'private-conversation-a.db'),convA); // the same conversation again (a copy)
+  agDb(path.join(own,'conv-b.db'),{steps:[agStep('gemini-3.8-flash-high',u5,ts)],gens:[agGen('gemini-3.8-flash',u5,ts)]});
+  fs.symlinkSync(path.join(own,'conv-b.db'),path.join(own,'linked.db'));
+  put(path.join(own,'broken.db'),'not a database');agDb(path.join(own,'rollback.db'),{steps:[agStep('gemini-3.8-flash-high',u5,ts)],wal:false});
+  const r=await collect({...options,home:h}),q=r.payload,rows=q.days.flatMap(d=>d.r),ag=q.instances.findIndex(i=>i.id==='antigravity');
+  const byModel=id=>rows.filter(x=>q.models[x[0]].id===id&&x[1]===ag);
+  assert.deepEqual({files:r.checks.antigravityFiles,collapsed:r.checks.antigravityCopiesCollapsed,unreadable:r.checks.antigravityUnreadable},{files:3,collapsed:15,unreadable:2});
+  assert.equal(rows.filter(x=>x[1]===ag).reduce((n,x)=>n+x[3],0),5);
+  assert.deepEqual(q.instances[ag],{id:'antigravity',label:'Antigravity · Google AI Pro',driver:'antigravity',billing:'subscription',requestUnit:'calls'});
+  assert.deepEqual(byModel('gemini-pro-agent').map(x=>x.slice(3,9)),[[1,1000,9000,0,300,120]]);
+  const pro=q.models.find(m=>m.id==='gemini-pro-agent');assert.equal(pro.price.src,'litellm');assert.equal(pro.price.in,2);assert.equal(pro.price.out,12);
+  assert.equal(byModel('gemini-3.8-flash-high').reduce((n,x)=>n+x[3],0),2);assert.equal(q.models.find(m=>m.id==='gemini-3.8-flash-high').aa,'gemini-3-8-flash');
+  assert.deepEqual(byModel('gemini-3.8-flash').map(x=>x.slice(3,9)),[[1,50,0,0,5,0]]);
+  const unknown=q.models.findIndex(m=>m.id==='antigravity-unknown');assert.equal(q.models[unknown].label,'Antigravity (model not recorded)');
+  assert(q.coverage.some(c=>c.code==='unpriced_model'&&c.source==='antigravity-db'&&c.modelIdx===unknown));
+  assert(q.coverage.some(c=>c.code==='unreadable_history'&&c.source==='antigravity-db'&&c.count===2));
+  assert(!q.coverage.some(c=>c.code==='antigravity_without_counters'));
+  assert.equal(r.checks.t3OverlapExcluded,2); // the T3 turn would count Antigravity use again
+  assert.equal(q.sources.find(s=>s.id==='antigravity-db').rows,5);
+  assert(r.warnings.some(x=>x.includes('Antigravity conversation files')));
+  const json=JSON.stringify(q);for(const forbidden of ['private-ag-content-marker','private-step-marker','private-conversation','private-secret-marker','conv-b'])assert(!json.includes(forbidden));
+  const key=randomBytes(32);assert.deepEqual(decryptEnvelope(encryptPayload(q,key),key),q);
+  // Antigravity configured but its folders gone: the T3 turn fallback returns and the gap is noted.
+  fs.rmSync(path.join(h,'.gemini'),{recursive:true});fs.rmSync(path.join(h,'.t3/userdata/providers'),{recursive:true});
+  const gone=(await collect({...options,home:h})).payload;
+  assert.equal(gone.instances.find(i=>i.id==='antigravity').requestUnit,'turns');
+  assert(gone.coverage.some(c=>c.code==='missing_source'&&c.source==='antigravity-db'));
 });

@@ -20,6 +20,8 @@ const ownerLogin = s => typeof s === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}
 const here = path.dirname(fileURLToPath(import.meta.url));
 const BILLING = { claudeAgent: 'subscription', codex: 'subscription', antigravity: 'subscription', codex_openai_api: 'api', opencode: 'api', grok: 'unknown' };
 const LABELS = { claudeAgent: 'Claude', codex: 'Codex', codex_openai_api: 'Codex — OpenAI API (paid)', antigravity: 'Antigravity', opencode: 'OpenCode', grok: 'Grok' };
+// Antigravity's names for Gemini 3.1 Pro (the owner confirmed). T3 Code's usageModelAliases setting overrides these.
+const DEFAULT_MODEL_ALIASES = { 'gemini-pro-agent': 'gemini-3.1-pro-preview', 'gemini-pro-default': 'gemini-3.1-pro-preview' };
 class UsageError extends Error {}
 const fail = message => { throw new UsageError(message); };
 const requireThat = (ok, message) => { if (!ok) fail(message); };
@@ -237,13 +239,159 @@ function readOpenCode(home, noProjects, warn, note) {
   return { events, duplicates, zero };
 }
 
-function readT3(home, noProjects, openCodeEvents, warn, note) {
+// Antigravity keeps each call's usage as protobuf metadata in the conversation's SQLite file (the files T3 Code's usage
+// page reads). Only counters, model names and times are decoded; conversation text is never selected.
+function pbFields(bytes) {
+  let offset = 0;
+  const out = new Map();
+  const varint = () => {
+    let value = 0n;
+    for (let shift = 0n; shift < 70n; shift += 7n) {
+      const byte = bytes[offset++];
+      requireThat(byte !== undefined && !(shift === 63n && byte > 1), 'Antigravity: invalid protobuf');
+      value |= BigInt(byte & 127) << shift;
+      if (byte < 128) return value > BigInt(Number.MAX_SAFE_INTEGER) ? value : Number(value);
+    }
+    fail('Antigravity: invalid protobuf');
+  };
+  while (offset < bytes.length) {
+    const tag = varint();
+    requireThat(typeof tag === 'number' && tag >= 8, 'Antigravity: invalid protobuf');
+    const field = Math.floor(tag / 8), wire = tag % 8;
+    let value;
+    if (wire === 0) value = varint();
+    else {
+      requireThat(wire === 1 || wire === 2 || wire === 5, 'Antigravity: invalid protobuf');
+      const length = wire === 2 ? varint() : wire === 1 ? 8 : 4;
+      requireThat(typeof length === 'number' && length <= bytes.length - offset, 'Antigravity: invalid protobuf');
+      value = bytes.subarray(offset, offset += length);
+      if (wire !== 2) continue;
+    }
+    if (!out.has(field)) out.set(field, []);
+    out.get(field).push(value);
+  }
+  return out;
+}
+const pbNum = (m, k) => typeof m.get(k)?.[0] === 'number' ? m.get(k)[0] : 0;
+const pbBytes = (m, k) => m.get(k)?.[0] instanceof Uint8Array ? m.get(k)[0] : undefined;
+const pbMsg = (m, k) => pbBytes(m, k) === undefined ? new Map() : pbFields(pbBytes(m, k));
+const pbText = (m, k) => {
+  const b = pbBytes(m, k);
+  if (b === undefined) return '';
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(b).trim(); } catch { fail('Antigravity: invalid text field'); }
+};
+const pbTime = m => { const t = pbNum(m, 1) * 1e3 + Math.floor(pbNum(m, 2) / 1e6); return pbNum(m, 1) > 0 && t < 8.64e15 ? t : null; };
+// T3 Code's table of Antigravity's numeric model ids (older builds recorded only these).
+const AG_MODEL_IDS = { 246: 'gemini-2.5-pro', 312: 'gemini-2.5-flash', 313: 'gemini-2.5-flash-thinking', 329: 'gemini-2.5-flash-thinking', 330: 'gemini-2.5-flash-lite', 281: 'claude-sonnet-4', 282: 'claude-sonnet-4', 290: 'claude-opus-4', 291: 'claude-opus-4', 333: 'claude-sonnet-4-5', 334: 'claude-sonnet-4-5', 340: 'claude-haiku-4-5', 341: 'claude-haiku-4-5', 1026: 'claude-opus-4-6', 1035: 'claude-sonnet-4-6', 1016: 'gemini-3.1-pro', 1036: 'gemini-3.1-pro', 1037: 'gemini-3.1-pro', 1018: 'gemini-3-flash-preview', 1084: 'gemini-3-flash-preview', 1047: 'gemini-3-flash-preview' };
+function agModelName(name, id) {
+  let s = AG_MODEL_IDS[id] ?? (id > 0 ? `antigravity-model-${id}` : '');
+  if (name) {
+    s = name.toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').replaceAll(' ', '-');
+    if (s.startsWith('claude-')) s = s.replace(/^claude-(4(?:\.\d+)?)-(sonnet|opus|haiku)/, 'claude-$2-$1').replaceAll('.', '-');
+  }
+  return s === '' || safeId(s) ? s : 'antigravity-unknown';
+}
+// A step's model is the one asked for (e.g. gemini-3.8-flash-high); a generation's is the one that served it.
+function agEntry(bytes, step) {
+  requireThat(bytes instanceof Uint8Array, 'Antigravity: invalid metadata row');
+  const root = pbFields(bytes);
+  requireThat(step || pbBytes(root, 1) !== undefined, 'Antigravity: missing generation metadata');
+  const data = step ? root : pbMsg(root, 1), model = step ? pbMsg(data, 24) : data, usage = pbBytes(data, step ? 9 : 4);
+  const usages = usage === undefined ? [] : [pbFields(usage)];
+  for (const retry of data.get(step ? 28 : 17) ?? []) {
+    requireThat(retry instanceof Uint8Array, 'Antigravity: invalid retry metadata');
+    const u = pbBytes(pbFields(retry), 2);
+    if (u !== undefined) usages.push(pbFields(u));
+  }
+  return { model: agModelName(pbText(model, step ? 12 : 19) || pbText(model, step ? 8 : 21), pbNum(model, step ? 1 : 3)), ts: step ? pbTime(pbMsg(data, 8)) ?? pbTime(pbMsg(data, 1)) : pbTime(pbMsg(pbMsg(data, 9), 4)), usages };
+}
+// Antigravity stores one call up to three times: as a step, as a generation, and again as an identical "retry" copy
+// (T3 Code's usage page adds all three). Identical counters within one conversation are one call; when one side lists
+// the same counters twice, they count twice.
+function agFile(file, fallbackTs) {
+  const rows = fetchDatabaseRows(file, 'Antigravity', db => {
+    const tables = new Set(query(db, "SELECT name FROM sqlite_master WHERE type='table'", 'Antigravity').map(r => r.name));
+    requireThat(tables.has('gen_metadata') || tables.has('steps'), 'Antigravity: unsupported usage tables');
+    return {
+      steps: tables.has('steps') ? query(db, 'SELECT metadata FROM steps WHERE metadata IS NOT NULL ORDER BY idx', 'Antigravity') : [],
+      gens: tables.has('gen_metadata') ? query(db, 'SELECT data FROM gen_metadata ORDER BY idx', 'Antigravity') : [],
+      trajectory: tables.has('trajectory_metadata_blob') ? query(db, 'SELECT data FROM trajectory_metadata_blob', 'Antigravity') : [],
+    };
+  });
+  let trajectoryTs = null, stored = 0;
+  for (const r of rows.trajectory) { requireThat(r.data instanceof Uint8Array, 'Antigravity: invalid metadata row'); trajectoryTs ??= pbTime(pbMsg(pbFields(r.data), 2)); }
+  const calls = new Map();
+  const add = (entry, side) => {
+    const seen = new Set();
+    for (const u of entry.usages) {
+      const output = Math.max(pbNum(u, 3), pbNum(u, 9) + pbNum(u, 10)), t = [pbNum(u, 2), pbNum(u, 5), pbNum(u, 4), output, Math.min(output, pbNum(u, 9))];
+      if (t[0] + t[1] + t[2] + t[3] === 0) continue;
+      stored++;
+      const id = [2, 3, 4, 5, 9, 10].map(k => pbNum(u, k)).join(',');
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (!calls.has(id)) calls.set(id, { id, t: tokens(t, 'Antigravity'), step: 0, gen: 0, stepModel: '', genModel: '', enumModel: AG_MODEL_IDS[pbNum(u, 1)] ?? '', idModel: agModelName('', pbNum(u, 1)), ts: null, quality: -1 });
+      const c = calls.get(id), ts = entry.ts ?? trajectoryTs ?? fallbackTs, quality = entry.ts !== null ? 2 : trajectoryTs !== null ? 1 : 0;
+      c[side]++;
+      if (side === 'step') c.stepModel ||= entry.model; else c.genModel ||= entry.model;
+      if (quality > c.quality || (quality === c.quality && ts < c.ts)) Object.assign(c, { ts, quality });
+    }
+  };
+  for (const r of rows.steps) add(agEntry(r.metadata, true), 'step');
+  for (const r of rows.gens) add(agEntry(r.data, false), 'gen');
+  return { stored, calls: [...calls.values()].map(c => ({ id: c.id, t: c.t, ts: c.ts, quality: c.quality, n: Math.max(c.step, c.gen), model: c.enumModel || c.stepModel || c.genModel || c.idModel || 'antigravity-unknown' })) };
+}
+// T3 Code's Antigravity stores: the app's own folders and each Antigravity instance's profile in T3 Code. Copies of a
+// conversation (same file name) under several of them count once.
+function readAntigravity(home, agInstances, warn, note) {
+  const fallback = agInstances.includes('antigravity') ? 'antigravity' : agInstances[0] ?? 'antigravity';
+  const roots = ['antigravity', 'antigravity-cli', 'antigravity-ide', 'antigravity-backup'].map(n => [path.join(home, '.gemini', n), fallback])
+    .concat([[path.join(home, '.config/antigravity'), fallback]], agInstances.map(id => [path.join(home, '.t3/userdata/providers/antigravity', createHash('sha256').update(id).digest('hex'), 'antigravity-acp'), id]));
+  const visited = new Set(), calls = new Map();
+  let found = false, files = 0, unreadable = 0, stored = 0;
+  for (const [root, instance] of roots) {
+    if (!lstat(root)) continue;
+    found = true;
+    let dir;
+    try { dir = fs.realpathSync(root); if (lstat(path.join(dir, 'conversations'))) dir = fs.realpathSync(path.join(dir, 'conversations')); } catch { unreadable++; continue; }
+    const walk = d => {
+      let entries;
+      try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { unreadable++; return; }
+      // Symlinks are neither followed nor read.
+      for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+        const file = path.join(d, e.name);
+        if (e.isDirectory()) { walk(file); continue; }
+        if (!e.isFile() || !e.name.endsWith('.db')) continue;
+        let real, read;
+        try { real = fs.realpathSync(file); if (visited.has(real)) continue; visited.add(real); read = agFile(file, fs.statSync(file).mtimeMs); }
+        catch { unreadable++; continue; }
+        files++; stored += read.stored;
+        const session = path.basename(file, '.db');
+        for (const c of read.calls) {
+          const key = `${session}\0${c.id}`, prior = calls.get(key);
+          if (!prior) { calls.set(key, { ...c, session, instance }); continue; }
+          prior.n = Math.max(prior.n, c.n);
+          if (prior.model === 'antigravity-unknown') prior.model = c.model;
+          if (c.quality > prior.quality || (c.quality === prior.quality && c.ts < prior.ts)) Object.assign(prior, { ts: c.ts, quality: c.quality });
+        }
+      }
+    };
+    walk(dir);
+  }
+  if (!found && agInstances.length) { warn('Antigravity conversation folders are missing'); note('missing_source', 'antigravity-db'); }
+  if (unreadable) { warn(`${unreadable} Antigravity conversation files or folders could not be read; their use is omitted`); note('unreadable_history', 'antigravity-db', unreadable); }
+  const events = [...calls.values()].map(c => ({ source: 'antigravity-db', model: c.model, instance: c.instance, driver: 'antigravity', requestUnit: 'calls', project: null, session: `antigravity:${c.session}`, ts: c.ts, requests: c.n, t: c.t.map(x => x * c.n), providerCost: null }));
+  return { events, files, unreadable, collapsed: stored - events.reduce((a, e) => a + e.requests, 0) };
+}
+
+function readT3(home, noProjects, openCodeEvents, warn, note, antigravityCovered = false) {
   const file = path.join(home, '.t3/userdata/statev2.sqlite');
   if (!fs.existsSync(file)) { warn('T3 state database is missing'); note('missing_source', 't3-turns'); return { events: [], excluded: 0, covered: 0, absent: 0 }; }
   const rows = fetchDatabaseRows(file, 'T3 state', db => query(db, `SELECT t.provider_turn_id,t.provider_thread_id,t.started_at,t.completed_at,json_extract(t.payload_json,'$.turnTokenUsage') usage,coalesce(a.provider_instance_id,r.provider_instance_id,pt.provider_instance_id,s.provider_instance_id,a.provider,r.provider,pt.provider,s.provider) instance,coalesce(a.provider,r.provider,pt.driver,s.driver,pt.provider,s.provider) driver,coalesce(json_extract(t.payload_json,'$.modelSelection.model'),json_extract(a.payload_json,'$.modelSelection.model'),json_extract(r.payload_json,'$.modelSelection.model')) model,p.workspace_root FROM orchestration_v2_projection_provider_turns t LEFT JOIN orchestration_v2_projection_run_attempts a ON a.attempt_id=t.run_attempt_id LEFT JOIN orchestration_v2_projection_runs r ON r.run_id=a.run_id LEFT JOIN orchestration_v2_projection_provider_threads pt ON pt.provider_thread_id=t.provider_thread_id LEFT JOIN orchestration_v2_projection_provider_sessions s ON s.provider_session_id=pt.provider_session_id LEFT JOIN projection_threads th ON th.thread_id=t.thread_id LEFT JOIN projection_projects p ON p.project_id=th.project_id`, 'T3 state'));
   const events = []; let excluded = 0, covered = 0, absent = 0;
   for (const r of rows) {
-    const eligible = r.driver === 'antigravity' || r.driver === 'opencode';
+    // Antigravity's own records are complete when present; its T3 turns would count the same use again.
+    const eligible = (r.driver === 'antigravity' && !antigravityCovered) || r.driver === 'opencode';
     if (!eligible) { if (r.usage !== null) excluded++; continue; }
     if (r.usage === null) { absent++; note(r.driver === 'antigravity' ? 'antigravity_without_counters' : 'missing_counters', 't3-turns'); continue; }
     let u; try { u = JSON.parse(r.usage); } catch { fail('T3 state: invalid usage JSON'); }
@@ -275,7 +423,7 @@ const normalize = s => s.toLowerCase().replace(/[._]/g, '-');
 function baseModel(id, aliases) {
   let s = id.split('/').at(-1).replace(/^antigravity-/, '');
   const seen = new Set();
-  while (aliases[s]) { requireThat(!seen.has(s), 'Settings: model alias cycle'); seen.add(s); s = aliases[s]; }
+  while (Object.hasOwn(aliases, s)) { requireThat(!seen.has(s), 'Settings: model alias cycle'); seen.add(s); s = aliases[s]; }
   return s;
 }
 function labFor(id, aa) {
@@ -321,7 +469,7 @@ function resolvePrice(id, aliases, rates, aaModels, providerOnly) {
   }
   if (providerOnly) price.src = 'provider';
   for (const k of ['in','cachedIn','cacheWrite','out']) requireThat(isCost(price[k]), 'Model rates: invalid price');
-  return { id, label: aa?.familyName ?? base, lab, aa: aa?.family ?? null, price };
+  return { id, label: aa?.familyName ?? (id === 'antigravity-unknown' ? 'Antigravity (model not recorded)' : base), lab, aa: aa?.family ?? null, price };
 }
 function eventCost(e, price) {
   if (e.providerCost !== null) return e.providerCost;
@@ -342,19 +490,21 @@ export async function collect({ home = os.homedir(), aaFile = path.join(here, '.
     coverage.get(key).count += count;
   };
   const settingsFile = path.join(home, '.t3/userdata/settings.json');
-  let instances = {}, aliases = {};
+  let instances = {}, aliases = { ...DEFAULT_MODEL_ALIASES };
   if (fs.existsSync(settingsFile)) {
     const s = readJSON(settingsFile, 'T3 settings');
     requireThat(s.providerInstances && typeof s.providerInstances === 'object' && !Array.isArray(s.providerInstances), 'T3 settings: expected providerInstances');
     // Do not traverse or copy config/auth/secret objects.
     instances = Object.fromEntries(Object.entries(s.providerInstances).map(([id, v]) => [id, { label: v.displayName, driver: v.driver }]));
-    aliases = s.usageModelAliases ?? {};
-    requireThat(aliases && typeof aliases === 'object' && !Array.isArray(aliases) && Object.entries(aliases).every(([a,b]) => safeId(a) && safeId(b)), 'T3 settings: invalid usage model aliases');
+    const own = s.usageModelAliases ?? {};
+    requireThat(own && typeof own === 'object' && !Array.isArray(own) && Object.entries(own).every(([a,b]) => safeId(a) && safeId(b)), 'T3 settings: invalid usage model aliases');
+    aliases = { ...aliases, ...own };
   } else warning('T3 settings are missing; default instance labels will be used');
   const cache = await readCache(home, noProjects, warning);
   const oc = readOpenCode(home, noProjects, warning, note);
-  const t3 = readT3(home, noProjects, oc.events, warning, note);
-  const events = [...cache.events, ...oc.events, ...t3.events];
+  const ag = readAntigravity(home, Object.keys(instances).filter(id => instances[id].driver === 'antigravity' && safeId(id)), warning, note);
+  const t3 = readT3(home, noProjects, oc.events, warning, note, ag.events.length > 0);
+  const events = [...cache.events, ...oc.events, ...ag.events, ...t3.events];
   requireThat(events.length > 0, 'No verified usage records found');
   // Sensitive basenames are omitted; infrequent names share one anonymous group.
   const projectDays = new Map(), homeName = path.basename(home).toLowerCase();
@@ -391,7 +541,7 @@ export async function collect({ home = os.homedir(), aaFile = path.join(here, '.
     const row = group.get(key); row[3] += e.requests; for (let n = 0; n < 5; n++) row[4+n] += e.t[n]; row[9] = row[9] === null || cost === null ? null : row[9] + cost;
     const hk = `${weekday}:${hour}`; if (!hours.has(hk)) hours.set(hk, [weekday,hour,0,0]); const hr = hours.get(hk); hr[2] += e.requests; hr[3] = hr[3] === null || cost === null ? null : hr[3] + cost;
     sessions.add(e.session); if (!sessionDays.has(day)) sessionDays.set(day, new Set()); sessionDays.get(day).add(e.session);
-    if (!sources.has(e.source)) sources.set(e.source, { id: e.source, label: ({ 't3-usage-cache': 'T3 Code usage scan (Claude, Codex, Grok logs)', 'opencode-db': 'OpenCode message database (migration copies deduplicated)', 't3-turns': 'T3 Code per-turn usage (instances absent from usage scan)' })[e.source], rows: 0, first: day, last: day });
+    if (!sources.has(e.source)) sources.set(e.source, { id: e.source, label: ({ 't3-usage-cache': 'T3 Code usage scan (Claude, Codex, Grok logs)', 'opencode-db': 'OpenCode message database (migration copies deduplicated)', 'antigravity-db': 'Antigravity conversation databases (usage metadata only; each call counted once)', 't3-turns': 'T3 Code per-turn usage (instances absent from usage scan)' })[e.source], rows: 0, first: day, last: day });
     const source = sources.get(e.source); source.rows++; if (day < source.first) source.first = day; if (day > source.last) source.last = day;
   }
   const dayList = [...days].sort(([a],[b]) => a.localeCompare(b)).map(([d,r]) => ({ d, r: [...r.values()].sort((a,b) => a[0]-b[0] || a[1]-b[1] || a[2]-b[2]).map(row => [...row.slice(0,9),roundCost(row[9])]) }));
@@ -405,7 +555,7 @@ export async function collect({ home = os.homedir(), aaFile = path.join(here, '.
   const payload = { coverage: [...coverage.values()].sort((a,b) => `${a.code}:${a.source}:${a.modelIdx}`.localeCompare(`${b.code}:${b.source}:${b.modelIdx}`)), schema: 'aimf-usage/1', generatedAt: now.toISOString(), tz, range: { first: dayList[0].d, last: dayList.at(-1).d }, sources: [...sources.values()].sort((a,b) => a.id.localeCompare(b.id)), instances: instanceInfo, models, projects, days: dayList, hours: [...hours.values()].sort((a,b) => a[0]-b[0] || a[1]-b[1]).map(r => [...r.slice(0,3),roundCost(r[3])]), sessions: { count: sessions.size, byDay: [...sessionDays].sort(([a],[b]) => a.localeCompare(b)).map(([d,s]) => [d,s.size]) } };
   const validated = serializePayload(payload, { home });
   for (const message of warnings) warn(message);
-  return { payload: validated, warnings: [...warnings], checks: { cacheSamples: cache.verified, cacheDuplicates: cache.duplicates, syntheticDropped: cache.synthetic, openCodeMigrationDuplicates: oc.duplicates, openCodeZeroUsageDropped: oc.zero, t3OverlapExcluded: t3.excluded, openCodeTurnsReconciled: t3.covered, t3MissingTelemetry: t3.absent } };
+  return { payload: validated, warnings: [...warnings], checks: { cacheSamples: cache.verified, cacheDuplicates: cache.duplicates, syntheticDropped: cache.synthetic, openCodeMigrationDuplicates: oc.duplicates, openCodeZeroUsageDropped: oc.zero, t3OverlapExcluded: t3.excluded, openCodeTurnsReconciled: t3.covered, t3MissingTelemetry: t3.absent, antigravityFiles: ag.files, antigravityCopiesCollapsed: ag.collapsed, antigravityUnreadable: ag.unreadable } };
 }
 
 // Copy only contract fields. Never spread a source record or settings object.
@@ -465,14 +615,14 @@ export function validatePayload(p, { home = os.homedir() } = {}) {
   requireThat(p.sessions.count <= totalSessions && p.sessions.count >= maxSessions,'Sessions: inconsistent distinct counts');
   if (p.coverage !== undefined) {
     requireThat(Array.isArray(p.coverage), 'Coverage: expected array');
-    const codes = ['cache_snapshot','missing_source','missing_raw_logs','incomplete_usage','partial_history','missing_counters','antigravity_without_counters','unattributed_model','unreported_subagents','unpriced_model','current_standard_prices','service_tier_premiums_omitted'];
-    const sources = ['t3-usage-cache','opencode-db','t3-turns','pricing'];
+    const codes = ['cache_snapshot','missing_source','missing_raw_logs','incomplete_usage','partial_history','unreadable_history','missing_counters','antigravity_without_counters','unattributed_model','unreported_subagents','unpriced_model','current_standard_prices','service_tier_premiums_omitted'];
+    const sources = ['t3-usage-cache','opencode-db','antigravity-db','t3-turns','pricing'], usage = sources.slice(0,4);
     const rules = {
-      cache_snapshot: [['t3-usage-cache'], true], missing_source: [sources.slice(0,3), true],
+      cache_snapshot: [['t3-usage-cache'], true], missing_source: [usage, true],
       missing_raw_logs: [['t3-usage-cache']], incomplete_usage: [['opencode-db','t3-turns']],
-      partial_history: [['opencode-db']], missing_counters: [['t3-turns']],
+      partial_history: [['opencode-db']], unreadable_history: [['antigravity-db']], missing_counters: [['t3-turns']],
       antigravity_without_counters: [['t3-turns']], unattributed_model: [['t3-turns']],
-      unreported_subagents: [['t3-turns']], unpriced_model: [sources.slice(0,3), false, true],
+      unreported_subagents: [['t3-turns']], unpriced_model: [usage, false, true],
       current_standard_prices: [['pricing'], true], service_tier_premiums_omitted: [['pricing'], true],
     };
     const seen = new Set();
@@ -841,9 +991,10 @@ function publishLocked(payload, config, configFile, { runner=spawnSync, rotate=f
     storeConfig(config,configFile,{...config,gistOwner:owner,pendingDeleteGistId:response.id,publication:verifying});
     requireThat(response.public===false,'Publish refused: created usage gist must be secret');
     requireThat(ownerLogin(response.owner?.login) && response.owner.login.toLowerCase()===owner.toLowerCase(),'GitHub returned an invalid gist owner');
+    // Signed in as the owner, this list also holds their secret gists (public: false), so only a public entry refuses.
     const pages=call(['api',`users/${owner}/gists`,'--paginate','--slurp']);
-    requireThat(Array.isArray(pages) && pages.every(page => Array.isArray(page) && page.every(g => gistId(g.id))), 'GitHub returned an invalid public gist list');
-    requireThat(!pages.flat().some(g => g.id.toLowerCase()===response.id.toLowerCase()),'Publish refused: created gist appears in the public list');
+    requireThat(Array.isArray(pages) && pages.every(page => Array.isArray(page) && page.every(g => gistId(g.id) && typeof g.public === 'boolean')), 'GitHub returned an invalid gist list');
+    requireThat(!pages.flat().some(g => g.id.toLowerCase()===response.id.toLowerCase() && g.public),'Publish refused: created gist appears in the public list');
     const next={key:intent.key,gistId:response.id,gistOwner:owner,projectDenylist:[...config.projectDenylist],publication:{...verifying,state:'promoted'}};
     if(oldId) next.pendingDeleteGistId=oldId;
     storeConfig(config,configFile,next);
