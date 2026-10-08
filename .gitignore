@@ -8,3 +8,10 @@ my-earlier-view.json
 # screenshots used by the workshop mock-ups
 mockups/shots/
 before.html
+tests/relative-artifacts/
+
+# Private local usage artifacts must never enter the public repository.
+usage/*.local.json
+usage/*.enc.json
+usage/*.testkey
+usage/.test-*/

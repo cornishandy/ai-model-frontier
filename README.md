@@ -55,18 +55,41 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - **Pareto frontier**: step or line, computed on what's visible. Styles: **Shade** (the default: tints the region the
   frontier beats), **Fade** (dims everything off the frontier), **Rings** (circles frontier points).
   Tick **all models** to compute the true frontier over every model; frontier models you haven't selected show as faint dots (click one to add it).
-- **Labels**: Auto (model names + effort tags where they fit, the default), Auto+ (also the top effort next to each name),
+- **Labels**: Auto (model names + effort tags where they fit, the default), Auto+ (each model's top dot also gets its effort
+  tag, placed like the other effort tags),
   **Ladder** (names in a column to the right of the plot, each joined to its line by a thin leader, like slopalytics.com;
   effort tags stay by the dots), Models, Every dot, None. When nothing fits beside a dot, Auto looks further out and draws a
   leader line to the label instead of overlapping another one. The halo that keeps labels readable over lines is thinner
   and translucent on dark themes (thick dark halos made light text look bloated on phones); `?halo=thick|thin|none`
   on the URL tries the alternatives.
+- **Values** (X / Y / Both) writes each dot's axis values beside it, placed to avoid other labels (with a leader line
+  when it has to move).
+- **Lines** through each model's effort levels: Off, Solid, Dashed or Dotted; older versions step one style lighter
+  (dashed, dotted, thin dashes). **Mark** puts a Hash, Ring or Square on one effort level of every line (or None).
+- **1.0 =** (beside each axis' scale): shows that axis relative to a reference, with ticks like 0.5×, 1×, 2×.
+  **Sweet spot** is the frontier's knee on the current scales: the shown frontier model farthest toward better-on-both
+  from the straight line joining the frontier's two ends (past it, each step buys less). If the frontier doesn't bend,
+  the chart says so instead of picking one, and it warns when the bend is slight. **Best** is the best shown value, **Median** the middle one, **Pinned** the first
+  pinned model still on the chart. The note above the chart names the reference model and its values; hover cards keep the
+  raw values and add the ratio.
+- **Pin and compare**: click a dot to pin it, then hover another: the hover card compares the two (the axes,
+  Intelligence Index, cost, tokens and time per task, with the ratio in green when the hovered model is better).
+- **Right-click** a dot, a Ladder name, or a model or lab in the list: show or hide that family or its lab, only it, all
+  but it, highlight it, reset or clear the selection. In **Ladder** labels, clicking a name highlights its line.
+  `/` jumps to the model search (Esc leaves it).
 - **Spotlight** (Pinned): the models you've pinned (click a dot) stay at full strength and every other model, line and
   label dims. Saved with sets.
 - The **axis pickers stay in view** while the page scrolls (on phones, under the header).
 - **Grid** (normal / faint / off), **Axis text** (normal / faint) and **Glow** (a soft halo around dots and lines in each model's color).
+- **Options layout**: five sections (Frontier, Labels, Guides, Look, Index). Click a filter's name to fold it down to its
+  current choice, and click that choice (or the name) to open it again; a section's name folds all its filters, and
+  Alt-click folds or opens every one. Folds are remembered per device; Grid, Axis text, Glow and Shape start folded.
+  `?tb=b` shows the sections as cards instead. In the sidebar, **Saved sets**, **Efforts shown** and **Models** fold
+  from their headings, leaving a one-line summary.
+- **Full width** (the ⤢ button in the header, or `?wide=1`): the chart takes the whole window and the models list opens
+  as a drawer from the **Models** button. Remembered per device.
 - **Theme**: Auto (follows the device), light (Paper, White, Sepia, Solarized Light, Catppuccin Latte, Gruvbox Light, Rosé Pine Dawn,
-  Colorblind-safe, High contrast) or dark (Graphite, Midnight, Black, Solarized Dark, Nord, Dracula, Gruvbox Dark, Catppuccin Mocha,
+  Sage, Mint, Lavender, Lilac, Colorblind-safe, High contrast) or dark (Graphite, Midnight, Black, Solarized Dark, Nord, Dracula, Gruvbox Dark, Catppuccin Mocha,
   Tokyo Night, One Dark, Rosé Pine, Monokai, Everforest, High contrast). Paper/White/Sepia and Graphite/Midnight/Black only change
   the surfaces; the others also recolor the labs (keeping each lab's hue) and the effort ramp. `?theme=nord` previews one.
 - **Models list**: Anthropic, OpenAI, Google and xAI (Grok) first and open; every other lab is in a collapsed
@@ -75,7 +98,12 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - `mockups/` holds the HTML mock-ups used in design workshops (open them in a browser); the screenshots they
   reference aren't committed.
 - **Lab colors**: Anthropic orange, OpenAI black (white on dark themes), Google blue, xAI green, then Alibaba, Meta, Z AI,
-  DeepSeek, Xiaomi; other labs grey.
+  DeepSeek, Xiaomi; other labs grey. Within a lab, each model line gets its own color from a band around the lab's hue,
+  stepped apart in lightness and hue for each theme (with a color-blind check), so Claude Opus, Sonnet, Fable and Haiku are
+  easy to tell apart; older versions share their line's color and draw dashed. `?famColors=shades` shows the old
+  lightness-only shades, `?famColors=wide` a wider hue band.
+- **Size picks** (Small / Medium / Large, beside the Models heading) add or remove the current small, mid-size or flagship
+  models of the big labs, leaving the rest of the selection alone.
 - **Hide older versions** (under the models list): leaves out a model once a newer version of it is out (Claude Opus 5
   once Opus 5.5 is; GPT-6 Sol once GPT-6.1 Sol is), a line that's a generation behind its brand (GPT-5.6 Terra, GPT-5.3
   Codex and GPT-5.5 Instant once GPT-6 is out; Claude 4.5 Haiku after Claude 5), and a line the lab has left behind for
@@ -160,11 +188,36 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   the providers' published monthly fees as of early October 2026 (openai.com/chatgpt/pricing, claude.com/pricing,
   gemini.google/subscriptions, x.ai, github.com/features/copilot/plans, cursor.com/pricing); edit the fee if yours differs.
 - **Guides**: hover (or pin by clicking) draws the rectangle from the point to both axes
-  with the exact values chipped on each axis. Modes: hover / pinned / frontier / all.
+  with the exact values chipped on each axis. Modes: hover / pinned / frontier / all; **X & Y / X / Y** draws the lines
+  to both axes or only one.
 - **Saved sets**: models + efforts + axes + display options, stored in localStorage;
   export/import as JSON. Built-in presets included.
-- Effort filter chips (alt/⌘-click to solo one effort), connect effort levels per model,
-  color by lab / effort / open-vs-closed, table view, SVG/PNG export.
+- Effort filter chips (alt/⌘-click to solo one effort), table view, SVG/PNG export.
+- **Color**: by lab, effort or open-vs-closed, or by value: **X value**, **Y value** or **Both** (how far toward the
+  better-on-both corner), on the axis' own scale so colors match the distances you see. Palettes: Viridis, Cividis (the
+  safest for color-blind readers), Magma, Plasma, One hue (the theme's accent) and Vs. median (diverging: one color on the
+  better side of the median, another on the worse side, grey at it). The strongest color is always the better end, and a
+  color bar runs along the axis.
+
+## Your usage (T3 Code)
+
+A card under Subscription math shows what your own use of each model in T3 Code would cost at API list prices: today, the
+last 7 and 30 days, this month (with the month-end pace), all time, per model / provider (/ project, if you opt in), day
+by day with spikes marked, what your subscriptions bought, an activity grid, and a relative index (1.0 = the period's
+daily average, your plan budget, the previous period, the top or median model, or a model you pick). The site and this repo are public, so the numbers never appear here in plain text:
+
+- `usage/collect.mjs` runs on the Mac (by hand, or hourly from the LaunchAgent template in `usage/`). It reads T3 Code's
+  local usage records read-only and keeps only aggregates: per day × model × provider, tokens, request counts and
+  API-equivalent cost, an all-time weekday × hour grid, and session counts. It never keeps prompts, messages, titles,
+  file paths or IDs; project folder names only with `--projects`.
+- It gzips and encrypts that (AES-256-GCM, a random key kept in `~/.config/ai-model-frontier/usage.json`, mode 0600) and
+  uploads only the ciphertext to a secret GitHub gist. `--rotate` makes a new key and gist and deletes the old one.
+- The page decrypts it in the browser. It learns the gist and key once, from an unlock link printed by
+  `node usage/collect.mjs --link` (the part after `#` never reaches a server), and keeps them in this browser's storage
+  only, not in saved sets or sync. **Forget on this device** removes them. Anyone with the link can read the numbers,
+  so treat it like a password.
+- Antigravity has no token counts in T3 Code yet, so its use isn't counted; a few models have no API price.
+  Details and commands: `usage/README.md`.
 
 ## Syncing between devices
 

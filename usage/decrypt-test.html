@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Usage encryption test</title>
+<style>body{font:18px system-ui,sans-serif;max-width:48rem;margin:3rem auto;padding:1rem;background:#f8fafc;color:#16302c}h1{font-size:1.6rem}pre{white-space:pre-wrap;background:#e8f4ee;padding:1rem;border-radius:12px}@media(prefers-color-scheme:dark){body{background:#17211e;color:#e8f4ee}pre{background:#263a31}}</style>
+<h1>Usage encryption test</h1>
+<pre id="result">Waiting for browser checks.</pre>
+<script>
+const decode = s => Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+async function decryptUsage(envelope, keyString) {
+  if (!isSecureContext) throw Error('Secure context required');
+  if (Object.keys(envelope).sort().join('|') !== 'alg|ct|iv|schema|zip' || envelope.schema !== 'aimf-usage-enc/1' || envelope.alg !== 'A256GCM' || envelope.zip !== 'gzip') throw Error('Unexpected envelope');
+  const rawKey=decode(keyString),iv=decode(envelope.iv),ct=decode(envelope.ct);
+  if (rawKey.length!==32 || iv.length!==12 || ct.length<=16) throw Error('Invalid encoding');
+  const key=await crypto.subtle.importKey('raw',rawKey,{name:'AES-GCM'},false,['decrypt']);
+  const compressed=await crypto.subtle.decrypt({name:'AES-GCM',iv,tagLength:128,additionalData:new TextEncoder().encode('aimf-usage-enc/1|A256GCM|gzip')},key,ct);
+  const reader=new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip')).getReader();
+  const chunks=[];let size=0;
+  try {
+    for (;;) {
+      const {done,value}=await reader.read();if(done)break;
+      size+=value.byteLength;
+      if(size>8*1024*1024){await reader.cancel();throw Error('Decompressed JSON exceeds 8 MiB');}
+      chunks.push(value);
+    }
+  } finally {reader.releaseLock();}
+  const plain=new Uint8Array(size);let offset=0;
+  for(const chunk of chunks){plain.set(chunk,offset);offset+=chunk.byteLength;}
+  const payload=JSON.parse(new TextDecoder().decode(plain));
+  if(payload.schema!=='aimf-usage/1')throw Error('Unexpected payload');
+  const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',plain)),x=>x.toString(16).padStart(2,'0')).join('');
+  return {digest,days:payload.days.length,models:payload.models.length,rows:payload.days.reduce((n,d)=>n+d.r.length,0)};
+}
+</script>
+</html>
