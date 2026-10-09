@@ -1825,10 +1825,10 @@
     // ?pin=). It isn't listed as an option of its own: each shown dot is, under "A model on the chart".
     model: {
       label: 'Model', title: '1.0 is the model and effort you pick, whatever you pin.', perModel: true,
-      pick: (points, axis) => {
+      pick: (points, axis, ctx) => {
         const m = refModel(S[axis + 'Rel']);
         if (!m) return { note: 'That model is no longer in the data.' };
-        const point = points.find((p) => p.m.family === m.family && p.m.effort === m.effort);
+        const point = points.find((p) => p.m === m) || ctx?.ghosts?.find((p) => p.m === m);
         if (point) return { value: point[axis + 'v'], point, model: point.m };
         // not on the chart (deselected or filtered out): 1.0 stays put, using the model's own value
         const value = m[S[axis]];
@@ -1845,8 +1845,21 @@
     },
   };
 
-  const refModel = (v) => { if (typeof v !== 'string' || !v.startsWith('model:')) return null; const [, fam, eff] = v.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff && !m.deprecated) || ALL.find((m) => m.family === fam && m.effort === eff) || null; };
-  const refKeyOf = (v) => refModel(v) ? 'model' : v, modelRef = (m) => `model:${m.family}:${m.effort}`;
+  // A model reference is model:<family>:<effort>, plus :<slug> when two models share both (Claude Sonnet 4.6 has two
+  // non-reasoning versions), so the choice always names one record. An older reference without the slug takes the
+  // current one of the pair.
+  let pairCounts = null, pairCountsOf = null;
+  const sharesPair = (m) => {
+    if (pairCountsOf !== ALL) { pairCounts = new Map(); for (const x of ALL) pairCounts.set(x.family + ':' + x.effort, (pairCounts.get(x.family + ':' + x.effort) || 0) + 1); pairCountsOf = ALL; }
+    return pairCounts.get(m.family + ':' + m.effort) > 1;
+  };
+  const modelRef = (m) => `model:${m.family}:${m.effort}` + (sharesPair(m) ? `:${m.slug}` : '');
+  const refModel = (v) => {
+    if (typeof v !== 'string' || !v.startsWith('model:')) return null;
+    const [, fam, eff, slug] = v.split(':'), ms = ALL.filter((m) => m.family === fam && m.effort === eff);
+    return slug ? ms.find((m) => m.slug === slug) || null : ms.find((m) => !m.deprecated) || ms[0] || null;
+  };
+  const refKeyOf = (v) => refModel(v) ? 'model' : v;
   const refName = (m) => m.label.replace(/ \((.+)\)$/, ' $1'); // "Claude Opus 5.5 (xhigh)" -> "Claude Opus 5.5 xhigh"
   const refWord = (ref) => ref.key === 'model' ? refName(ref.model) : REF_DEFS[ref.key].label.toLowerCase();
 
@@ -1878,7 +1891,8 @@
     S.xScale = scaleFor(S.x, S.xScale); S.yScale = scaleFor(S.y, S.yScale);
     for (const axis of ['x', 'y']) {
       const rel = S[axis + 'Rel'];
-      if (refModel(rel) ? false : !Object.hasOwn(REF_DEFS, rel) || REF_DEFS[rel].perModel) S[axis + 'Rel'] = 'off';
+      if (refModel(rel)) S[axis + 'Rel'] = modelRef(refModel(rel)); // the exact form (an older one may lack the slug)
+      else if (!Object.hasOwn(REF_DEFS, rel) || REF_DEFS[rel].perModel) S[axis + 'Rel'] = 'off';
       if (S[axis + 'Rel'] !== 'off' && S[axis + 'Scale'] === 'logit') S[axis + 'Scale'] = 'linear';
     }
   }
@@ -2145,7 +2159,7 @@
   const medianOf = (values) => { const vs = values.slice().sort((a, b) => a - b), n = vs.length; return n % 2 ? vs[(n - 1) / 2] : (vs[n / 2 - 1] + vs[n / 2]) / 2; };
   function relativeMetric(metric, points, axis, ctx) {
     const key = refKeyOf(S[axis + 'Rel']), def = REF_DEFS[key];
-    if (key === 'off') return metric;
+    if (key === 'off' || !def) return metric;
     const ref = def.pick(points, axis, ctx);
     const why = ref?.note || (!Number.isFinite(ref?.value) ? 'This reference is missing or not finite, so there is nothing to divide by.' : ref.value <= 0 ? `This reference is ${metric.fmt(ref.value)}, so ${ref.value === 0 ? 'there is nothing to divide by' : 'a positive value is needed'}.` : points.some((p) => !Number.isFinite(p[axis + 'v'] / ref.value)) ? 'The reference is too small to form finite ratios.' : '');
     if (why) { ctx.notes.push(`${axis.toUpperCase()}: ${why} Original units shown.`); return metric; }
@@ -2549,7 +2563,7 @@
     const ms = [...new Map(points.map((p) => [modelRef(p.m), p.m])).values()].sort((a, b) => a.familyName.localeCompare(b.familyName) || a.effortLevel - b.effortLevel);
     const opt = (m) => `<option value="${esc(modelRef(m))}">${esc(refName(m))}</option>`;
     for (const axis of ['x', 'y']) {
-      const sel = $(axis + 'Rel'), chosen = refModel(S[axis + 'Rel']), gone = chosen && !ms.some((m) => modelRef(m) === S[axis + 'Rel']);
+      const sel = $(axis + 'Rel'), chosen = refModel(S[axis + 'Rel']), gone = chosen && !ms.includes(chosen);
       sel.innerHTML = fixed + (ms.length ? `<optgroup label="A model on the chart">${ms.map(opt).join('')}</optgroup>` : '') + (gone ? `<optgroup label="Not on the chart">${opt(chosen)}</optgroup>` : '');
     }
     syncRelativeControls();
@@ -2890,7 +2904,7 @@
       if (okX && okY) points.push({ m, xv, yv }); else missing.push(m);
     }
     // Frontier membership and the sweet spot are decided before any division, using only shown models for references.
-    const rawFront = paretoFront(points), refCtx = { front: rawFront, knee: kneeOf(rawFront), notes: [] };
+    const rawFront = paretoFront(points), refCtx = { front: rawFront, knee: kneeOf(rawFront), notes: [], ghosts: [] };
     const sweetRef = REF_DEFS.sweet.pick(points, 'x', refCtx), knee = sweetRef?.point || null;
     let front = [], ghosts = [], inScale = [];
     if (points.length && S.pareto !== 'off') {
@@ -2904,6 +2918,7 @@
         inScale = ghosts.filter((p) => yLow ? p.yv <= Math.max(...ys) : p.yv >= Math.min(...ys));
       } else front = paretoFront(points);
     }
+    refCtx.ghosts = inScale; // the faint frontier dots that get drawn (a model reference may be one of them)
     X = relativeMetric(X, points, 'x', refCtx); Y = relativeMetric(Y, points, 'y', refCtx);
     if (X.ref?.key === 'sweet' && Y.ref?.key === 'sweet' && X.ref.point === Y.ref.point) refCtx.notes = [refCtx.notes[0].replace(/^X: 1.0 =/, '1.0 on both axes =')];
     for (const p of points.concat(ghosts)) { p.rawX = p.xv; p.rawY = p.yv; if (X.ref) p.xv /= X.ref.value; if (Y.ref) p.yv /= Y.ref.value; }
@@ -2965,7 +2980,7 @@
     for (const p of points.concat(ghosts)) p.color = ramp ? ramp.f(valueU(p)) : colorOf(p.m);
     const visibleGhosts = inScale;
     lastPoints = points; lastGhosts = visibleGhosts; lastGeom = { M, PW, PH, sx, sy, W, H, T, diamond, xWorse, yWorse, xBest, yBest, X, Y };
-    fillRelativeOptions(points);
+    fillRelativeOptions(points.concat(visibleGhosts));
     if (visibleGhosts.length) $('chartNote').textContent = [`${visibleGhosts.length} frontier model${visibleGhosts.length > 1 ? 's' : ''} you haven't selected ${visibleGhosts.length > 1 ? 'are' : 'is'} shown faint — click one to add it.`, $('chartNote').textContent].filter(Boolean).join(' · ');
 
     // grid + ticks (dropping any that would crowd their neighbours on a narrow chart)
@@ -3052,7 +3067,7 @@
     // pareto
     const segs = []; // line segments labels should avoid
     const frontSet = new Set(front.map((p) => p.m.id));
-    const zoneLayer = svgEl('g', { 'clip-path': `url(#${clipId})` }); plot.append(zoneLayer);
+    const zoneLayer = svgEl('g', { class: 'zone-layer', 'clip-path': `url(#${clipId})` }); plot.append(zoneLayer);
     const zone = S.zone === 'off' ? null : drawZone({ points, front, rawFront, knee, kneeNote: sweetRef?.note, kneeGap: sweetRef?.gap, X, Y, sx, sy, T, pts, M, PW, PH, xBest, xWorse, yBest, yWorse, defs, layer: zoneLayer, C });
     if (zone?.note) $('chartNote').textContent = [zone.note, $('chartNote').textContent].filter(Boolean).join(' · ');
     const refLayer = svgEl('g', { 'clip-path': `url(#${clipId})`, 'pointer-events': 'none' }); plot.append(refLayer);
@@ -4867,9 +4882,9 @@
   }
   // from the model list: any effort of the family can be 1.0 on both axes, even one that isn't on the chart
   function familyRefItems(fam) {
-    const ms = [...new Map(ALL.filter((m) => m.family === fam).sort((a, b) => a.deprecated - b.deprecated).map((m) => [m.effort, m])).values()].sort((a, b) => a.effortLevel - b.effortLevel);
-    return [...ms.map((m) => { const ref = modelRef(m), both = S.xRel === ref && S.yRel === ref;
-      return [both ? `${EFFORT_LABEL[m.effort]} is 1.0 on both axes` : `Use ${EFFORT_LABEL[m.effort]} as 1.0 on both axes`, () => { S.xRel = S.yRel = ref; markDirty(); syncControls(); save(); render(); }, true, both]; }), '-'];
+    const ms = ALL.filter((m) => m.family === fam).sort((a, b) => a.effortLevel - b.effortLevel || a.deprecated - b.deprecated);
+    return [...ms.map((m) => { const ref = modelRef(m), both = S.xRel === ref && S.yRel === ref, name = sharesPair(m) ? m.label.match(/\((.+)\)$/)?.[1] || m.label : EFFORT_LABEL[m.effort];
+      return [both ? `${name} is 1.0 on both axes` : `Use ${name} as 1.0 on both axes`, () => { S.xRel = S.yRel = ref; markDirty(); syncControls(); save(); render(); }, true, both]; }), '-'];
   }
   ctx.addEventListener('click', (e) => {
     const b = e.target.closest('.ctx-item'); if (!b) return;
@@ -5125,7 +5140,7 @@
       S.selected = new Set([...S.selected].filter((id) => BY_ID.has(id)));
       S.pinned = new Set([...S.pinned].filter((id) => BY_ID.has(id)));
       if (!S.selected.size) S.selected = new Set(theoSelection());
-      save(); renderMetricMenus(); renderList(); render(); renderAgents(); renderUsage(); checkNews();
+      syncControls(); save(); renderList(); render(); renderAgents(); renderUsage(); checkNews();
       showMeta((!changed ? 'checked · no changes' : why ? 'updated from the site\'s own copy' : 'updated') + (before.size && added ? ` · ${added} new model${added > 1 ? 's' : ''}` : '') +
         (why ? ` · ${why}` : '') + (saved ? '' : ' · shown until you close the page (this browser wouldn\'t save it)'), !!why);
     } catch (err) {

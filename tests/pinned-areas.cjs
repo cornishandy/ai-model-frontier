@@ -4,7 +4,7 @@
 const { chromium } = require(process.env.PLAYWRIGHT_PATH || '/tmp/pw/node_modules/playwright');
 const assert = require('node:assert/strict');
 const origin = process.env.FRONTIER_URL || 'http://localhost:8780/index.html';
-const hook = 'window.__t = {S, render, snapshot, applySet, fixAxes, syncControls, get geom(){return lastGeom}, get points(){return lastPoints}};';
+const hook = 'window.__t = {S, render, snapshot, applySet, fixAxes, syncControls, ALL: () => ALL, get geom(){return lastGeom}, get points(){return lastPoints}, get ghosts(){return lastGhosts}};';
 const OPUS = 'model:claude-opus-5-5:xhigh';
 
 (async () => {
@@ -115,11 +115,15 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
   await scenario('Good zone None draws no area; Beats pinned keeps its lines; Model colour per pin', '?theme=light&zone=beats&pin=claude-opus-5-5:xhigh,gpt-6-sol:high', async (page) => {
     const set = (k, v) => ev(page, ([k, v]) => { __t.S[k] = v; __t.render(); }, [k, v]);
     await set('zoneStyle', 'none');
-    let r = await ev(page, () => ({ polys: document.querySelectorAll('#chart g[clip-path] > polygon').length, legend: document.querySelector('#legend').textContent, sw: document.querySelector('.legend i.zone-sw')?.getAttribute('style') }));
+    let r = await ev(page, () => ({ polys: document.querySelectorAll('#chart .zone-layer polygon, #chart .zone-layer circle[r="30"]').length, legend: document.querySelector('#legend').textContent, sw: document.querySelector('.legend i.zone-sw')?.getAttribute('style') }));
     assert.match(r.legend, /better than a pinned model/); assert.match(r.sw, /repeating-linear-gradient/);
+    assert.equal(r.polys, 0, 'None draws no zone area');
     const lines = await ev(page, () => [...document.querySelectorAll('line[stroke-dasharray="3 4"]')].length);
     assert.ok(lines >= 4, `two lines per pin (${lines})`);
-    for (const z of ['quadrant', 'near', 'top', 'knee', 'diagonal']) { await set('zone', z); const html = await ev(page, () => document.querySelector('#chart').innerHTML); assert.ok(!/fill="undefined"|style="undefined"/.test(html), z); }
+    for (const z of ['quadrant', 'near', 'top', 'knee', 'diagonal']) {
+      await set('zone', z); const r2 = await ev(page, () => ({ html: document.querySelector('#chart').innerHTML, polys: document.querySelectorAll('#chart .zone-layer polygon, #chart .zone-layer circle[r="30"]').length }));
+      assert.ok(!/fill="undefined"|style="undefined"/.test(r2.html), z); assert.equal(r2.polys, 0, `${z}: no area under None`);
+    }
     await set('zone', 'beats'); await set('zoneStyle', 'hatch'); await set('zoneColor', 'model');
     r = await ev(page, () => [...document.querySelectorAll('pattern[id^="zoneHatch"]')].map((p) => p.firstChild.getAttribute('stroke')));
     assert.equal(r.length, 2); assert.notEqual(r[0], r[1]);
@@ -129,16 +133,67 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
   });
 
   await scenario('Values: frontier only', '?theme=light&valueLabels=y', async (page) => {
-    const count = () => ev(page, () => [...document.querySelectorAll('#chart text tspan, #chart text')].filter((t) => /^\d+\.\d$/.test(t.textContent.trim().split(' · ').pop())).length);
+    const count = () => ev(page, () => [...document.querySelectorAll('#chart text[data-fam]')].filter((t) => /^\d+\.\d$/.test(t.textContent.trim().split(' · ').pop())).length);
     const all = await count();
     await page.locator('#valueFront').check();
     const front = await count(), size = null;
     assert.ok(front > 0 && front < all, `${front} of ${all}`);
+    // every value label sits on a family with a Pareto-frontier dot (cost low, score high), and never on a faint dot
+    const check = () => ev(page, () => {
+      const ps = __t.points, front = ps.filter((p) => !ps.some((q) => q !== p && q.xv <= p.xv && q.yv >= p.yv && (q.xv < p.xv || q.yv > p.yv)));
+      const fams = new Set(front.map((p) => p.m.family)), ghostOnly = new Set(__t.ghosts.map((p) => p.m.family).filter((f) => !ps.some((p) => p.m.family === f)));
+      const labels = [...document.querySelectorAll('#chart text[data-fam]')].filter((t) => /^\d+\.\d$/.test(t.textContent.trim().split(' · ').pop())).map((t) => t.getAttribute('data-fam'));
+      return { labels: labels.length, bad: labels.filter((f) => !fams.has(f) || ghostOnly.has(f)) };
+    });
+    let c = await check(); assert.deepEqual(c.bad, []); assert.ok(c.labels > 0);
+    await ev(page, () => { __t.S.fullFrontier = true; __t.render(); });
+    c = await check(); assert.deepEqual(c.bad, [], 'with all models, still only shown frontier dots');
+    await ev(page, () => { __t.S.fullFrontier = false; __t.render(); });
     await page.locator('#paretoSeg [data-v="off"]').click();
     assert.equal(await count(), front, 'with Pareto off, values follow the shown models\' frontier');
     await page.locator('#valueSeg [data-v="off"]').click();
     assert.equal(await page.locator('#valueFrontLabel').isVisible(), false);
     void size;
+  });
+
+  await scenario('two models with the same family and effort are told apart', '?theme=light&x=priceBlended&y=intelligence', async (page) => {
+    const r = await ev(page, () => {
+      const pair = __t.ALL().filter((m) => m.family === 'claude-sonnet-4-6' && m.effort === 'non-reasoning');
+      if (pair.length < 2) return { skip: true };
+      __t.S.showDeprecated = true; for (const m of pair) __t.S.selected.add(m.id); __t.render();
+      const opts = [...document.querySelectorAll('#yRel option')].filter((o) => o.value.startsWith('model:claude-sonnet-4-6:non-reasoning'));
+      const out = {};
+      for (const o of opts) { __t.S.yRel = o.value; __t.render(); const m = pair.find((x) => o.value.endsWith(':' + x.slug)); const p = __t.points.find((q) => q.m === m); out[o.textContent] = p ? p.yv : null; }
+      return { opts: opts.map((o) => o.value), out };
+    });
+    if (r.skip) { console.log('  (skipped: not in this data)'); return; }
+    assert.equal(r.opts.length, 2); assert.notEqual(r.opts[0], r.opts[1]);
+    for (const [name, v] of Object.entries(r.out)) assert.ok(Math.abs(v - 1) < 1e-9, `${name} is 1.0 when picked (${v})`);
+  });
+
+  await scenario('an update that drops the reference model falls back to Off', `?theme=light&xRel=${OPUS}`, async (page) => {
+    await ev(page, () => {
+      const next = JSON.parse(JSON.stringify(window.AA_DATA));
+      next.models = next.models.filter((m) => !(m.family === 'claude-opus-5-5' && m.effort === 'xhigh'));
+      next.scrapedAt = new Date().toISOString();
+      window.AAData.scrape = async () => next;
+    });
+    await page.locator('#updateData').click();
+    await page.waitForFunction(() => !document.querySelector('#updateData').disabled);
+    const r = await ev(page, () => ({ rel: __t.S.xRel, kids: document.querySelector('#chart').childElementCount, ref: __t.geom?.X.ref }));
+    assert.equal(r.rel, 'off'); assert.ok(r.kids > 0); assert.equal(r.ref, undefined);
+  });
+
+  await scenario('a faint frontier dot can be 1.0 and counts as on the chart', '?theme=light&fullFrontier=1&xScale=log', async (page) => {
+    const r = await ev(page, () => {
+      const g = __t.ghosts[0]; if (!g) return { skip: true };
+      const ref = [...document.querySelectorAll('#xRel optgroup[label="A model on the chart"] option')].find((o) => o.textContent === g.m.label.replace(/ \((.+)\)$/, ' $1'))?.value;
+      __t.S.xRel = ref; __t.render();
+      return { ref, key: __t.geom.X.ref?.key, off: __t.geom.X.ref?.offChart, note: document.querySelector('#relativeNote').textContent, x: __t.ghosts.find((p) => p.m === g.m)?.xv };
+    });
+    if (r.skip) { console.log('  (skipped: not in this data)'); return; }
+    assert.ok(r.ref, 'the faint dot is listed'); assert.equal(r.key, 'model'); assert.ok(!r.off); assert.doesNotMatch(r.note, /isn’t on the chart/);
+    assert.ok(Math.abs(r.x - 1) < 1e-9);
   });
 
   await scenario('phone: the 1.0 list shows a model name', `?theme=dark&xRel=${OPUS}`, async (page) => {
