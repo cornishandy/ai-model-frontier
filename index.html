@@ -44,7 +44,7 @@
     --e-high: #1c5cab; --e-xhigh: #104281; --e-max: #0d366b; --e-none: #c3c2b7;
   }
   @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"]):not([data-theme="white"]):not([data-theme="sepia"]):not([data-theme="solarized-light"]):not([data-theme="latte"]):not([data-theme="gruvbox-light"]):not([data-theme="dawn"]):not([data-theme="colorblind"]):not([data-theme="contrast-light"]):not([data-theme="sage"]):not([data-theme="mint"]):not([data-theme="lavender"]):not([data-theme="lilac"])) {
+    :root:where(:not([data-theme="light"]):not([data-theme="white"]):not([data-theme="sepia"]):not([data-theme="solarized-light"]):not([data-theme="latte"]):not([data-theme="gruvbox-light"]):not([data-theme="dawn"]):not([data-theme="colorblind"]):not([data-theme="contrast-light"]):not([data-theme="sage"]):not([data-theme="mint"]):not([data-theme="lavender"]):not([data-theme="lilac"]):not([data-theme="ws-salmon"]):not([data-theme="ws-newsprint"]):not([data-theme="ws-neutral"]):not([data-theme="ws-mist"]):not([data-theme="ws-oat"]):not([data-theme="ws-stone"])) {
       color-scheme: dark;
       --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
       --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --hover: rgba(255, 255, 255, 0.06);
@@ -237,6 +237,80 @@
     --e-minimal: #284f73; --e-low: #386d9e; --e-medium: #4a90d1; --e-default: #5ab0ff; --e-high: #93c5ff; --e-xhigh: #bbd8ff; --e-max: #d7e7ff; --e-none: #555555;
   }
 
+  /* New themes, being tried out (Oct 2026 workshop): four directions, two themes each. Each one sets its own page,
+     sidebar and header colours (--side, --head, --head-rule), section-name colour (--kicker), card lift (--card-shadow)
+     and pill styles, and its own lab colours: Paper's lab hues at a lightness that clears 3:1 on its surface, page and sidebar,
+     placed so the labs stay as far apart as possible (Anthropic's orange moves least). Text clears 7:1 (ink) and 4.5:1. */
+  :root[data-theme="ws-salmon"] { /* Salmon: financial-paper pink, claret section names, Oxford-blue links */
+    color-scheme: light;
+    --page: #fff1e5; --surface: #fff8f1; --side: #fbe9da; --head: #fff1e5; --ink: #33302e; --ink-2: #58514c; --muted: #6c645e;
+    --grid: #efe0d2; --axis: #cbbcae; --border: rgba(51, 48, 46, 0.15); --hover: rgba(51, 48, 46, 0.06); --accent: #0f5499;
+    --s1: #3078d1; --s2: #e0571a; --s3: #009465; --s4: #b17700; --s5: #c66288; --s6: #007400; --s7: #4a3da3; --s8: #d22d33; --other: #837d7a;
+    --e-minimal: #9ec1eb; --e-low: #6fa2de; --e-medium: #407fc8; --e-default: #2d6db4; --e-high: #1f5c9d; --e-xhigh: #0a427b; --e-max: #00305f; --e-none: #cbbcae;
+    --track: rgba(110, 70, 40, 0.09); --pill: #fffbf7; --pill-edge: rgba(51, 48, 46, 0.18); --pill-shade: rgba(90, 50, 20, 0.14);
+    --head-rule: 1px solid rgba(51, 48, 46, 0.35); --kicker: #990f3d;
+  }
+  :root[data-theme="ws-newsprint"] { /* Newsprint: white newsprint, black rules, one red accent */
+    color-scheme: light;
+    --page: #f6f6f3; --surface: #ffffff; --side: #f6f6f3; --head: #ffffff; --ink: #121212; --ink-2: #3d3d3d; --muted: #5e5e5e;
+    --grid: #e4e4e1; --axis: #a9a9a6; --border: rgba(18, 18, 18, 0.15); --hover: rgba(18, 18, 18, 0.05); --accent: #c40d08;
+    --s1: #3078d1; --s2: #e55c21; --s3: #059d6c; --s4: #b37900; --s5: #ce6990; --s6: #007800; --s7: #4a3da3; --s8: #cd262e; --other: #858483;
+    --e-minimal: #ffa193; --e-low: #f4705f; --e-medium: #de3427; --e-default: #c8160f; --e-high: #ad0000; --e-xhigh: #820000; --e-max: #610000; --e-none: #a9a9a6;
+    --track: rgba(18, 18, 18, 0.065); --pill: #ffffff; --pill-edge: rgba(18, 18, 18, 0.28); --pill-shade: rgba(0, 0, 0, 0.08);
+    --head-rule: 3px double #121212; --kicker: #c40d08;
+  }
+  :root[data-theme="ws-neutral"] { /* Neutral: pure neutral greys, white cards with a soft lift, blue accent */
+    color-scheme: light;
+    --page: #f1f1f1; --surface: #ffffff; --side: #ffffff; --head: #ffffff; --ink: #171717; --ink-2: #454545; --muted: #636363;
+    --grid: #ebebeb; --axis: #c4c4c4; --border: rgba(0, 0, 0, 0.1); --hover: rgba(0, 0, 0, 0.04); --accent: #0062d1;
+    --s1: #3078d1; --s2: #e45a1f; --s3: #009969; --s4: #b17700; --s5: #d1618d; --s6: #007600; --s7: #4a3da3; --s8: #c43335; --other: #828280;
+    --e-minimal: #94c0ff; --e-low: #5f9ffa; --e-medium: #2579ea; --e-default: #0866d5; --e-high: #0055b8; --e-xhigh: #003e8a; --e-max: #002d68; --e-none: #c4c4c4;
+    --track: rgba(0, 0, 0, 0.06); --pill: #ffffff; --pill-edge: rgba(0, 0, 0, 0.13); --pill-shade: rgba(0, 0, 0, 0.09);
+    --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03);
+  }
+  :root[data-theme="ws-mist"] { /* Mist: cool blue-grey app chrome, white cards, indigo accent */
+    color-scheme: light;
+    --page: #fbfbfd; --surface: #ffffff; --side: #ebeef5; --head: #ebeef5; --ink: #1b1c22; --ink-2: #454956; --muted: #5f6372;
+    --grid: #e9ebf1; --axis: #c2c6d2; --border: rgba(30, 34, 60, 0.10); --hover: rgba(30, 34, 60, 0.045); --accent: #5552d1;
+    --s1: #3078d1; --s2: #d95e2d; --s3: #009666; --s4: #b17700; --s5: #c8638a; --s6: #007900; --s7: #4a3da3; --s8: #d22d33; --other: #7d7e86;
+    --e-minimal: #afb7ff; --e-low: #8a92fb; --e-medium: #6869ea; --e-default: #5856d6; --e-high: #4a45bc; --e-xhigh: #352e95; --e-max: #261d75; --e-none: #c2c6d2;
+    --track: rgba(40, 46, 90, 0.075); --pill: #ffffff; --pill-edge: rgba(30, 34, 60, 0.10); --pill-shade: rgba(30, 34, 80, 0.16);
+    --card-shadow: 0 1px 3px rgba(30, 34, 70, 0.07), 0 4px 14px rgba(30, 34, 70, 0.04);
+  }
+  :root[data-theme="ws-oat"] { /* Oat: oat and linen, warm soft ink, terracotta accent */
+    color-scheme: light;
+    --page: #ebe4d8; --surface: #f9f6f0; --side: #f3eee5; --head: #f3eee5; --ink: #2c2823; --ink-2: #544d45; --muted: #686057;
+    --grid: #e8e1d5; --axis: #c9bfb0; --border: rgba(60, 45, 30, 0.12); --hover: rgba(60, 45, 30, 0.05); --accent: #a3482a;
+    --s1: #3078d1; --s2: #db4e00; --s3: #008f62; --s4: #a66f00; --s5: #c65884; --s6: #006a00; --s7: #4a3da3; --s8: #be0f22; --other: #7f7973;
+    --e-minimal: #e7af9d; --e-low: #d5886f; --e-medium: #bc5f40; --e-default: #a84d2f; --e-high: #923d21; --e-xhigh: #70280e; --e-max: #561903; --e-none: #c9bfb0;
+    --track: rgba(80, 60, 35, 0.08); --pill: #fcfaf6; --pill-edge: rgba(60, 45, 30, 0.12); --pill-shade: rgba(70, 50, 25, 0.13);
+  }
+  :root[data-theme="ws-stone"] { /* Stone: cool limestone grey, moss accent */
+    color-scheme: light;
+    --page: #e3e6e0; --surface: #f6f7f4; --side: #edefea; --head: #edefea; --ink: #22261f; --ink-2: #4a5046; --muted: #5f655b;
+    --grid: #e2e5de; --axis: #bfc4b9; --border: rgba(35, 40, 30, 0.12); --hover: rgba(35, 40, 30, 0.05); --accent: #4c6a32;
+    --s1: #3078d1; --s2: #db4e00; --s3: #008f62; --s4: #a66f00; --s5: #c65884; --s6: #006a00; --s7: #4a3da3; --s8: #be0f22; --other: #767a73;
+    --e-minimal: #b2c5a4; --e-low: #8ea87a; --e-medium: #69894f; --e-default: #58773e; --e-high: #486530; --e-xhigh: #334b1d; --e-max: #233710; --e-none: #bfc4b9;
+    --track: rgba(35, 45, 30, 0.08); --pill: #fbfbf9; --pill-edge: rgba(35, 40, 30, 0.12); --pill-shade: rgba(30, 40, 25, 0.13);
+  }
+  :root[data-theme="ws-observatory"] { /* Observatory: deep navy, brass-gold accent, luminous lab colours */
+    color-scheme: dark;
+    --page: #070c18; --surface: #0e1628; --side: #0a1120; --head: #0a1120; --ink: #e9eef7; --ink-2: #b7c2d5; --muted: #8f9cb3;
+    --grid: #1a253d; --axis: #2d3c5a; --border: rgba(180, 200, 255, 0.12); --hover: rgba(180, 200, 255, 0.07); --accent: #e8bd62;
+    --s1: #4290ef; --s2: #e36230; --s3: #3db586; --s4: #da9525; --s5: #e05b8b; --s6: #2b9927; --s7: #a298fe; --s8: #ff8684; --other: #686c73;
+    --e-minimal: #6d5005; --e-low: #876613; --e-medium: #a37d20; --e-default: #b88e2f; --e-high: #cba555; --e-xhigh: #dcbd7c; --e-max: #ecd5a6; --e-none: #2d3c5a;
+    --track: rgba(180, 200, 255, 0.075); --pill: #202c47; --pill-edge: rgba(190, 210, 255, 0.12); --pill-shade: rgba(0, 0, 0, 0.5);
+  }
+  :root[data-theme="ws-aubergine"] { /* Aubergine: deep plum, apricot accent, warm ink */
+    color-scheme: dark;
+    --page: #140c13; --surface: #20141e; --side: #190f18; --head: #190f18; --ink: #f6eef4; --ink-2: #d2c1cd; --muted: #a8969f;
+    --grid: #30212f; --axis: #4a3647; --border: rgba(255, 220, 240, 0.12); --hover: rgba(255, 220, 240, 0.07); --accent: #f0a575;
+    --s1: #4290ef; --s2: #e36230; --s3: #3db586; --s4: #da9525; --s5: #e05b8b; --s6: #2b9927; --s7: #a298fe; --s8: #ff8684; --other: #726b70;
+    --e-minimal: #784726; --e-low: #955c35; --e-medium: #b47144; --e-default: #ca8152; --e-high: #dc996f; --e-xhigh: #ecb38f; --e-max: #f8cdb3; --e-none: #4a3647;
+    --track: rgba(255, 220, 240, 0.075); --pill: #3a2837; --pill-edge: rgba(255, 225, 245, 0.12); --pill-shade: rgba(0, 0, 0, 0.5);
+  }
+  /* end of the new themes */
+
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { margin: 0; height: 100%; }
@@ -247,7 +321,7 @@
   }
   header {
     grid-column: 1 / -1; display: flex; align-items: center; gap: 16px;
-    padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);
+    padding: 12px 20px; border-bottom: var(--head-rule, 1px solid var(--border)); background: var(--head, var(--surface));
   }
   header h1 { font-size: 16px; margin: 0; font-weight: 600; }
   header .sub-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
@@ -291,10 +365,10 @@
   .seg button:focus-visible, .glabel:focus-visible, .sec-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   aside {
-    border-right: 1px solid var(--border); background: var(--surface);
+    border-right: 1px solid var(--border); background: var(--side, var(--surface));
     overflow-y: auto; padding: 14px 14px 40px; display: flex; flex-direction: column; gap: 16px;
   }
-  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--kicker, var(--muted)); margin: 0 0 8px; font-weight: 600; }
   .side-section h2 { margin-bottom: 8px; }
   .section-toggle {
     display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; padding: 0;
@@ -388,7 +462,7 @@
      grid, one group per line with the labels aligned. Phones stack the sections, labels in a column. */
   #opts { display: block; }
   #opts .opt-sec { min-width: 0; }
-  #opts .sec-title { margin: 0; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+  #opts .sec-title { margin: 0; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--kicker, var(--ink-2)); white-space: nowrap; }
   #opts .sec-btn, #opts .glabel { border: 0; border-radius: 4px; padding: 0; background: none; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; }
   #opts .sec-btn:hover, #opts button.glabel:hover { background: none; color: var(--ink); text-decoration: underline dotted; text-underline-offset: 3px; }
   #opts .sec-body { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; min-width: 0; }
@@ -448,7 +522,7 @@
   #opts .group.folded > :not(.glabel, select) { cursor: pointer; }
   .relative-note { margin: 6px 0 8px; color: var(--ink-2); line-height: 1.45; }
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 10px; position: relative; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 10px; position: relative; box-shadow: var(--card-shadow, none); }
   .card h3 { margin: 0; font-size: 15px; font-weight: 600; }
   .card .sub { color: var(--ink-2); font-size: 12px; margin: 2px 0 8px; }
   .card .desc { color: var(--ink-2); font-size: 12px; margin: -4px 0 8px; max-width: 1000px; line-height: 1.45; }
@@ -681,7 +755,7 @@
     }
     body.wide.sheet-open aside { transform: none; }
     body.wide.sheet-open { overflow: hidden; }
-    body.wide .sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: -14px; z-index: 1; background: var(--surface); margin: 0 -14px; padding: 8px 14px 10px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    body.wide .sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: -14px; z-index: 1; background: var(--side, var(--surface)); margin: 0 -14px; padding: 8px 14px 10px; border-bottom: 1px solid var(--border); font-weight: 600; }
   }
   @media (min-width: 861px) and (max-width: 1199px) {
     header h1 { white-space: nowrap; }
@@ -761,7 +835,7 @@
     body.sheet-open { overflow: hidden; }
     .sheet-head {
       display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1;
-      background: var(--surface); padding: 12px 0 10px; margin-bottom: -6px; border-bottom: 1px solid var(--border); font-weight: 600;
+      background: var(--side, var(--surface)); padding: 12px 0 10px; margin-bottom: -6px; border-bottom: 1px solid var(--border); font-weight: 600;
     }
   }
 </style>
@@ -904,6 +978,7 @@
           <option value="system">Auto (match device)</option>
           <optgroup label="Light"><option value="light">Paper</option><option value="white">White</option><option value="sepia">Sepia</option><option value="solarized-light">Solarized Light</option><option value="latte">Catppuccin Latte</option><option value="gruvbox-light">Gruvbox Light</option><option value="dawn">Rosé Pine Dawn</option><option value="sage">Sage</option><option value="mint">Mint</option><option value="lavender">Lavender</option><option value="lilac">Lilac</option><option value="colorblind">Colorblind-safe (light)</option><option value="contrast-light">High contrast (light)</option></optgroup>
           <optgroup label="Dark"><option value="dark">Graphite</option><option value="midnight">Midnight</option><option value="black">Black</option><option value="solarized-dark">Solarized Dark</option><option value="nord">Nord</option><option value="dracula">Dracula</option><option value="gruvbox-dark">Gruvbox Dark</option><option value="mocha">Catppuccin Mocha</option><option value="tokyo">Tokyo Night</option><option value="onedark">One Dark</option><option value="rosepine">Rosé Pine</option><option value="monokai">Monokai</option><option value="everforest">Everforest</option><option value="contrast-dark">High contrast (dark)</option></optgroup>
+          <optgroup label="New (trying out)"><option value="ws-salmon">Salmon (editorial)</option><option value="ws-newsprint">Newsprint (editorial)</option><option value="ws-neutral">Neutral (product)</option><option value="ws-mist">Mist (product)</option><option value="ws-oat">Oat (soft)</option><option value="ws-stone">Stone (soft)</option><option value="ws-observatory">Observatory (dark)</option><option value="ws-aubergine">Aubergine (dark)</option></optgroup>
         </select></div>
         <div class="group" data-g="grid"><button type="button" class="glabel" title="Background grid lines at each axis tick">Grid</button><div class="seg" id="gridSeg"><button data-v="normal" title="Grid lines at full strength">Normal</button><button data-v="faint" title="Lighter grid lines">Faint</button><button data-v="off" title="No grid lines">Off</button></div></div>
         <div class="group" data-g="axisText"><button type="button" class="glabel" title="Tick values and axis titles">Axis text</button><div class="seg" id="axisSeg"><button data-v="normal" title="Axis text at full strength">Normal</button><button data-v="faint" title="Lighter axis text, so the data stands out">Faint</button></div></div>
@@ -2769,6 +2844,8 @@
   }, true);
   // each soft-pill option reserves its bold width (see .seg button::after); segs built later get theirs on the next sync
   syncs.push(() => document.querySelectorAll('.seg button:not([data-t])').forEach((b) => { b.dataset.t = b.textContent; }));
+  // a saved or linked theme that isn't in the menu (one tried out and later dropped) falls back to Auto
+  function fixTheme() { if (![...$('themeSel').options].some((o) => o.value === S.theme)) S.theme = DEFAULT_STATE.theme; }
   function applyTheme() {
     if (S.theme === 'system') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', S.theme);
@@ -5044,7 +5121,7 @@
   if (qp.get('wide')) S.wide = qp.get('wide') === '1';
   if (qp.get('lineStyle')) S.connect = qp.get('lineStyle') !== 'off'; // ?lineStyle=off|solid|dashed|dotted
   if (qp.get('pin')) S.pinned = new Set(qp.get('pin').split(',').map((t) => { const [fam, eff] = t.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff)?.id; }).filter(Boolean));
-  fixAxes(); fixMarks(); syncControls(); applyWide(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
+  fixAxes(); fixMarks(); fixTheme(); syncControls(); applyWide(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
   checkNews(qp.has('celebrate')); // ?celebrate previews the celebration (the latest feed entries and benchmark updates)
   sync(false);
   let lastW = 0;
