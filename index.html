@@ -369,7 +369,7 @@
     .toolbar.axes .axis-group > span { color: var(--muted); font-size: 12px; min-width: 9px; }
     .toolbar.axes .axis-group .picker { min-width: 0; max-width: none; }
     .axis-relative { gap: 5px; color: var(--muted); }
-    .axis-relative select { width: auto; field-sizing: content; min-width: 48px; max-width: 120px; padding: 4px 6px; border: 0; border-radius: 8px; background: var(--track); color: var(--ink-2); font-size: 12.5px; }
+    .axis-relative select { width: auto; field-sizing: content; min-width: 48px; max-width: 200px; padding: 4px 6px; border: 0; border-radius: 8px; background: var(--track); color: var(--ink-2); font-size: 12.5px; }
     .axis-relative select:hover { color: var(--ink); }
     .axis-relative:not(:has(option[value="off"]:checked)) select { background: var(--pill); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px var(--pill-shade), 0 0 0 .5px var(--pill-edge); }
   }
@@ -422,6 +422,10 @@
   #opts .opt-sec.mobile-sec { display: none; }
   /* state rules: no zone, no zone style (as Pareto Off hides the frontier style when folded) */
   #opts:has(#zoneSeg [data-v="off"][aria-pressed="true"]) .group[data-g="zoneStyle"] { display: none; }
+  #opts:has(#valueSeg [data-v="off"][aria-pressed="true"]) #valueFrontLabel { display: none; }
+  /* the pinned area needs guides to both axes; no fill, no colour */
+  #opts:has(#guideAxisSeg [data-v="both"][aria-pressed="false"]) .group[data-g="guideBox"] { display: none; }
+  #opts:has(#guideBoxSeg [data-v="none"][aria-pressed="true"]) #guideBoxColorSeg { display: none; }
   @container (min-width: 1320px) { [data-tb="b"] #opts { grid-template-columns: repeat(3, minmax(0, 1fr)); } [data-tb="b"] #opts .opt-sec[data-sec="look"] { grid-area: 1 / 3 / span 2; } }
   @container (max-width: 700px) {
     [data-tb="a"] #opts .opt-sec { grid-template-columns: minmax(0, 1fr); row-gap: 7px; }
@@ -432,12 +436,12 @@
   /* A, desktop: a section's groups wrap into lines of even length (text-wrap: balance), so none is left alone on the last
      line. They are inline-flex in a block with no font size (the spaces between them are only break points), and the
      -18px margin takes back each line's trailing gap. Without balance they wrap exactly as the flex layout did.
-     The unlabelled second track (Pareto's style, Guides' axes) hangs off the first by a hairline. */
+     The unlabelled second track (Pareto's style, Guides' axes, the zone's and pinned area's colours) hangs off the first by a hairline. */
   @media (min-width: 861px) {
     [data-tb="a"] #opts .sec-body { display: block; font-size: 0; text-wrap: balance; margin: -3px -18px -3px 0; }
     [data-tb="a"] #opts .sec-body > .group { display: inline-flex; vertical-align: top; margin: 3px 18px 3px 0; font-size: 13px; }
-    [data-tb="a"] #frontStyleSeg, [data-tb="a"] #guideAxisSeg { position: relative; margin-left: 6px; }
-    [data-tb="a"] #frontStyleSeg::before, [data-tb="a"] #guideAxisSeg::before { content: ''; position: absolute; top: 50%; left: -12px; width: 12px; border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); }
+    [data-tb="a"] #frontStyleSeg, [data-tb="a"] #guideAxisSeg, [data-tb="a"] #zoneColorSeg, [data-tb="a"] #guideBoxColorSeg { position: relative; margin-left: 6px; }
+    [data-tb="a"] #frontStyleSeg::before, [data-tb="a"] #guideAxisSeg::before, [data-tb="a"] #zoneColorSeg::before, [data-tb="a"] #guideBoxColorSeg::before { content: ''; position: absolute; top: 50%; left: -12px; width: 12px; border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); }
   }
   /* folded: only the current choice shows (a ticked box as a chip, an unticked one not at all); the label's caret says ▸ */
   #opts .group.folded .seg > button:not([aria-pressed="true"]), #opts .group.folded label.inline:not(:has(input:checked)),
@@ -741,6 +745,7 @@
     /* iOS zooms the page when focusing text smaller than 16px */
     select, input[type="text"], input[type="search"] { font-size: 16px; }
     .axis-relative select { font-size: 16px; width: 119px; }
+    .axis-relative:has(optgroup option:checked) select { width: auto; max-width: min(250px, calc(100vw - 80px)); } /* a model's name needs the room */
     #relativeMobile { flex-wrap: wrap; gap: 8px 14px; }
     .card { padding: 10px 10px 8px; border-radius: 8px; }
     .card h3 { font-size: 14px; }
@@ -875,14 +880,16 @@
           <button data-v="beats" title="Everything better than your pinned model on both axes; click a dot to pin it">Beats pinned</button>
           <button data-v="diagonal" title="Bands toward the corner that's better on both, on the chart's own scales (the diamond shape puts this straight up)">Diagonal</button>
         </div></div>
-        <div class="group" data-g="zoneStyle"><button type="button" class="glabel" title="How the good zone is drawn">Zone style</button><div class="seg" id="zoneStyleSeg"><button data-v="tint" title="A soft fill with a thin edge">Tint</button><button data-v="hatch" title="Diagonal hatching: shows the grid and dots through it most clearly">Hatch</button><button data-v="outline" title="Dashed outline only, no fill">Outline</button><button data-v="gradient" title="A fill that deepens toward the better-on-both corner">Gradient</button></div></div>
+        <div class="group" data-g="zoneStyle"><button type="button" class="glabel" title="How the good zone is drawn">Zone style</button><div class="seg" id="zoneStyleSeg"><button data-v="none" title="No fill or outline: only the zone's own guide lines, its label and the count">None</button><button data-v="tint" title="A soft fill with a thin edge">Tint</button><button data-v="hatch" title="Diagonal hatching: shows the grid and dots through it most clearly">Hatch</button><button data-v="outline" title="Dashed outline only, no fill">Outline</button><button data-v="gradient" title="A fill that deepens toward the better-on-both corner">Gradient</button></div>
+          <div class="seg" id="zoneColorSeg" title="Colour of the good zone"><button data-v="theme" title="The theme's zone colour">Theme</button><button data-v="grey" title="Neutral grey">Grey</button><button data-v="model" title="The model's own colour: each pinned model's for Beats pinned, the sweet spot's for Sweet spot">Model</button></div></div>
       </div>
     </section>
     <section class="opt-sec" data-sec="labels">
       <h3 class="sec-title"><button type="button" class="sec-btn">Labels</button></h3>
       <div class="sec-body">
         <div class="group" data-g="labels"><button type="button" class="glabel" title="Names and effort levels written next to the dots">Labels</button><div class="seg" id="labelSeg"><button data-v="auto" title="Model names, plus effort tags on dots where they fit">Auto</button><button data-v="autoplus" title="Like Auto, and each model's top dot also gets an effort tag beside it, like the other dots">Auto+</button><button data-v="ladder" title="Model names in a column beside the plot, each joined to its line by a thin leader, so names never sit on the data (like slopalytics.com); effort tags stay by the dots">Ladder</button><button data-v="series" title="One label per model, at its highest-effort dot">Models</button><button data-v="all" title="Label every dot with the model and effort, even where labels overlap">Every dot</button><button data-v="none" title="No labels; hover a dot for its name">None</button></div></div>
-        <div class="group" data-g="values"><button type="button" class="glabel" title="Each dot's axis values written next to it">Values</button><div class="seg" id="valueSeg"><button data-v="off" title="No values by the dots; hover a dot for them">Off</button><button data-v="x" title="Each dot's horizontal-axis (X) value next to it">X</button><button data-v="y" title="Each dot's vertical-axis (Y) value next to it">Y</button><button data-v="both" title="Both values next to each dot, X then Y">Both</button></div></div>
+        <div class="group" data-g="values"><button type="button" class="glabel" title="Each dot's axis values written next to it">Values</button><div class="seg" id="valueSeg"><button data-v="off" title="No values by the dots; hover a dot for them">Off</button><button data-v="x" title="Each dot's horizontal-axis (X) value next to it">X</button><button data-v="y" title="Each dot's vertical-axis (Y) value next to it">Y</button><button data-v="both" title="Both values next to each dot, X then Y">Both</button></div>
+          <label class="inline" id="valueFrontLabel" title="Write values only on the Pareto frontier's dots (the frontier of the models shown, even with Pareto off)"><input type="checkbox" id="valueFront" /> frontier only</label></div>
         <div class="group" data-g="mark"><button type="button" class="glabel" title="Mark one effort level on every model's line, to compare like with like">Mark</button><select id="markSel" title="Which effort level gets the mark on every model's line"></select><div class="seg" id="markStyleSeg"><button data-v="none" title="No mark">None</button><button data-v="hash" title="A short tick across the line">Hash</button><button data-v="ring" title="A ring around the dot">Ring</button><button data-v="square" title="A square around the dot">Square</button></div></div>
         <div class="group" data-g="lines"><button type="button" class="glabel" title="The line through each model's effort levels, low to max">Lines</button><div class="seg" id="lineSeg"><button data-v="off" title="No lines: dots only">Off</button><button data-v="solid" title="Solid lines; older versions dashed">Solid</button><button data-v="dashed" title="Dashed lines; older versions dotted">Dashed</button><button data-v="dotted" title="Dotted lines; older versions thin dashes">Dotted</button></div></div>
       </div>
@@ -892,6 +899,8 @@
       <div class="sec-body">
         <div class="group" data-g="guides"><button type="button" class="glabel" title="Dashed lines from a dot to the axes, with its exact values written on them">Guides</button><div class="seg" id="guideSeg"><button data-v="hover" title="Guides for the dot under the mouse (and pinned dots)">Hover</button><button data-v="pinned" title="Guides for pinned dots only; click a dot to pin it">Pinned</button><button data-v="frontier" title="Guides for every model on the frontier">Frontier</button><button data-v="all" title="Guides for every dot">All</button></div>
           <div class="seg" id="guideAxisSeg" title="Which axes the guide lines run to"><button data-v="both" title="Lines to both axes, with both values (the 'intersecting square')">X &amp; Y</button><button data-v="x" title="Only the line down to the X axis, with the X value">X</button><button data-v="y" title="Only the line across to the Y axis, with the Y value">Y</button></div></div>
+        <div class="group" data-g="guideBox"><button type="button" class="glabel" title="How the area between a pinned (or hovered) dot's guide lines and the axes is drawn">Pinned area</button><div class="seg" id="guideBoxSeg"><button data-v="none" title="No fill: just the guide lines">None</button><button data-v="tint" title="A faint fill">Tint</button><button data-v="hatch" title="Diagonal hatching: the grid and dots show through it">Hatch</button><button data-v="gradient" title="Strongest at the dot, fading toward the axes">Gradient</button></div>
+          <div class="seg" id="guideBoxColorSeg" title="Colour of the pinned area"><button data-v="model" title="The dot's own colour">Model</button><button data-v="grey" title="Neutral grey, whatever the dot's colour">Grey</button></div></div>
         <div class="group" data-g="spotlight"><button type="button" class="glabel" title="Spotlight the models you've pinned (click a dot) and dim everything else">Spotlight</button><div class="seg" id="focusSeg"><button data-v="off" title="Everything at full strength">Off</button><button data-v="pinned" title="Pinned models (click a dot to pin it) at full strength, every other model dimmed">Pinned</button></div></div>
       </div>
     </section>
@@ -1812,6 +1821,20 @@
       detail: 'the median shown value: half the models are below it, half above',
       pick: (points, axis) => { const value = medianOf(points.map((p) => p[axis + 'v'])); return { value, point: points.find((p) => p[axis + 'v'] === value) }; },
     },
+    // "A model on the chart": the choice is saved as model:<family>:<effort>, so it survives the data's ids changing (like
+    // ?pin=). It isn't listed as an option of its own: each shown dot is, under "A model on the chart".
+    model: {
+      label: 'Model', title: '1.0 is the model and effort you pick, whatever you pin.', perModel: true,
+      pick: (points, axis) => {
+        const m = refModel(S[axis + 'Rel']);
+        if (!m) return { note: 'That model is no longer in the data.' };
+        const point = points.find((p) => p.m.family === m.family && p.m.effort === m.effort);
+        if (point) return { value: point[axis + 'v'], point, model: point.m };
+        // not on the chart (deselected or filtered out): 1.0 stays put, using the model's own value
+        const value = m[S[axis]];
+        return value == null ? { note: `${refName(m)} has no ${METRICS[S[axis]].label} data.` } : { value, model: m, offChart: true };
+      },
+    },
     pinned: {
       label: 'Pinned', title: '1.0 is the first model you pinned that is still on the chart. Click a dot to pin it.',
       detail: 'the first pinned model still on the chart',
@@ -1821,6 +1844,11 @@
       },
     },
   };
+
+  const refModel = (v) => { if (typeof v !== 'string' || !v.startsWith('model:')) return null; const [, fam, eff] = v.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff && !m.deprecated) || ALL.find((m) => m.family === fam && m.effort === eff) || null; };
+  const refKeyOf = (v) => refModel(v) ? 'model' : v, modelRef = (m) => `model:${m.family}:${m.effort}`;
+  const refName = (m) => m.label.replace(/ \((.+)\)$/, ' $1'); // "Claude Opus 5.5 (xhigh)" -> "Claude Opus 5.5 xhigh"
+  const refWord = (ref) => ref.key === 'model' ? refName(ref.model) : REF_DEFS[ref.key].label.toLowerCase();
 
   // ---------- state ----------
   const STATE_KEY = 'aa-charts:state:v2', SETS_KEY = 'aa-charts:sets';
@@ -1836,8 +1864,8 @@
     zone: 'off', zoneStyle: 'tint', shape: 'standard', leadBy: 'model', menuSort: 'date', activeOnly: true,
     focus: 'off', halo: 'thin', rowMetric: 'costPerTask', rowScale: 'linear', minGrade: 'any', plan: 'Claude Pro', planPrice: 20,
     basis: 'aa', basisFill: true, planView: 'scatter', planScope: 'chart', planHideLabs: [], planHideEfforts: [], planMineOnly: false, planSort: { key: 'tasks', dir: -1 },
-    lineStyle: 'solid', valueLabels: 'off', xRel: 'off', yRel: 'off', ramp: 'viridis', wide: false,
-    guideAxes: 'both',
+    lineStyle: 'solid', valueLabels: 'off', valueFront: false, xRel: 'off', yRel: 'off', ramp: 'viridis', wide: false,
+    guideAxes: 'both', guideBox: 'tint', guideBoxColor: 'model', zoneColor: 'theme',
     usagePeriod: '30', usageMetric: 'cost', usageGroup: 'model', usageRel: 'off', usageAs: '', usagePlans: {}, usageSort: { key: 'cost', dir: -1 }, usageCols: 'basic', usageCum: false, usageHeat: 'requests', // "Your usage": personal, so not in saved sets
   };
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -1849,7 +1877,8 @@
     S.x = metricOr(S.x, DEFAULT_STATE.x); S.y = metricOr(S.y, DEFAULT_STATE.y);
     S.xScale = scaleFor(S.x, S.xScale); S.yScale = scaleFor(S.y, S.yScale);
     for (const axis of ['x', 'y']) {
-      if (!Object.hasOwn(REF_DEFS, S[axis + 'Rel'])) S[axis + 'Rel'] = 'off';
+      const rel = S[axis + 'Rel'];
+      if (refModel(rel) ? false : !Object.hasOwn(REF_DEFS, rel) || REF_DEFS[rel].perModel) S[axis + 'Rel'] = 'off';
       if (S[axis + 'Rel'] !== 'off' && S[axis + 'Scale'] === 'logit') S[axis + 'Scale'] = 'linear';
     }
   }
@@ -1863,6 +1892,10 @@
     if (!['solid', 'dashed', 'dotted'].includes(S.lineStyle)) S.lineStyle = DEFAULT_STATE.lineStyle;
     if (!['off', 'x', 'y', 'both'].includes(S.valueLabels)) S.valueLabels = DEFAULT_STATE.valueLabels;
     if (!['both', 'x', 'y'].includes(S.guideAxes)) S.guideAxes = DEFAULT_STATE.guideAxes;
+    if (!['none', 'tint', 'hatch', 'gradient'].includes(S.guideBox)) S.guideBox = DEFAULT_STATE.guideBox;
+    if (!['model', 'grey'].includes(S.guideBoxColor)) S.guideBoxColor = DEFAULT_STATE.guideBoxColor;
+    if (!['none', 'tint', 'hatch', 'outline', 'gradient'].includes(S.zoneStyle)) S.zoneStyle = DEFAULT_STATE.zoneStyle;
+    if (!['theme', 'grey', 'model'].includes(S.zoneColor)) S.zoneColor = DEFAULT_STATE.zoneColor;
   }
   fixAxes(); PLAN_FEE = +S.planPrice || 0; applyBasis();
   S.selected = new Set(S.selected.filter((id) => BY_ID.has(id)));
@@ -2111,15 +2144,18 @@
   const sweetSpotFailure = (front) => front.length < 3 ? 'Sweet spot needs at least 3 models on the frontier.' : 'No sweet spot on this scale: the frontier does not bend toward better on both.';
   const medianOf = (values) => { const vs = values.slice().sort((a, b) => a - b), n = vs.length; return n % 2 ? vs[(n - 1) / 2] : (vs[n / 2 - 1] + vs[n / 2]) / 2; };
   function relativeMetric(metric, points, axis, ctx) {
-    const key = S[axis + 'Rel'], def = REF_DEFS[key];
+    const key = refKeyOf(S[axis + 'Rel']), def = REF_DEFS[key];
     if (key === 'off') return metric;
     const ref = def.pick(points, axis, ctx);
     const why = ref?.note || (!Number.isFinite(ref?.value) ? 'This reference is missing or not finite, so there is nothing to divide by.' : ref.value <= 0 ? `This reference is ${metric.fmt(ref.value)}, so ${ref.value === 0 ? 'there is nothing to divide by' : 'a positive value is needed'}.` : points.some((p) => !Number.isFinite(p[axis + 'v'] / ref.value)) ? 'The reference is too small to form finite ratios.' : '');
     if (why) { ctx.notes.push(`${axis.toUpperCase()}: ${why} Original units shown.`); return metric; }
-    const name = ref.point ? ref.point.m.label : `${metric.fmt(ref.value)} (${def.label.toLowerCase()})`;
-    const detail = typeof def.detail === 'function' ? def.detail(ref, axis, ctx) : `${name}${ref.point ? ` (${metric.fmt(ref.value)})` : ''}, ${def.detail || def.title}.`;
+    const name = ref.model ? refName(ref.model) : ref.point ? ref.point.m.label : `${metric.fmt(ref.value)} (${def.label.toLowerCase()})`;
+    const detail = typeof def.detail === 'function' ? def.detail(ref, axis, ctx)
+      : ref.model ? `${name} (${metric.fmt(ref.value)})${ref.offChart ? ', which isn’t on the chart: its own value is used' : ''}.`
+      : `${name}${ref.point ? ` (${metric.fmt(ref.value)})` : ''}, ${def.detail || def.title}.`;
     ctx.notes.push(`${axis.toUpperCase()}: 1.0 = ${detail}`);
-    return { ...metric, label: `${metric.label} (× ${def.label.toLowerCase()})`, long: `${metric.long} (× ${def.label.toLowerCase()})`, fmt: ratio, frac: false, raw: metric, ref: { ...ref, key } };
+    const word = refWord({ ...ref, key });
+    return { ...metric, label: `${metric.label} (× ${word})`, long: `${metric.long} (× ${word})`, fmt: ratio, frac: false, raw: metric, ref: { ...ref, key } };
   }
 
   // ---------- good zones ----------
@@ -2127,37 +2163,50 @@
   // follow the axis scales and the diamond shape). Returns the legend text, or a note when the zone can't be drawn.
   function drawZone(z) {
     const { points, X, Y, sx, sy, T, pts, M, PW, PH, xBest, xWorse, yBest, yWorse, defs, layer, C } = z;
-    const color = css('--s4'), style = S.zoneStyle, xLow = X.better === 'low', yLow = Y.better === 'low';
+    const style = S.zoneStyle, xLow = X.better === 'low', yLow = Y.better === 'low', none = style === 'none';
+    // Zone colour: the theme's, grey, or (Beats pinned, Sweet spot) the model's own; the others fall back to the theme's
+    const color = S.zoneColor === 'grey' ? css('--muted') : css('--s4'), own = (p) => S.zoneColor === 'model' && p ? p.color : color;
     const atLeast = (a, b, low) => low ? a <= b : a >= b;
     const median = (vs) => { const o = vs.slice().sort((a, b) => a - b), n = o.length; return n % 2 ? o[(n - 1) / 2] : (o[n / 2 - 1] + o[n / 2]) / 2; };
     // a y value the scale can draw (a threshold may fall outside what log or logit allow)
     const yAt = (v) => sy.f(S.yScale === 'logit' ? Math.min(0.999, Math.max(0.001, v)) : S.yScale === 'log' ? Math.max(v, 1e-9) : S.yScale === 'sqrt' ? Math.max(v, 0) : v);
     const uv = (p) => [(p.vx - xWorse) / (xBest - xWorse), (p.vy - yWorse) / (yBest - yWorse)];
     const fromUV = (u, v) => [xWorse + u * (xBest - xWorse), yWorse + v * (yBest - yWorse)];
-    // the look: fill + edge for each style. Gradients run from the worse-on-both corner to the better-on-both one.
-    if (style === 'hatch') {
-      const pat = svgEl('pattern', { id: 'zoneHatch', patternUnits: 'userSpaceOnUse', width: 7, height: 7, patternTransform: 'rotate(45)' });
-      pat.append(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 7, stroke: color, 'stroke-width': 2, 'stroke-opacity': 0.4 })); defs.append(pat);
-    } else if (style === 'gradient') {
-      const [x1, y1] = T(xWorse, yWorse), [x2, y2] = T(xBest, yBest);
-      const lg = svgEl('linearGradient', { id: 'zoneGrad', gradientUnits: 'userSpaceOnUse', x1, y1, x2, y2 });
-      lg.append(svgEl('stop', { offset: 0, 'stop-color': color, 'stop-opacity': 0 }), svgEl('stop', { offset: 1, 'stop-color': color, 'stop-opacity': 0.34 }));
-      const rg = svgEl('radialGradient', { id: 'zoneRad' });
-      rg.append(svgEl('stop', { offset: 0, 'stop-color': color, 'stop-opacity': 0.55 }), svgEl('stop', { offset: 1, 'stop-color': color, 'stop-opacity': 0 }));
-      defs.append(lg, rg);
-    }
-    const paint = (round) => ({
-      tint: { fill: color, 'fill-opacity': 0.13, stroke: color, 'stroke-opacity': 0.55, 'stroke-width': 1 },
-      hatch: { fill: 'url(#zoneHatch)', stroke: color, 'stroke-opacity': 0.7, 'stroke-width': 1 },
-      outline: { fill: 'none', stroke: color, 'stroke-width': 1.75, 'stroke-dasharray': '6 4' },
-      gradient: { fill: round ? 'url(#zoneRad)' : 'url(#zoneGrad)', stroke: 'none' },
-    })[style];
+    // the look: fill + edge for each style, with one set of patterns and gradients per colour (Beats pinned in the models'
+    // own colours can need several). Gradients run from the worse-on-both corner to the better-on-both one.
+    const made = new Map();
+    const idsFor = (col) => {
+      if (made.has(col)) return made.get(col);
+      const n = made.size, ids = { hatch: `zoneHatch${n}`, grad: `zoneGrad${n}`, rad: `zoneRad${n}` };
+      if (style === 'hatch') {
+        const pat = svgEl('pattern', { id: ids.hatch, patternUnits: 'userSpaceOnUse', width: 7, height: 7, patternTransform: 'rotate(45)' });
+        pat.append(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 7, stroke: col, 'stroke-width': 2, 'stroke-opacity': 0.4 })); defs.append(pat);
+      } else if (style === 'gradient') {
+        const [x1, y1] = T(xWorse, yWorse), [x2, y2] = T(xBest, yBest);
+        const lg = svgEl('linearGradient', { id: ids.grad, gradientUnits: 'userSpaceOnUse', x1, y1, x2, y2 });
+        lg.append(svgEl('stop', { offset: 0, 'stop-color': col, 'stop-opacity': 0 }), svgEl('stop', { offset: 1, 'stop-color': col, 'stop-opacity': 0.34 }));
+        const rg = svgEl('radialGradient', { id: ids.rad });
+        rg.append(svgEl('stop', { offset: 0, 'stop-color': col, 'stop-opacity': 0.55 }), svgEl('stop', { offset: 1, 'stop-color': col, 'stop-opacity': 0 }));
+        defs.append(lg, rg);
+      }
+      made.set(col, ids); return ids;
+    };
+    const paint = (round, col = color) => {
+      const ids = idsFor(col);
+      return ({
+        tint: { fill: col, 'fill-opacity': 0.13, stroke: col, 'stroke-opacity': 0.55, 'stroke-width': 1 },
+        hatch: { fill: `url(#${ids.hatch})`, stroke: col, 'stroke-opacity': 0.7, 'stroke-width': 1 },
+        outline: { fill: 'none', stroke: col, 'stroke-width': 1.75, 'stroke-dasharray': '6 4' },
+        gradient: { fill: round ? `url(#${ids.rad})` : `url(#${ids.grad})`, stroke: 'none' },
+      })[style];
+    };
+    // None: no area is drawn (the zone still counts its models and gets its label); its own guide lines mark it instead
     const polys = [];
-    const poly = (list, extra = {}) => { polys.push(list); layer.append(svgEl('polygon', { points: pts(list), ...paint(false), ...extra })); };
-    const guide = (a, b) => layer.append(svgEl('line', { x1: T(...a)[0], y1: T(...a)[1], x2: T(...b)[0], y2: T(...b)[1], stroke: color, 'stroke-width': 1, 'stroke-dasharray': '3 4', 'stroke-opacity': 0.8 }));
+    const poly = (list, col = color) => { polys.push(list); if (!none) layer.append(svgEl('polygon', { points: pts(list), ...paint(false, col) })); };
+    const guide = (a, b, col = color) => layer.append(svgEl('line', { x1: T(...a)[0], y1: T(...a)[1], x2: T(...b)[0], y2: T(...b)[1], stroke: col, 'stroke-width': 1, 'stroke-dasharray': '3 4', 'stroke-opacity': 0.8 }));
     const fams = (ps) => new Set(ps.map((p) => p.m.family)).size;
     const count = (ps) => `${fams(ps)} model${fams(ps) === 1 ? '' : 's'} in it`;
-    let legend = '', tag = '', inZone = [];
+    let legend = '', tag = '', inZone = [], swatch = color;
 
     if (S.zone === 'quadrant') {
       const mx = median(points.map((p) => p.xv)), my = median(points.map((p) => p.yv)), vx = sx.f(mx), vy = sy.f(my);
@@ -2177,7 +2226,8 @@
         upper.push([p.vx, p.vy], [end, p.vy]);
         lower.push([p.vx, yAt(off(p.yv))], [end, yAt(off(p.yv))]);
       });
-      poly([...upper, ...lower.reverse()]);
+      poly([...upper, ...lower.slice().reverse()]);
+      if (none) layer.append(svgEl('polyline', { points: pts(lower), fill: 'none', stroke: color, 'stroke-width': 1, 'stroke-dasharray': '3 4', 'stroke-opacity': 0.8 }));
       const bestAt = (x) => { let v = null; for (const q of f) if (atLeast(q.xv, x, xLow)) v = q.yv; return v; };
       inZone = points.filter((p) => { const v = bestAt(p.xv); return v != null && atLeast(p.yv, off(v), yLow); });
       const dt = fraction ? '3 points' : Y.fmt(d);
@@ -2187,6 +2237,7 @@
       const ys = points.map((p) => p.yv), best = yLow ? Math.min(...ys) : Math.max(...ys), m = Math.abs(best) * 0.1;
       const thr = yLow ? best + m : best - m, vy = yAt(thr);
       poly([[xWorse, vy], [xBest, vy], [xBest, yBest], [xWorse, yBest]]);
+      if (none) guide([xWorse, vy], [xBest, vy]);
       inZone = points.filter((p) => atLeast(p.yv, thr, yLow));
       const pick = inZone.slice().sort((a, b) => xLow ? a.xv - b.xv : b.xv - a.xv)[0];
       layer.append(svgEl('circle', { cx: pick.px, cy: pick.py, r: 12, fill: 'none', stroke: color, 'stroke-width': 2.5 }));
@@ -2196,8 +2247,8 @@
       // the frontier's knee: the frontier model furthest out from the straight line joining its two ends
       const knee = z.knee;
       if (!knee) return { note: z.kneeNote || sweetSpotFailure(z.rawFront) };
-      guide([knee.vx, M.top], [knee.vx, M.top + PH]);
-      layer.append(svgEl('circle', { cx: knee.px, cy: knee.py, r: 30, ...paint(true) }));
+      guide([knee.vx, M.top], [knee.vx, M.top + PH], own(knee));
+      if (!none) layer.append(svgEl('circle', { cx: knee.px, cy: knee.py, r: 30, ...paint(true, own(knee)) }));
       if (!lastGeom.diamond) {
         const toWorse = xLow ? 1 : -1, x = T(knee.vx, M.top)[0] + toWorse * 8;
         layer.append(svgEl('text', { x, y: yLow ? M.top + PH - 8 : M.top + 14, 'text-anchor': xLow ? 'start' : 'end', fill: C.muted, 'font-size': 11 }, xLow ? 'diminishing returns →' : '← diminishing returns'));
@@ -2205,11 +2256,15 @@
       polys.push(null); inZone = [knee];
       tag = 'Sweet spot';
       legend = `Good zone: sweet spot at ${knee.m.label} — the shown frontier’s knee on the current axis scales${z.kneeGap < 0.12 ? '. The bend is slight on this scale.' : ''}`;
-      return { legend, style, tag: { point: knee, text: tag, radius: 42, class: 'zone-tag' } };
+      return { legend, style, color: own(knee), tag: { point: knee, text: tag, radius: 42, class: 'zone-tag' } };
     } else if (S.zone === 'beats') {
       const pins = points.filter((p) => S.pinned.has(p.m.id));
       if (!pins.length) return { note: 'Beats pinned: click a dot to pin it, and everything better on both axes gets shaded.' };
-      for (const p of pins) poly([[p.vx, p.vy], [xBest, p.vy], [xBest, yBest], [p.vx, yBest]]);
+      for (const p of pins) {
+        poly([[p.vx, p.vy], [xBest, p.vy], [xBest, yBest], [p.vx, yBest]], own(p));
+        if (none) { guide([p.vx, p.vy], [xBest, p.vy], own(p)); guide([p.vx, p.vy], [p.vx, yBest], own(p)); }
+      }
+      swatch = own(pins[0]);
       inZone = points.filter((q) => !S.pinned.has(q.m.id) && pins.some((p) => atLeast(q.xv, p.xv, xLow) && atLeast(q.yv, p.yv, yLow)));
       tag = pins.length === 1 ? `Beats ${pins[0].m.label}` : 'Beats a pinned model';
       legend = `Good zone: better than ${pins.length === 1 ? pins[0].m.label : 'a pinned model'} on both axes · ${count(inZone)}`;
@@ -2217,6 +2272,7 @@
       // bands of u + v, the "overall" direction; stacked tints deepen toward the corner
       if (style === 'gradient') poly([fromUV(0, 0), fromUV(1, 0), fromUV(1, 1), fromUV(0, 1)]);
       else for (const c of [1, 1.33, 1.66]) poly([fromUV(1, c - 1), fromUV(1, 1), fromUV(c - 1, 1)]);
+      if (none) for (const c of [1, 1.33, 1.66]) guide(fromUV(1, c - 1), fromUV(c - 1, 1));
       inZone = points.filter((p) => uv(p)[0] + uv(p)[1] >= 1.33);
       tag = lastGeom.diamond ? '' : 'Better on both'; // the diamond already says so at its top
       legend = `Good zone: bands toward the corner that's better on both, on this chart's scales · ${fams(inZone)} model${fams(inZone) === 1 ? '' : 's'} in the top two bands`;
@@ -2232,7 +2288,7 @@
       const clear = !points.some((p) => p.px > x0 - 8 && p.px < x0 + tw + 8 && p.py > ty - 16 && p.py < ty + 8);
       if (clear) layer.append(svgEl('text', { x: tx, y: ty, 'text-anchor': sx2 > 0 ? 'start' : sx2 < 0 ? 'end' : 'middle', fill: C.ink2, 'font-size': 11, 'font-weight': 600, ...halo(3) }, tag));
     }
-    return { legend, style };
+    return { legend, style, color: swatch };
   }
 
   // ---------- sidebar ----------
@@ -2403,13 +2459,13 @@
 
   // ---------- saved sets ----------
   function snapshot() {
-    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes };
+    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor };
   }
   function applySet(snap) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
-    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'colorBy', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'xRel', 'yRel', 'ramp', 'guideAxes']) if (snap[k] != null) S[k] = snap[k];
+    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'colorBy', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'valueFront', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (snap[k] != null) S[k] = snap[k];
     fixAxes(); fixMarks(); syncControls(); save(); renderList(); render();
   }
   let dirty = false;
@@ -2468,7 +2524,7 @@
   ];
   function syncControls() {
     fixAxes();
-    renderMetricMenus(); $('activeOnly').checked = S.activeOnly; $('markSel').value = S.markEffort; $('fullFrontier').checked = S.fullFrontier;
+    renderMetricMenus(); $('activeOnly').checked = S.activeOnly; $('markSel').value = S.markEffort; $('fullFrontier').checked = S.fullFrontier; $('valueFront').checked = !!S.valueFront;
     $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('hideOlder').checked = S.hideOlder; $('allLabs').checked = S.allLabs; $('addEffort').value = S.addEffort; $('themeSel').value = S.theme;
     $('minGrade').value = S.minGrade;
     syncRelativeControls();
@@ -2486,14 +2542,30 @@
     document.querySelectorAll('.basisFill').forEach((box) => { box.checked = S.basisFill !== false; box.closest('label').hidden = S.basis === 'aa'; });
   }
 
+  // The "1.0 =" lists: the references in REF_DEFS, then each dot on the chart (rebuilt after every render, since the dots
+  // change), plus the chosen model when it has left the chart.
+  function fillRelativeOptions(points = lastPoints || []) {
+    const fixed = Object.entries(REF_DEFS).filter(([, def]) => !def.perModel).map(([key, def]) => `<option value="${key}" title="${esc(def.title)}">${esc(def.label)}</option>`).join('');
+    const ms = [...new Map(points.map((p) => [modelRef(p.m), p.m])).values()].sort((a, b) => a.familyName.localeCompare(b.familyName) || a.effortLevel - b.effortLevel);
+    const opt = (m) => `<option value="${esc(modelRef(m))}">${esc(refName(m))}</option>`;
+    for (const axis of ['x', 'y']) {
+      const sel = $(axis + 'Rel'), chosen = refModel(S[axis + 'Rel']), gone = chosen && !ms.some((m) => modelRef(m) === S[axis + 'Rel']);
+      sel.innerHTML = fixed + (ms.length ? `<optgroup label="A model on the chart">${ms.map(opt).join('')}</optgroup>` : '') + (gone ? `<optgroup label="Not on the chart">${opt(chosen)}</optgroup>` : '');
+    }
+    syncRelativeControls();
+  }
   function syncRelativeControls() {
-    for (const axis of ['x', 'y']) { const sel = $(axis + 'Rel'); sel.value = S[axis + 'Rel']; sel.title = REF_DEFS[sel.value].title; }
+    for (const axis of ['x', 'y']) {
+      const sel = $(axis + 'Rel'), m = refModel(S[axis + 'Rel']);
+      if (m && ![...sel.options].some((o) => o.value === S[axis + 'Rel'])) sel.add(new Option(refName(m), S[axis + 'Rel']));
+      sel.value = S[axis + 'Rel']; sel.title = m ? `1.0 is ${refName(m)}, whatever you pin. Right-click a dot to use it instead.` : REF_DEFS[sel.value].title;
+    }
   }
   for (const axis of ['x', 'y']) {
     const sel = $(axis + 'Rel');
-    sel.innerHTML = Object.entries(REF_DEFS).map(([key, def]) => `<option value="${key}" title="${esc(def.title)}">${esc(def.label)}</option>`).join('');
     sel.addEventListener('change', () => { S[axis + 'Rel'] = sel.value; markDirty(); syncControls(); save(); render(); });
   }
+  fillRelativeOptions([]);
   // Move the same controls into Options on phones, keeping the sticky metric rows short.
   const relativePhone = matchMedia('(max-width: 860px)');
   function placeRelativeControls() {
@@ -2655,8 +2727,12 @@
     lineSync(); markDirty(); save(); renderList(); render();
   });
   syncs.push(markSync, lineSync, bindSeg('valueSeg', 'valueLabels', markDirty));
-  syncs.push(bindSeg('guideAxisSeg', 'guideAxes', markDirty));
+  syncs.push(bindSeg('guideAxisSeg', 'guideAxes', markDirty), bindSeg('guideBoxSeg', 'guideBox', markDirty), bindSeg('guideBoxColorSeg', 'guideBoxColor', markDirty), bindSeg('zoneColorSeg', 'zoneColor', markDirty));
+  // a model's own colour only means something for the zones drawn around a model
+  const zoneColorSync = () => { const b = $('zoneColorSeg').querySelector('[data-v="model"]'), ok = S.zone === 'beats' || S.zone === 'knee'; b.disabled = !ok; b.title = ok ? 'The model\'s own colour: each pinned model\'s for Beats pinned, the sweet spot\'s for Sweet spot' : 'Only for Beats pinned and Sweet spot, which are drawn around a model (other zones use the theme colour)'; };
+  $('zoneSeg').addEventListener('click', zoneColorSync); syncs.push(zoneColorSync);
   $('rampSel').addEventListener('change', (e) => { S.ramp = e.target.value; markDirty(); save(); render(); });
+  $('valueFront').addEventListener('change', (e) => { S.valueFront = e.target.checked; markDirty(); save(); render(); });
   $('fullFrontier').addEventListener('change', (e) => { S.fullFrontier = e.target.checked; if (S.fullFrontier && S.pareto === 'off') { S.pareto = 'step'; syncControls(); } markDirty(); save(); render(); });
   $('showDeprecated').addEventListener('change', (e) => { S.showDeprecated = e.target.checked; save(); renderList(); });
   $('openOnly').addEventListener('change', (e) => { S.openOnly = e.target.checked; save(); renderList(); });
@@ -2859,11 +2935,14 @@
     if (!points.length) {
       const why = !chosen.length ? 'Select models in the sidebar to plot them.' : `None of the selected models have ${[S.x, S.y].filter((k) => chosen.every((m) => !scaleOk(k === S.x ? S.xScale : S.yScale, m[k]))).map((k) => METRICS[k].label).join(' or ') || `both ${X.label} and ${Y.label}`} data — add some that do.`;
       svg.append(svgEl('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', fill: C.muted, 'font-size': 14 }, why));
-      $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; colorKey = null; clearHover(); renderRows(chosen); renderPlan(chosen); syncHighlights(new Set(), narrow); return;
+      $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); syncHighlights(new Set(), narrow); return;
     }
 
     const sx = makeScale(points.concat(inScale).map((p) => p.xv), S.xScale, [M.left, M.left + PW], !!X.ref);
     const sy = makeScale(points.concat(inScale).map((p) => p.yv), S.yScale, [M.top + PH, M.top], !!Y.ref);
+    // a model that isn't on the chart can be 1.0 outside what's shown: the scales aren't stretched to reach it, the note says so
+    const offScale = [['X', X, sx, M.left, M.left + PW], ['Y', Y, sy, M.top, M.top + PH]].filter(([, metric, sc, a, b]) => metric.ref?.offChart && !(sc.f(1) >= a - 0.5 && sc.f(1) <= b + 0.5)).map(([axis]) => axis);
+    if (offScale.length) { $('relativeNote').hidden = false; $('relativeNote').textContent += ` ${offScale.join(' and ')}: 1.0 is beyond the edge of the chart.`; }
     // Everything is laid out in the plot rectangle (vx, vy) and then passed through T to the screen (px, py). In the standard
     // shape T changes nothing. In the diamond, T maps the rectangle onto a rhombus with "better on both" at the top, best X
     // at the left and best Y at the right (like dunksandthrees' EPM charts). T is affine, so straight lines stay straight.
@@ -2886,6 +2965,7 @@
     for (const p of points.concat(ghosts)) p.color = ramp ? ramp.f(valueU(p)) : colorOf(p.m);
     const visibleGhosts = inScale;
     lastPoints = points; lastGhosts = visibleGhosts; lastGeom = { M, PW, PH, sx, sy, W, H, T, diamond, xWorse, yWorse, xBest, yBest, X, Y };
+    fillRelativeOptions(points);
     if (visibleGhosts.length) $('chartNote').textContent = [`${visibleGhosts.length} frontier model${visibleGhosts.length > 1 ? 's' : ''} you haven't selected ${visibleGhosts.length > 1 ? 'are' : 'is'} shown faint — click one to add it.`, $('chartNote').textContent].filter(Boolean).join(' · ');
 
     // grid + ticks (dropping any that would crowd their neighbours on a narrow chart)
@@ -3094,7 +3174,9 @@
 
     // labels
     const labelLayer = svgEl('g'); plot.append(labelLayer);
-    if (S.labels !== 'none' || S.valueLabels !== 'off') placeLabels(points, frontSet, labelLayer, { M, PW, PH, C, X, Y, segs, ghosts: visibleGhosts, dimmed, ladder, narrow, rings: new Set(references.keys()) });
+    // "frontier only" values follow the frontier that's drawn, or with Pareto off the frontier of the models shown
+    const valueIds = S.valueFront ? (S.pareto !== 'off' ? frontSet : new Set(rawFront.map((p) => p.m.id))) : null;
+    if (S.labels !== 'none' || S.valueLabels !== 'off') placeLabels(points, frontSet, labelLayer, { M, PW, PH, C, X, Y, segs, ghosts: visibleGhosts, dimmed, ladder, narrow, rings: new Set(references.keys()), valueIds });
     const tags = zone?.tag ? [zone.tag] : [];
     if (X.ref && Y.ref) for (const [point, axes] of references) {
       const text = axes.join('/') + ' 1.0', tag = tags.find((tag) => tag.point === point);
@@ -3129,6 +3211,25 @@
   // with the exact values written onto the axes in the model's color.
   // Diamond: the lines run parallel to the edges, to the two lower edges where the tick labels are.
   const overlaps = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+  // Guides → Pinned area: the box between a pinned (or hovered) dot's guides and the axes, as a tint, hatching or a
+  // gradient that fades from the dot toward the corner, in the dot's colour or grey (None draws no box at all).
+  let areaDefs = 0;
+  function areaPaint(p, strength, layer, [cx, cy]) {
+    const grey = S.guideBoxColor === 'grey', color = grey ? css('--ink') : p.color, id = `guideArea${++areaDefs}`;
+    if (S.guideBox === 'hatch') {
+      const pat = svgEl('pattern', { id, patternUnits: 'userSpaceOnUse', width: 7, height: 7, patternTransform: 'rotate(45)' });
+      pat.append(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 7, stroke: color, 'stroke-width': 1.5, 'stroke-opacity': (grey ? 0.16 : 0.28) * strength }));
+      layer.appendChild(svgEl('defs')).append(pat);
+      return { fill: `url(#${id})` };
+    }
+    if (S.guideBox === 'gradient') {
+      const lg = svgEl('linearGradient', { id, gradientUnits: 'userSpaceOnUse', x1: p.px, y1: p.py, x2: cx, y2: cy });
+      lg.append(svgEl('stop', { offset: 0, 'stop-color': color, 'stop-opacity': (grey ? 0.1 : 0.16) * strength }), svgEl('stop', { offset: 1, 'stop-color': color, 'stop-opacity': 0 }));
+      layer.appendChild(svgEl('defs')).append(lg);
+      return { fill: `url(#${id})` };
+    }
+    return { fill: color, 'fill-opacity': (grey ? 0.04 : 0.05) * strength };
+  }
   function drawGuide(p, layer, chips, strength = 1, fill = true, taken = null, dash = '4 4') {
     const { M, PW, PH, T, diamond, xWorse, yWorse, X, Y } = lastGeom;
     const surface = css('--surface'), x0 = diamond ? xWorse : M.left, y0 = diamond ? yWorse : M.top + PH;
@@ -3136,7 +3237,7 @@
     // Guides run to both axes, or only down to X or only across to Y (each with just its own value). The tinted square
     // needs both sides, so it's drawn only with both.
     const toX = S.guideAxes !== 'y', toY = S.guideAxes !== 'x';
-    if (fill && toX && toY) layer.append(svgEl('polygon', { points: map([[p.vx, p.vy], [x0, p.vy], [x0, y0], [p.vx, y0]]), fill: p.color, 'fill-opacity': 0.05 * strength }));
+    if (fill && toX && toY && S.guideBox !== 'none') layer.append(svgEl('polygon', { points: map([[p.vx, p.vy], [x0, p.vy], [x0, y0], [p.vx, y0]]), ...areaPaint(p, strength, layer, T(x0, y0)) }));
     const line = { stroke: p.color, 'stroke-width': 1.25, 'stroke-dasharray': dash, 'stroke-opacity': strength };
     const [ax, ay] = T(p.vx, y0), [bx, by] = T(x0, p.vy);
     if (toX) layer.append(svgEl('line', { ...line, x1: p.px, y1: p.py, x2: ax, y2: ay }));
@@ -3213,7 +3314,7 @@
       layer.append(svgEl('text', { class: tag.class, 'data-id': p.m.id, x, y: y + 4, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 11, 'font-weight': 600, ...halo(3), 'pointer-events': 'none' }, tag.text));
     }
   }
-  function placeLabels(points, frontSet, layer, { M, PW, PH, C, X, Y, segs, ghosts = [], dimmed = () => false, ladder = false, narrow = false, rings = new Set() }) {
+  function placeLabels(points, frontSet, layer, { M, PW, PH, C, X, Y, segs, ghosts = [], dimmed = () => false, ladder = false, narrow = false, rings = new Set(), valueIds = null }) {
     const H = 14, pad = 3, ladderPts = [];
     const xMax = M.left + PW + (ladder ? 0 : M.right - 4); // labels may use the right margin, unless the ladder's names are there
     // each dot keeps its labels off it; a reference dot's ring (r 10) is kept clear too
@@ -3249,7 +3350,7 @@
       const pinned = S.pinned.has(p.m.id);
       if (named && seriesMode && p.isEnd && !pinned) jobs.push({ p, kind: 'name', rank: 0 });
       else if (named && (pinned || !seriesMode)) jobs.push({ p, kind: 'label', rank: 0 });
-      const tag = named && autoMode && !pinned && (!p.isEnd || S.labels === 'autoplus') ? effortWord(p) : '', value = valueOf ? valueOf(p) : '';
+      const tag = named && autoMode && !pinned && (!p.isEnd || S.labels === 'autoplus') ? effortWord(p) : '', value = valueOf && (!valueIds || valueIds.has(p.m.id)) ? valueOf(p) : '';
       if (tag || value) jobs.push({ p, kind: tag ? 'tag' : 'value', tag, value, rank: p.isEnd ? 1 : 2 });
     }
     jobs.sort((a, b) => a.rank - b.rank || prio(b.p) - prio(a.p));
@@ -3411,7 +3512,8 @@
     }
     if (ghosts) extras.push(`<span><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="${css('--ink-2')}" fill-opacity=".3" stroke="${css('--ink-2')}" stroke-opacity=".55"/></svg>Frontier model not selected</span>`);
     if (zone?.legend) {
-      const c = css('--s4'), look = {
+      const c = zone.color || css('--s4'), look = {
+        none: `background:repeating-linear-gradient(90deg, ${c} 0 3px, transparent 3px 6px) center / 100% 1.5px no-repeat`,
         tint: `background:color-mix(in srgb, ${c} 22%, transparent);border:1px solid ${c}`,
         hatch: `background:repeating-linear-gradient(45deg, ${c} 0 1.5px, transparent 1.5px 5px);border:1px solid ${c}`,
         outline: `border:1.5px dashed ${c}`,
@@ -4650,7 +4752,7 @@
 
     const m = p.m, cmp = ref ? compareBlock(ref, p, pinPts.length > 1) : { keys: [], html: '' };
     const relOf = (k) => [['Y', S.y, lastGeom.Y, p.yv], ['X', S.x, lastGeom.X, p.xv]].filter(([, key, metric]) => key === k && metric.ref)
-      .map(([axis, , metric, value]) => `${axis}: ${metric.fmt(value)} of ${REF_DEFS[metric.ref.key].label.toLowerCase()}`).join(' · ');
+      .map(([axis, , metric, value]) => `${axis}: ${metric.fmt(value)} of ${refWord(metric.ref)}`).join(' · ');
     // the rows the comparison already shows (in its "This" column) aren't repeated below it
     const rows = [S.y, S.x, ...['intelligence', 'costPerTask', 'costToRun', 'priceBlended', 'tokensPerTask', 'outputSpeed', 'e2e'].filter((k) => k !== S.x && k !== S.y)]
       .filter((k) => m[k] != null && !cmp.keys.includes(k))
@@ -4716,7 +4818,7 @@
     if (inside && ctx.contains(document.activeElement)) document.activeElement.blur();
     ctxReturn = null;
   }
-  function openCtx(evt, { fam, lab, head }) {
+  function openCtx(evt, { fam, lab, head, point, efforts }) {
     if (!finePointer.matches) return;
     evt.preventDefault(); closeMenu(); clearHover();
     const models = fam ? ALL.filter((m) => m.family === fam) : [];
@@ -4732,6 +4834,7 @@
       fam && ['Show all except this family', () => set(addable(all().filter((m) => m.family !== fam)))],
       fam && shown && [highlight.has(fam) ? 'Stop highlighting this family' : 'Highlight this family', () => toggleHighlight(fam), true],
       fam && '-',
+      ...(point ? refItems(point.m) : efforts ? familyRefItems(fam) : []),
       [`Show all ${labName}`, () => add(addable(labModels))],
       [`Hide ${labName}`, () => drop(labModels), false, !labModels.some((m) => S.selected.has(m.id))],
       [`Show only ${labName}`, () => set(addable(labModels))],
@@ -4750,6 +4853,24 @@
     ctxReturn = document.activeElement; ctxOpenedAt = performance.now();
     ctx.querySelector('.ctx-item:not(:disabled)').focus();
   }
+  // "Use as 1.0": this dot's model and effort becomes the reference on one or both axes (view only, like the 1.0 lists)
+  function refItems(m) {
+    const ref = modelRef(m), on = ['x', 'y'].filter((a) => S[a + 'Rel'] === ref);
+    const use = (axes, rel) => () => { for (const a of axes) S[a + 'Rel'] = rel; markDirty(); syncControls(); save(); render(); };
+    return [
+      on.length < 2 && ['Use as 1.0 on both axes', use(['x', 'y'], ref), true],
+      !on.includes('x') && ['Use as 1.0 on X', use(['x'], ref), true],
+      !on.includes('y') && ['Use as 1.0 on Y', use(['y'], ref), true],
+      on.length > 0 && ['Stop using as 1.0', use(on, 'off'), true],
+      '-',
+    ].filter(Boolean);
+  }
+  // from the model list: any effort of the family can be 1.0 on both axes, even one that isn't on the chart
+  function familyRefItems(fam) {
+    const ms = [...new Map(ALL.filter((m) => m.family === fam).sort((a, b) => a.deprecated - b.deprecated).map((m) => [m.effort, m])).values()].sort((a, b) => a.effortLevel - b.effortLevel);
+    return [...ms.map((m) => { const ref = modelRef(m), both = S.xRel === ref && S.yRel === ref;
+      return [both ? `${EFFORT_LABEL[m.effort]} is 1.0 on both axes` : `Use ${EFFORT_LABEL[m.effort]} as 1.0 on both axes`, () => { S.xRel = S.yRel = ref; markDirty(); syncControls(); save(); render(); }, true, both]; }), '-'];
+  }
   ctx.addEventListener('click', (e) => {
     const b = e.target.closest('.ctx-item'); if (!b) return;
     const [, act, view] = ctxItems[b.dataset.i];
@@ -4764,11 +4885,11 @@
   });
   svg.addEventListener('contextmenu', (evt) => {
     const lb = evt.target.closest?.('.ladder-btn'), p = lb ? null : nearest(evt), fam = lb?.dataset.fam || p?.m.family;
-    if (fam) openCtx(evt, { fam, head: p ? p.m.label : ALL.find((m) => m.family === fam).familyName }); // empty chart: the browser's menu
+    if (fam) openCtx(evt, { fam, point: p, head: p ? p.m.label : ALL.find((m) => m.family === fam).familyName }); // empty chart: the browser's menu
   });
   $('modelList').addEventListener('contextmenu', (evt) => {
     const fam = evt.target.closest('.fam')?.querySelector('.fam-name')?.dataset.fam, lab = evt.target.closest('.lab-head')?.dataset.group;
-    if (fam) openCtx(evt, { fam, head: ALL.find((m) => m.family === fam).familyName });
+    if (fam) openCtx(evt, { fam, efforts: true, head: ALL.find((m) => m.family === fam).familyName });
     else if (lab && lab !== '__other') openCtx(evt, { lab, head: ALL.find((m) => m.creatorSlug === lab).creator });
   });
   document.addEventListener('pointerdown', (e) => { if (!ctx.hidden && !ctx.contains(e.target)) closeCtx(false); });
@@ -5038,9 +5159,10 @@
   showMeta();
   // URL overrides, e.g. ?theme=dark&x=costPerTask&xScale=log&pin=claude-opus-5-5:low
   const qp = new URLSearchParams(location.search);
-  for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'colorBy', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale', 'basis', 'planView', 'planScope', 'lineStyle', 'valueLabels', 'xRel', 'yRel', 'ramp', 'zone', 'zoneStyle', 'frontStyle', 'shape', 'glow', 'guideAxes']) if (qp.get(k) && !(qp.get(k) in Object.prototype)) S[k] = qp.get(k); // names like ?x=constructor would reach inherited properties
+  for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'colorBy', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale', 'basis', 'planView', 'planScope', 'lineStyle', 'valueLabels', 'xRel', 'yRel', 'ramp', 'zone', 'zoneStyle', 'frontStyle', 'shape', 'glow', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (qp.get(k) && !(qp.get(k) in Object.prototype)) S[k] = qp.get(k); // names like ?x=constructor would reach inherited properties
   if (qp.get('basis')) applyBasis();
   if (qp.get('fullFrontier')) S.fullFrontier = qp.get('fullFrontier') === '1';
+  if (qp.get('valueFront')) S.valueFront = qp.get('valueFront') === '1';
   if (qp.get('wide')) S.wide = qp.get('wide') === '1';
   if (qp.get('lineStyle')) S.connect = qp.get('lineStyle') !== 'off'; // ?lineStyle=off|solid|dashed|dotted
   if (qp.get('pin')) S.pinned = new Set(qp.get('pin').split(',').map((t) => { const [fam, eff] = t.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff)?.id; }).filter(Boolean));

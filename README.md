@@ -63,14 +63,19 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   and translucent on dark themes (thick dark halos made light text look bloated on phones); `?halo=thick|thin|none`
   on the URL tries the alternatives.
 - **Values** (X / Y / Both) writes each dot's axis values beside it, placed to avoid other labels (with a leader line
-  when it has to move).
+  when it has to move). Tick **frontier only** to write them only on the Pareto frontier's dots (with Pareto Off, the
+  frontier of the models shown; never on faint unselected frontier dots).
 - **Lines** through each model's effort levels: Off, Solid, Dashed or Dotted; older versions step one style lighter
   (dashed, dotted, thin dashes). **Mark** puts a Hash, Ring or Square on one effort level of every line (or None).
 - **1.0 =** (beside each axis' scale): shows that axis relative to a reference, with ticks like 0.5×, 1×, 2×.
   **Sweet spot** is the frontier's knee on the current scales: the shown frontier model farthest toward better-on-both
   from the straight line joining the frontier's two ends (past it, each step buys less). If the frontier doesn't bend,
   the chart says so instead of picking one, and it warns when the bend is slight. **Best** is the best shown value, **Median** the middle one, **Pinned** the first
-  pinned model still on the chart. The note above the chart names the reference model and its values; hover cards keep the
+  pinned model still on the chart. Under **A model on the chart**, any dot's model and effort can be 1.0 on its own,
+  whatever you pin (saved as `model:<family>:<effort>`, so `?xRel=model:claude-opus-5-5:xhigh` works too); right-click a
+  dot for **Use as 1.0 on both axes / on X / on Y**, or a model in the list to use any of its efforts on both axes. If that
+  model later leaves the chart, 1.0 keeps using its own value (the note says so, and says when 1.0 is beyond the
+  chart's edge). The note above the chart names the reference model and its values; hover cards keep the
   raw values and add the ratio.
 - **Pin and compare**: click a dot to pin it, then hover another: the hover card compares the two (the axes,
   Intelligence Index, cost, tokens and time per task, with the ratio in green when the hovered model is better).
@@ -189,7 +194,11 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   gemini.google/subscriptions, x.ai, github.com/features/copilot/plans, cursor.com/pricing); edit the fee if yours differs.
 - **Guides**: hover (or pin by clicking) draws the rectangle from the point to both axes
   with the exact values chipped on each axis. Modes: hover / pinned / frontier / all; **X & Y / X / Y** draws the lines
-  to both axes or only one.
+  to both axes or only one. **Pinned area** sets how the box between a pinned (or hovered) dot's guides and the axes is
+  drawn: None (just the guide lines), Tint, Hatch or Gradient (fading from the dot), in the dot's colour or grey.
+- **Good zone** styles: None (no area: only the zone's own guide lines, label and count; for Beats pinned, two lines from
+  each pin toward the better edges), Tint, Hatch, Outline, Gradient; colour Theme, Grey, or Model (each pinned model's own
+  colour for Beats pinned, the sweet spot's for Sweet spot).
 - **Saved sets**: models + efforts + axes + display options, stored in localStorage;
   export/import as JSON. Built-in presets included.
 - Effort filter chips (alt/⌘-click to solo one effort), table view, SVG/PNG export.
