@@ -75,23 +75,57 @@
   };
   const num = (x) => (Number.isFinite(x) ? x : null);
 
+  // Known non-benchmark numeric fields on AA model records, so dynamic benchmark discovery skips them.
+  const NON_BENCH = new Set([
+    'id', 'slug', 'name', 'shortName', 'release', 'creator', 'effort', 'isReasoning', 'isOpenWeights', 'deprecated',
+    'intelligenceIndexIsEstimated', 'releaseDate', 'intelligenceIndex', 'intelligenceIndexCost', 'intelligenceIndexCostPerTask',
+    'intelligenceIndexOutputTokensPerTask', 'intelligenceIndexTimePerTask', 'intelligenceIndexEvaluations',
+    'canonicalIntelligenceIndexTokenCount', 'price1mBlended0To3To1', 'price1mBlended7To2To1', 'price1mBlended0To1To1',
+    'price1mBlended100To1To1', 'price1mBlended0To100To1', 'price1mInputTokens', 'price1mOutputTokens',
+    'pricePerInputToken', 'pricePerOutputToken', 'pricePerReasoningToken', 'pricePerCachedInputToken', 'cacheReadPrice',
+    'cacheHitPrice', 'cacheHitDiscountPercent', 'cacheWritePrice', 'pricePer1k1mpImages',
+    'timescaleData', 'medianOutputSpeed', 'outputSpeedVariance', 'timeToFirstChunkVariance', 'performanceByPromptType',
+    'timeToFirstAnswerToken', 'endToEndResponseTime', 'parameters', 'inferenceParametersActiveBillions',
+    'contextWindowTokens', 'reasoningTokens', 'hostModelCount', 'chartDefaultSelected', 'chartHighlighted',
+    'briefcaseBreakdown', 'briefcaseTotalCost', 'briefcaseElo', 'gdpvalNormalized', 'openness', 'capabilities',
+    'automationBenchPartialScore', 'enterpriseOpsGym', 'itBenchSre', 'gdpPdfAllPass', 'mlcrOverall', 'harveyLab',
+    'omniscienceHallucinationRate',
+  ]);
+
+  const humanizeKey = (k) => k.replace(/^cap_/, '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([a-zA-Z])(\d)/g, '$1 $2')
+    .replace(/^./, (c) => c.toUpperCase());
+
   function buildModels(manifests) {
-    // Model-level arrays (objects with intelligenceIndex) and endpoint-level arrays (objects with host + modelId).
-    const modelById = new Map();
-    const endpoints = [];
+    // Model-level arrays (objects with intelligenceIndex), endpoint-level arrays (objects with host + modelId),
+    // and specialized index arrays (cyberIndexModels, decisionIndexContestants).
+    const modelById = new Map(), modelBySlug = new Map();
+    const endpoints = [], cyber = [], decision = [];
     for (const m of manifests) {
+      if (Array.isArray(m?.cyberIndexModels)) cyber.push(...m.cyberIndexModels);
+      if (Array.isArray(m?.decisionIndexContestants)) decision.push(...m.decisionIndexContestants);
       const arrays = Array.isArray(m) ? [m] : Object.values(m).filter(Array.isArray);
       for (const arr of arrays) {
+        if (arr === m?.cyberIndexModels || arr === m?.decisionIndexContestants) continue;
         for (const o of arr) {
           if (!o || typeof o !== 'object') continue;
-          if ('intelligenceIndex' in o && o.creator) {
+          if ('intelligenceIndex' in o && o.creator && !('refusalRate' in o && 'score' in o)) {
             // Merge: later/richer records fill in missing fields.
             const prev = modelById.get(o.id) || {};
             for (const [k, v] of Object.entries(o)) if (prev[k] == null || (typeof v === 'object' && v && Object.keys(v).length > Object.keys(prev[k] || {}).length)) prev[k] = v;
             modelById.set(o.id, prev);
+            if (prev.slug) modelBySlug.set(prev.slug, prev);
           } else if (o.modelId && o.host) endpoints.push(o);
         }
       }
+    }
+    for (const c of cyber) {
+      const m = modelById.get(c.id) || modelBySlug.get(c.slug);
+      if (m && Number.isFinite(c.score)) m._cyberIndex = c.score;
+    }
+    for (const d of decision) {
+      if (d.kind && d.kind !== 'llm') continue;
+      const m = modelById.get(d.id) || modelBySlug.get(d.slug);
+      if (m && Number.isFinite(d.indexScore)) m._decisionIndex = d.indexScore;
     }
 
     const speedByModel = new Map();
@@ -101,8 +135,12 @@
       (speedByModel.get(e.modelId) || speedByModel.set(e.modelId, []).get(e.modelId)).push(s);
     }
 
-    return [...modelById.values()]
-      .filter((m) => Number.isFinite(m.intelligenceIndex))
+    const rawModels = [...modelById.values()].filter((m) => Number.isFinite(m.intelligenceIndex));
+    // A numeric field AA adds later, and that this file does not already name, becomes a benchmark on its own.
+    const dynamicBenchmarks = discoverNumericFields(rawModels);
+    const dynamicKeys = dynamicBenchmarks.map((b) => b.key);
+
+    const models = rawModels
       .map((m) => ({
         id: m.id,
         slug: m.slug,
@@ -122,7 +160,7 @@
         releaseDate: m.releaseDate,
         intelligence: num(m.intelligenceIndex),
         costToRun: num(m.intelligenceIndexCost?.total),
-        costPerTask: num(m.intelligenceIndexCostPerTask?.cost?.total),
+        costPerTask: num(m.intelligenceIndexCostPerTask?.cost?.total ?? m.intelligenceIndexCostPerTask?.total),
         priceBlended: num(m.price1mBlended0To3To1),
         priceInput: num(m.price1mInputTokens),
         priceOutput: num(m.price1mOutputTokens),
@@ -134,23 +172,71 @@
         timePerTask: num(m.intelligenceIndexTimePerTask),
         parameters: num(m.parameters),
         ...Object.fromEntries(BENCHMARKS.map(([k, get]) => [k, num(get(m))])),
+        ...Object.fromEntries(dynamicKeys.map((k) => [k, num(k.startsWith('cap_') ? m.capabilities?.[k.slice(4)] : m[k])])),
         // each Intelligence Index evaluation's own cost and output tokens per task: { key: [usd, tokens] }
         evals: evalsOf(m),
         defaultSelected: !!m.chartDefaultSelected,
       }))
       .sort((a, b) => b.intelligence - a.intelligence);
+    return { models, dynamicBenchmarks };
   }
+  const CAP_KEYS = {
+    financeAndAccounting: 'capFinance',
+    strategyAndOps: 'capStrategy',
+    legal: 'capLegal',
+    healthcareAndMedical: 'capMedical',
+    engineering: 'capEngineering',
+    economics: 'capEconomics',
+  };
   // Every per-model benchmark the site publishes (the page's METRICS has the labels): our key -> the field on AA's record.
   const BENCHMARKS = Object.entries({
     gpqa: (m) => m.gpqa, hle: (m) => m.hle, critpt: (m) => m.critpt, scicode: (m) => m.scicode,
     omniscience: (m) => m.omniscience, omniscienceAccuracy: (m) => m.omniscienceAccuracy, hallucination: (m) => m.omniscienceHallucinationRate,
     lcr: (m) => m.lcr, ifbench: (m) => m.ifbench, mmmuPro: (m) => m.mmmuPro, livecodebench: (m) => m.livecodebench, aime25: (m) => m.aime25,
     terminalBench40: (m) => m.terminalBench40, terminalBench21: (m) => m.terminalBench21, terminalbenchHard: (m) => m.terminalbenchHard, terminalBenchScience: (m) => m.terminalBenchScience,
+    frontierCode: (m) => m.frontierCode, cyberIndex: (m) => m._cyberIndex, decisionIndex: (m) => m._decisionIndex,
     tau2: (m) => m.tau2, tauBanking: (m) => m.tauBanking, automationBench: (m) => m.automationBenchPartialScore, enterpriseOps: (m) => m.enterpriseOpsGym,
     apexAgents: (m) => m.apexAgents, itBench: (m) => m.itBenchSre, analystAgent: (m) => m.analystAgent,
     gdpval: (m) => m.gdpval, briefcase: (m) => m.briefcaseBreakdown?.overall?.elo, gdpPdf: (m) => m.gdpPdfAllPass, mlcr: (m) => m.mlcrOverall, harvey: (m) => m.harveyLab,
+    capFinance: (m) => m.capabilities?.financeAndAccounting, capStrategy: (m) => m.capabilities?.strategyAndOps,
+    capLegal: (m) => m.capabilities?.legal, capMedical: (m) => m.capabilities?.healthcareAndMedical,
+    capEngineering: (m) => m.capabilities?.engineering, capEconomics: (m) => m.capabilities?.economics,
     openness: (m) => m.openness?.opennessIndex,
   });
+
+  // Numeric fields on AA's own records that are not in BENCHMARKS or NON_BENCH. Called from a scrape, and from
+  // tests/dynamic-benchmarks.mjs with a fake record, so a new eval shows up without a code change.
+  function discoverNumericFields(rawModels) {
+    const knownKeys = new Set(BENCHMARKS.map(([k]) => k));
+    const extraBench = new Map();
+    for (const m of rawModels) {
+      for (const [k, v] of Object.entries(m)) {
+        if (k.startsWith('_') || NON_BENCH.has(k) || knownKeys.has(k) || !Number.isFinite(v)) continue;
+        const cur = extraBench.get(k) || { n: 0, min: Infinity, max: -Infinity, cap: false };
+        cur.n++; cur.min = Math.min(cur.min, v); cur.max = Math.max(cur.max, v);
+        extraBench.set(k, cur);
+      }
+      if (m.capabilities && typeof m.capabilities === 'object') {
+        for (const [ck, cv] of Object.entries(m.capabilities)) {
+          const key = CAP_KEYS[ck] || 'cap_' + ck;
+          if (knownKeys.has(key) || !Number.isFinite(cv)) continue;
+          const cur = extraBench.get(key) || { n: 0, min: Infinity, max: -Infinity, cap: true, rawKey: ck };
+          cur.n++; cur.min = Math.min(cur.min, cv); cur.max = Math.max(cur.max, cv);
+          extraBench.set(key, cur);
+        }
+      }
+    }
+    return [...extraBench.entries()].filter(([, s]) => s.n >= 1).map(([k, s]) => {
+      const frac = s.min >= 0 && s.max > 0 && s.max <= 1;
+      const elo = s.max > 400;
+      const label = humanizeKey(k);
+      return {
+        key: k, rawKey: s.rawKey || k, label, long: `Artificial Analysis ${label}`,
+        fmt: frac ? 'pct' : elo ? 'elo' : 'one', frac,
+        group: s.cap ? 'Work & documents' : /code|term|swe/i.test(k) ? 'Coding & terminal' : /agent|bench|ops|tau/i.test(k) ? 'Agents & tool use' : 'Knowledge & reasoning',
+      };
+    });
+  }
 
   // The Intelligence Index evaluations (AA's slugs) under the page's metric keys.
   const INDEX_EVALS = {
@@ -201,7 +287,7 @@
     })).sort((a, b) => b.index - a.index);
   };
 
-  // -> { v, scrapedAt, source, models, indexWeights, changelog, codingAgents }
+  // -> { v, scrapedAt, source, models, dynamicBenchmarks, indexWeights, changelog, codingAgents }
   async function scrape({ fetchOpts = {}, log = () => {} } = {}) {
     let manifests;
     try { manifests = await loadManifests(fetchOpts, log); }
@@ -213,13 +299,14 @@
       await new Promise((resolve) => setTimeout(resolve, 3000));
       manifests = await loadManifests(fetchOpts, log);
     }
+    const { models: built, dynamicBenchmarks } = buildModels(manifests);
     // Most models have only some benchmarks: leave the missing ones out rather than storing nulls.
-    const models = buildModels(manifests).map((m) => Object.fromEntries(Object.entries(m).filter(([, v]) => v != null)));
+    const models = built.map((m) => Object.fromEntries(Object.entries(m).filter(([, v]) => v != null)));
     if (!models.length) throw new Error('Decoded the data but found no models — the format may have changed.');
-    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, indexWeights: indexWeightsOf(manifests), changelog: changelogOf(manifests), codingAgents: codingAgentsOf(manifests) };
+    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, ...(dynamicBenchmarks.length ? { dynamicBenchmarks } : {}), indexWeights: indexWeightsOf(manifests), changelog: changelogOf(manifests), codingAgents: codingAgentsOf(manifests) };
   }
   // Bump when the saved shape changes, so the page ignores copies saved by an older version.
-  const VERSION = 3; // 3: per-evaluation costs and index weights
+  const VERSION = 4; // 4: dynamic AA benchmarks (FrontierCode, Cyber, Decision, domain capabilities)
 
-  globalThis.AAData = { scrape, VERSION };
+  globalThis.AAData = { scrape, VERSION, discoverNumericFields };
 })();

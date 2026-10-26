@@ -30,21 +30,24 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 
 - **Scraper**: the site ships its data as encrypted "manifests" in the Next.js payload
   (AES-256-GCM, key in the page, IV = sha256(key)[:12], gzipped JSON). `scrape.mjs`
-  pulls `/` and `/models`, decrypts every manifest, and merges model records, the site's changelog and its Coding Agent Index.
+  pulls `/` and `/models`, decrypts every manifest, and merges model records (including `FrontierCode`, `Cyber Index`,
+  `Decision Index`, and domain capability scores, plus auto-discovery of any new benchmark fields Artificial Analysis adds),
+  the site's changelog and its Coding Agent Index.
 - **Axes**: any metric on either axis: the Intelligence Index, every per-model benchmark Artificial Analysis publishes
-  (knowledge & reasoning, coding & terminal, agents & tool use, work & documents), the independent benchmarks below,
-  cost, price, tokens per task, speed, latency. Scales: linear, square root (spreads out the cheap end without log's
-  distortion), log, and logit for percentage benchmarks (stretches the top end, where frontier models bunch up near 100%;
-  greyed out on an axis showing anything else).
-- **Independent benchmarks** (`external.mjs`, matched to Artificial Analysis models by name; where a source doesn't say
-  which reasoning effort it ran, the value goes on the model's default effort and the tooltip says so):
+  (knowledge & reasoning, coding & terminal, agents & tool use, work & documents, plus dynamically discovered evaluations),
+  the independent benchmarks below, cost, price, tokens per task, speed, latency. Scales: linear, square root (spreads out
+  the cheap end without log's distortion), log, and logit for percentage benchmarks (stretches the top end, where frontier
+  models bunch up near 100%; greyed out on an axis showing anything else).
+- **Independent benchmarks** (`external.mjs`, matched to Artificial Analysis models by name; where an external benchmark
+  tests an effort level that Artificial Analysis hasn't published on its own chart — such as Gemini 4 Argon Low and Medium —
+  that effort variant is synthesized dynamically so it can be selected and charted):
   [WeirdML v3 and v2](https://htihle.github.io/weirdml.html) (Håvard Tveit Ihle),
   [LLM Chess](https://maxim-saplin.github.io/llm_chess/) (Maxim Saplin),
-  [Kaggle Game Arena chess](https://www.kaggle.com/benchmarks/kaggle/chess-text) (Google DeepMind & Kaggle),
+  [Kaggle Game Arena chess](https://www.kaggle.com/benchmarks/kaggle/chess-text) and [Werewolf](https://www.kaggle.com/benchmarks/kaggle/werewolf) (Google DeepMind & Kaggle),
   [dubesor chess](https://dubesor.de/chess/chess-leaderboard),
-  [ARC-AGI-2](https://arcprize.org/leaderboard) (score and cost per task; ARC Prize Foundation),
+  [ARC-AGI-3 and ARC-AGI-2](https://arcprize.org/leaderboard) (score and cost per task; ARC Prize Foundation),
   [SimpleBench](https://simple-bench.com),
-  [LMArena Text](https://lmarena.ai/leaderboard/text).
+  [LMArena Text, WebDev, Vision and Search](https://lmarena.ai/leaderboard).
 - **What's new**: the Artificial Analysis changelog (models added, articles), with "+ Chart" to plot a new model.
   When the data (on opening the page, or after "Update data") brings entries you haven't seen, or an active benchmark's
   "last updated" date has moved on since you last looked, a toast and confetti announce them (no confetti with reduced
@@ -58,13 +61,15 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - **Labels**: Auto (model names + effort tags where they fit, the default), Auto+ (each model's top dot also gets its effort
   tag, placed like the other effort tags),
   **Ladder** (names in a column to the right of the plot, each joined to its line by a thin leader, like slopalytics.com;
-  effort tags stay by the dots), Models, Every dot, None. When nothing fits beside a dot, Auto looks further out and draws a
-  leader line to the label instead of overlapping another one. The halo that keeps labels readable over lines is thinner
-  and translucent on dark themes (thick dark halos made light text look bloated on phones); `?halo=thick|thin|none`
-  on the URL tries the alternatives.
-- **Values** (X / Y / Both) writes each dot's axis values beside it, placed to avoid other labels (with a leader line
-  when it has to move). Tick **frontier only** to write them only on the Pareto frontier's dots (with Pareto Off, the
-  frontier of the models shown; never on faint unselected frontier dots).
+  effort tags stay by the dots), Models, Every dot, None. Tick **L, M, H, X, MX** to abbreviate effort labels on the chart
+  (`Low` → `L`, `Medium` → `M`, `High` → `H`, `XHigh` → `X`, `Max` → `MX`). When nothing fits beside a dot, Auto looks
+  further out and draws a leader line to the label instead of overlapping another one. The halo that keeps labels readable
+  over lines is thinner and translucent on dark themes (thick dark halos made light text look bloated on phones);
+  `?halo=thick|thin|none` on the URL tries the alternatives.
+- **Values** (X / Y / Both) writes each dot's axis values beside it at `XX` (two-digit / `xx/100`) precision (e.g. `72` or
+  `72%` for scores/percentages, `0.72×` for relative ratios), placed to avoid other labels (with a leader line when it has
+  to move). Tick **frontier only** to write them only on the Pareto frontier's dots (with Pareto Off, the frontier of the
+  models shown; never on faint unselected frontier dots).
 - **Lines** through each model's effort levels: Off, Solid, Dashed or Dotted; older versions step one style lighter
   (dashed, dotted, thin dashes). **Mark** puts a Hash, Ring or Square on one effort level of every line (or None).
 - **1.0 =** (beside each axis' scale): shows that axis relative to a reference, with ticks like 0.5×, 1×, 2×.
@@ -132,9 +137,15 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - **Active only** (on by default, in the pickers and Who leads what): lists only benchmarks still run on the current
   frontier, i.e. with a result for today's top model on the Intelligence Index and at least 3 of the top 5 families.
   Retired ones (AIME 2025, IFBench, GPQA Diamond once new models stopped getting it, WeirdML v2, …) are hidden, with a
-  "Show all" link at the end of the list; searching still finds them, and the charted one stays listed. The hover card
-  says which frontier models a benchmark is missing. **Grade** also leaves out those with a report card below C, below B,
-  or below A.
+  "Show them" link at the end of the list that greys them in until the menu closes (it changes no setting); searching
+  still finds them, and the charted one stays listed. The hover card says which frontier models a benchmark is
+  missing. **Start from** fills that list from a grade (every benchmark, C or better, B or better, A only, or none).
+  **Choose** turns the list into a checklist of every benchmark: click a row to tick or untick it, or a section's box
+  to do the whole section (only the search matches while searching); press Done to chart again. A box is ticked
+  exactly when the benchmark will be listed, and ticking an inactive one keeps it listed under Active only. Your ticks
+  stay when you change the start (**Reset to start** in the summary removes them), and None opens Choose. Charting a
+  benchmark doesn't add it to the list. A new Artificial Analysis benchmark has no report card, so every start except
+  None takes it; with None it stays out until you tick it.
 - **Report cards**: every benchmark gets a letter grade (A–F) in the pickers, the hover card and under the chart title,
   computed from: whether the test set is private (0–2), saturation in the current scores (0–3: top three current models
   bunched within 2 points, or a top score over 95%, scores 0; a spread over 5 points with the top under 80% scores 3),
@@ -170,8 +181,8 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   the values under the dots (like the dot rows on slopalytics.com). Letters in the dots are the effort levels.
 - **Your index** (in the options, and "Score from" under Subscription math): rebuilds the score and its cost per task
   from only the benchmarks you trust: AA's 10 index benchmarks as published (the default), Grade A only, Grade B or
-  better, Grade C or better (graded benchmarks still run on the frontier), or everything the axis picker lists (its
-  Active only and Grade filters). The score is a weighted average on 0–100 (percentages as they are, GDPval and Briefcase
+  better, Grade C or better (graded benchmarks still run on the frontier), or everything the axis picker lists
+  (its Active only filter and the benchmarks you included with Start from and Choose). The score is a weighted average on 0–100 (percentages as they are, GDPval and Briefcase
   Elo scaled the way AA scales GDPval, AA-Omniscience from −100…100, other Elo boards from lowest to highest; AA's weight
   where it has one, 10% otherwise), and a model needs results covering 3/4 of the weight. Artificial Analysis publishes
   each index evaluation's own cost and tokens per task (kept in the data as `evals`, with the index weights as
@@ -202,11 +213,12 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 - **Saved sets**: models + efforts + axes + display options, stored in localStorage;
   export/import as JSON. Built-in presets included.
 - Effort filter chips (alt/⌘-click to solo one effort), table view, SVG/PNG export.
-- **Color**: by lab, effort or open-vs-closed, or by value: **X value**, **Y value** or **Both** (how far toward the
-  better-on-both corner), on the axis' own scale so colors match the distances you see. Palettes: Viridis, Cividis (the
-  safest for color-blind readers), Magma, Plasma, One hue (the theme's accent) and Vs. median (diverging: one color on the
-  better side of the median, another on the worse side, grey at it). The strongest color is always the better end, and a
-  color bar runs along the axis.
+- **Color**: **Lab** or **Effort** sets the identity color, and **X value**, **Y value** or **Both** can be toggled on
+  additively on top of either (combining identity color and value coloring via **Ring**, **Lines**, **Field**, **Split**, or
+  **Off** for value color alone). Value colors use the axis' own scale so colors match the distances you see. Palettes:
+  Viridis, Cividis (the safest for color-blind readers), Magma, Plasma, One hue (the theme's accent) and Vs. median
+  (diverging: one color on the better side of the median, another on the worse side, grey at it). The strongest color is
+  always the better end, and a color bar runs along the axis.
 
 ## Your usage (T3 Code)
 

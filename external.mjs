@@ -52,6 +52,46 @@ function parseCsv(text) {
 }
 const n = (v) => (v === '' || v == null ? null : Number.isFinite(+v) ? +v : null);
 
+async function loadKaggleArena(benchmarkSlug) {
+  // Kaggle's own (undocumented) leaderboard API, as used by the benchmark page.
+  const api = (method, body) => get(`https://www.kaggle.com/api/i/benchmarks.BenchmarkService/${method}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+  const b = await api('GetBenchmark', { benchmarkIdentifier: { slugIdentifier: { ownerSlug: 'kaggle', benchmarkSlug } } });
+  const versionId = b.version?.id ?? b.benchmarkVersion?.id ?? b.currentVersion?.id;
+  if (!versionId) throw new Error(`Game Arena (${benchmarkSlug}): no benchmark version in the response`);
+  const lb = await api('GetBenchmarkLeaderboard', { versionIdentifier: { versionIdSelector: { id: versionId } } });
+  return {
+    updated: latest(lb.rows.flatMap((r) => (r.results || []).map((x) => x.evaluationDate))) ?? ymd(b.version?.updateTime),
+    rows: lb.rows.map((r) => {
+      const res = (r.results || []).find((x) => x.numericResult?.unevenConfidenceInterval) || (r.results || [])[0];
+      const mv = r.modelVersion || {};
+      const parsed = splitEffort(mv.displayName || '');
+      return { name: mv.displayName, fam: famOf(mv.modelProxySlug || mv.slug || parsed.fam), effort: parsed.effort, value: n(res?.numericResult?.value) };
+    }).filter((r) => r.value != null && r.name),
+  };
+}
+
+async function loadLmArena(config) {
+  // Hugging Face's datasets server: its /filter endpoint times out on this dataset, so page through /rows
+  // (which lists the "overall" category first, by rank) and stop once past it. Retries cover the odd HTTP 500.
+  const rows = [];
+  for (let offset = 0, total = Infinity; offset < total && offset < 20000; offset += 100) {
+    const q = new URLSearchParams({ dataset: 'lmarena-ai/leaderboard-dataset', config, split: 'latest', offset, length: 100 });
+    let d;
+    for (let attempt = 0; !d; attempt++) {
+      try { d = await (await get(`https://datasets-server.huggingface.co/rows?${q}`)).json(); }
+      catch (err) { if (attempt >= 3) throw err; await new Promise((r) => setTimeout(r, 1500 * (attempt + 1))); }
+    }
+    total = d.num_rows_total;
+    const overall = d.rows.map((r) => r.row).filter((r) => r.category === 'overall');
+    rows.push(...overall);
+    if (rows.length && overall.length < d.rows.length) break;
+  }
+  return {
+    updated: rows[0]?.leaderboard_publish_date,
+    rows: rows.map((r) => ({ name: r.model_name, ...splitEffort(r.model_name), value: r.rating, votes: r.vote_count })),
+  };
+}
+
 const SOURCES = [
   {
     key: 'weirdml', label: 'WeirdML v3', long: 'WeirdML v3 (agentic ML engineering; score ×100)', fmt: 'score', frac: true,
@@ -100,23 +140,12 @@ const SOURCES = [
   {
     key: 'gameArena', label: 'Kaggle Game Arena chess', long: 'Kaggle Game Arena chess rating (Google DeepMind & Kaggle; text chess)', fmt: 'elo',
     url: 'https://www.kaggle.com/benchmarks/kaggle/chess-text', by: 'Google DeepMind, Google Cloud, Kaggle',
-    async load() {
-      // Kaggle's own (undocumented) leaderboard API, as used by the benchmark page.
-      const api = (method, body) => get(`https://www.kaggle.com/api/i/benchmarks.BenchmarkService/${method}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
-      const b = await api('GetBenchmark', { benchmarkIdentifier: { slugIdentifier: { ownerSlug: 'kaggle', benchmarkSlug: 'chess-text' } } });
-      const versionId = b.version?.id ?? b.benchmarkVersion?.id ?? b.currentVersion?.id;
-      if (!versionId) throw new Error('Game Arena: no benchmark version in the response');
-      const lb = await api('GetBenchmarkLeaderboard', { versionIdentifier: { versionIdSelector: { id: versionId } } });
-      // The overall score is the result with a confidence interval (the others are tokens and cost per turn).
-      return {
-        updated: latest(lb.rows.flatMap((r) => (r.results || []).map((x) => x.evaluationDate))) ?? ymd(b.version?.updateTime),
-        rows: lb.rows.map((r) => {
-          const res = (r.results || []).find((x) => x.numericResult?.unevenConfidenceInterval);
-          const mv = r.modelVersion || {};
-          return { name: mv.displayName, fam: famOf(mv.modelProxySlug || mv.slug || mv.displayName), effort: null, value: n(res?.numericResult?.value) };
-        }).filter((r) => r.value != null && r.name),
-      };
-    },
+    load: () => loadKaggleArena('chess-text'),
+  },
+  {
+    key: 'gameArenaWerewolf', label: 'Kaggle Game Arena Werewolf', long: 'Kaggle Game Arena Werewolf social deduction score (Google DeepMind & Kaggle)', fmt: 'score',
+    url: 'https://www.kaggle.com/benchmarks/kaggle/werewolf', by: 'Google DeepMind, Google Cloud, Kaggle',
+    load: () => loadKaggleArena('werewolf'),
   },
   {
     key: 'dubesorChess', label: 'dubesor chess (Elo)', long: 'dubesor.de LLM chess Elo (games between models; mixed modes)', fmt: 'elo',
@@ -134,6 +163,33 @@ const SOURCES = [
       return {
         updated: d.lastUpdated?.slice(0, 10),
         rows: [...byName].filter(([, s]) => s.games >= 5).map(([name, s]) => ({ name, fam: famOf(name), effort: null, value: Math.round(s.elo / s.games), games: s.games })),
+      };
+    },
+  },
+  {
+    key: 'arcAgi3', label: 'ARC-AGI-3', long: 'ARC-AGI-3 (interactive visual agent environments; semi-private set)', fmt: 'pct', frac: true,
+    cost: { key: 'arcAgi3Cost', label: 'ARC-AGI-3 cost', long: 'ARC-AGI-3 run cost (USD)' },
+    url: 'https://arcprize.org/leaderboard', by: 'ARC Prize Foundation',
+    async load() {
+      const [res, models] = await Promise.all([get('https://arcprize.org/media/data/evaluations.json'), get('https://arcprize.org/media/data/models.json').then((r) => r.json())]);
+      const evals = await res.json(), info = new Map(models.map((m) => [m.id, m]));
+      // Prefer the standard ARC Prize harness when a model has both standard and "-provider-adapter" runs.
+      const byKey = new Map();
+      for (const e of evals) {
+        if (e.datasetId !== 'v3_Semi_Private' || e.display === false || !Number.isFinite(e.score)) continue;
+        const m = info.get(e.modelId); if (!m || m.modelGroup === 'Human') continue;
+        const cleanName = m.displayName.replace(/\s*-\s*Provider Adapter\b/i, '');
+        const { fam, effort } = splitEffort(cleanName);
+        const isAdapter = /provider-adapter/i.test(e.modelId) || /Provider Adapter/i.test(m.displayName);
+        const k = `${fam}|${effort || ''}`;
+        const prev = byKey.get(k);
+        if (!prev || (prev.isAdapter && !isAdapter) || (prev.isAdapter === isAdapter && e.score > prev.value)) {
+          byKey.set(k, { name: cleanName, fam, effort, value: e.score, cost: n(e.costPerTask ?? e.cost), isAdapter });
+        }
+      }
+      return {
+        updated: ymd(res.headers.get('last-modified')),
+        rows: [...byKey.values()].map(({ isAdapter, ...r }) => r),
       };
     },
   },
@@ -166,27 +222,22 @@ const SOURCES = [
   {
     key: 'lmarenaText', label: 'LMArena Text (Elo)', long: 'LMArena Text arena rating (human preference votes; style control)', fmt: 'elo',
     url: 'https://lmarena.ai/leaderboard/text', by: 'LMArena',
-    async load() {
-      // Hugging Face's datasets server: its /filter endpoint times out on this dataset, so page through /rows
-      // (which lists the "overall" category first, by rank) and stop once past it. Retries cover the odd HTTP 500.
-      const rows = [];
-      for (let offset = 0, total = Infinity; offset < total && offset < 20000; offset += 100) {
-        const q = new URLSearchParams({ dataset: 'lmarena-ai/leaderboard-dataset', config: 'text_style_control', split: 'latest', offset, length: 100 });
-        let d;
-        for (let attempt = 0; !d; attempt++) {
-          try { d = await (await get(`https://datasets-server.huggingface.co/rows?${q}`)).json(); }
-          catch (err) { if (attempt >= 3) throw err; await new Promise((r) => setTimeout(r, 1500 * (attempt + 1))); }
-        }
-        total = d.num_rows_total;
-        const overall = d.rows.map((r) => r.row).filter((r) => r.category === 'overall');
-        rows.push(...overall);
-        if (rows.length && overall.length < d.rows.length) break;
-      }
-      return {
-        updated: rows[0]?.leaderboard_publish_date,
-        rows: rows.map((r) => ({ name: r.model_name, ...splitEffort(r.model_name), value: r.rating, votes: r.vote_count })),
-      };
-    },
+    load: () => loadLmArena('text_style_control'),
+  },
+  {
+    key: 'lmarenaWebdev', label: 'LMArena WebDev (Elo)', long: 'LMArena WebDev arena rating (human preference on web app builds)', fmt: 'elo',
+    url: 'https://lmarena.ai/leaderboard/webdev', by: 'LMArena',
+    load: () => loadLmArena('webdev'),
+  },
+  {
+    key: 'lmarenaVision', label: 'LMArena Vision (Elo)', long: 'LMArena Vision arena rating (multimodal human preference; style control)', fmt: 'elo',
+    url: 'https://lmarena.ai/leaderboard/vision', by: 'LMArena',
+    load: () => loadLmArena('vision_style_control'),
+  },
+  {
+    key: 'lmarenaSearch', label: 'LMArena Search (Elo)', long: 'LMArena Search arena rating (web-grounded human preference; style control)', fmt: 'elo',
+    url: 'https://lmarena.ai/leaderboard/search', by: 'LMArena',
+    load: () => loadLmArena('search_style_control'),
   },
 ];
 
