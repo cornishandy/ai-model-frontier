@@ -37,6 +37,7 @@
   }
 
   async function loadManifests(fetchOpts, log, extraPages) {
+    let partial = !extraPages;
     if (!globalThis.crypto?.subtle || typeof DecompressionStream === 'undefined') {
       throw new Error(globalThis.isSecureContext === false ? 'browsers only decode the data on https or localhost pages' : 'this browser can\'t decode the data');
     }
@@ -63,7 +64,7 @@
     };
     const list = [];
     const optional = (page) => readPage(page).then((found) => found.map((m) => ({ ...m, optional: true })))
-      .catch((err) => { log(`skipped ${page} (${err.message})`); return []; });
+      .catch((err) => { log(`skipped ${page} (${err.message})`); partial = true; return []; });
     const pages = await Promise.all([...PAGES.map(readPage), ...(extraPages ? EXTRA_PAGES.map(optional) : [])]);
     for (const found of pages) for (const m of found) if (!list.some((x) => x.path === m.path)) list.push(m);
     const read = async ({ path, key, page }) => {
@@ -75,8 +76,8 @@
       log(`decrypted ${path} (from ${page})`);
       return out;
     };
-    const out = await Promise.all(list.map((m) => m.optional ? read(m).catch((err) => { log(`skipped ${m.path} (${err.message})`); return null; }) : read(m)));
-    return out.filter(Boolean);
+    const out = await Promise.all(list.map((m) => m.optional ? read(m).catch((err) => { log(`skipped ${m.path} (${err.message})`); partial = true; return null; }) : read(m)));
+    return Object.assign(out.filter(Boolean), { partial });
   }
 
   const median = (xs) => {
@@ -270,22 +271,28 @@
     'artificial-analysis-long-context-reasoning': 'lcr', 'frontiercode-2-0': 'frontierCode20', 'hle-diamond': 'hleDiamond',
     'critpt-v2-hard': 'critptHard', 'terminal-bench-science': 'terminalBenchScience',
   };
-  // Each index evaluation's slug -> the benchmark key whose value on the same model equals the evaluation's score
-  // (most matching models wins; the seed above breaks ties). Unmatched slugs keep their own name.
+  // Each index evaluation's slug -> the benchmark key whose value equals the evaluation's score on (nearly) every model
+  // that has both. Scores of 0 and 1 are too common to tell fields apart, so they don't count. The seed wins whenever its
+  // key agrees; otherwise one clear winner is needed, and a tie or no agreeing key keeps the seed (or the slug's own name).
   function indexKeysOf(rawModels, getters) {
-    const votes = new Map();
+    const stats = new Map();
     for (const m of rawModels) for (const e of m.intelligenceIndexEvaluations || []) {
-      if (!Number.isFinite(e.score)) continue;
-      const v = votes.get(e.slug) || votes.set(e.slug, new Map()).get(e.slug);
+      const st = stats.get(e.slug) || stats.set(e.slug, new Map()).get(e.slug);
+      if (!Number.isFinite(e.score) || e.score === 0 || e.score === 1) continue;
       for (const [k, get] of getters) {
         const x = get(m);
-        if (Number.isFinite(x) && Math.abs(x - e.score) <= 1e-9 * Math.max(1, Math.abs(x))) v.set(k, (v.get(k) || 0) + 1);
+        if (!Number.isFinite(x)) continue;
+        const c = st.get(k) || st.set(k, { hit: 0, seen: 0 }).get(k);
+        c.seen++;
+        if (Math.abs(x - e.score) <= 1e-9 * Math.max(1, Math.abs(x))) c.hit++;
       }
     }
     const out = {};
-    for (const [slug, v] of votes) {
-      const best = [...v].sort((a, b) => b[1] - a[1] || (b[0] === INDEX_EVALS[slug]) - (a[0] === INDEX_EVALS[slug]))[0];
-      out[slug] = best ? best[0] : INDEX_EVALS[slug] || slug;
+    for (const [slug, st] of stats) {
+      const seed = INDEX_EVALS[slug];
+      const agree = [...st].filter(([, c]) => c.hit && c.hit >= 0.9 * c.seen).sort((a, b) => b[1].hit - a[1].hit);
+      out[slug] = seed && agree.some(([k]) => k === seed) ? seed
+        : agree.length && (agree.length === 1 || agree[0][1].hit > agree[1][1].hit) ? agree[0][0] : seed || slug;
     }
     return out;
   }
@@ -379,8 +386,9 @@
   };
 
   // -> { v, scrapedAt, source, models, dynamicBenchmarks, indexWeights, changelog, codingAgents }
-  // extraPages: also read the optional pages (the deploy does; the page's Update button skips them to stay quick).
-  async function scrape({ fetchOpts = {}, log = () => {}, extraPages = false } = {}) {
+  // extraPages: also read the optional pages. When one can't be read the result says `partial: true`, and the page keeps
+  // what only that page supplied from the copy it already has (see fillPartial in index.html).
+  async function scrape({ fetchOpts = {}, log = () => {}, extraPages = true } = {}) {
     let manifests;
     try { manifests = await loadManifests(fetchOpts, log, extraPages); }
     catch (err) {
@@ -398,7 +406,7 @@
     const changelog = changelogOf(manifests), indexWeights = indexWeightsOf(manifests, slugKey);
     // What the index is made of right now: its version and each evaluation's benchmark key and weight.
     const index = indexWeights ? { ...indexVersionOf(changelog), evals: Object.entries(indexWeights).map(([key, weight]) => ({ key, weight, slug: Object.keys(slugKey).find((s) => slugKey[s] === key) || key })) } : null;
-    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, ...(dynamicBenchmarks.length ? { dynamicBenchmarks } : {}), indexWeights, index, changelog, codingAgents: codingAgentsOf(manifests) };
+    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, ...(dynamicBenchmarks.length ? { dynamicBenchmarks } : {}), indexWeights, index, changelog, codingAgents: codingAgentsOf(manifests), ...(manifests.partial ? { partial: true } : {}) };
   }
   // The methodology page through the same fetch (Node only: it's large, and the deploy refreshes it for everyone).
   async function scrapeMethodology({ fetchOpts = {}, keys = [] } = {}) {

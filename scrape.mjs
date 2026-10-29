@@ -9,7 +9,8 @@ const here = (p) => new URL(p, import.meta.url);
 
 console.log('Fetching artificialanalysis.ai …');
 const fetchOpts = { headers: { 'user-agent': UA } };
-const out = await globalThis.AAData.scrape({ fetchOpts, log: (s) => console.log('  ' + s), extraPages: true });
+const out = await globalThis.AAData.scrape({ fetchOpts, log: (s) => console.log('  ' + s) });
+if (out.partial) console.log('  warning: an optional page could not be read; this copy lacks the benchmarks only it supplies');
 
 // Every evaluation's name, status in the index and description, from the methodology page. Not essential: without it
 // the page keeps its own descriptions.

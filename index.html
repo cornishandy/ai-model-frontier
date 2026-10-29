@@ -5784,6 +5784,19 @@
     el.textContent = !ALL.length ? extra :
       `${ALL.filter((m) => !m.deprecated).length} current models · data from ${ago(DATA.scrapedAt)} (${new Date(DATA.scrapedAt).toLocaleString()})` + (extra ? ' · ' + extra : '');
   }
+  // A fresh read that couldn't reach an optional page (aa-data.js) lacks the benchmarks and the few models only that page
+  // lists. Keep those from the copy on show, so a selection, a pin or a chart on one of them survives, until a complete
+  // read replaces them.
+  function fillPartial(d, prev) {
+    if (!d.partial || !prev?.models?.length) return d;
+    const has = new Set(d.models.flatMap((m) => Object.keys(m)));
+    const lost = new Set(prev.models.flatMap((m) => Object.keys(m)).filter((k) => !has.has(k)));
+    const old = new Map(prev.models.map((m) => [m.id, m])), ids = new Set(d.models.map((m) => m.id));
+    const models = d.models.map((m) => { const o = old.get(m.id); return o ? { ...Object.fromEntries([...lost].filter((k) => o[k] != null).map((k) => [k, o[k]])), ...m } : m; });
+    for (const o of prev.models) if (!ids.has(o.id)) models.push(o);
+    const dyn = [...(d.dynamicBenchmarks || []), ...(prev.dynamicBenchmarks || []).filter((b) => lost.has(b.key) && !(d.dynamicBenchmarks || []).some((x) => x.key === b.key))];
+    return { ...d, models, ...(dyn.length ? { dynamicBenchmarks: dyn } : {}) };
+  }
   // auto: the automatic refresh when the page opens on an old copy (quieter when it can't get anything newer)
   async function updateData(auto = false) {
     if (updating) return;
@@ -5804,6 +5817,8 @@
         // a copy only replaces what's on show if it's newer (and a current shape beats an older one, as at startup)
         if (((currentShape(d) - currentShape(DATA)) || d.scrapedAt.localeCompare(DATA.scrapedAt)) <= 0) { showMeta(auto ? '' : `${why}, and the site's own copy has nothing newer`, !auto); return; }
       }
+      d = fillPartial(d, DATA);
+      d.methodology ||= DATA.methodology; // only the deploy reads the methodology page
       // A fresh scrape always counts (it's newer by definition), but say so when nothing in it actually changed.
       const content = (x) => JSON.stringify([x.models, x.indexWeights, x.changelog, x.codingAgents]);
       const changed = content(d) !== content(DATA);

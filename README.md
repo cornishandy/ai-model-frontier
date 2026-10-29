@@ -30,8 +30,9 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 
 - **Scraper**: the site ships its data as encrypted "manifests" in the Next.js payload
   (AES-256-GCM, key in the page, IV = sha256(key)[:12], gzipped JSON). `scrape.mjs`
-  pulls `/` and `/models` (and, in the deploy, the Intelligence Index evaluation page, for CritPt v2, the Cyber Index's
-  parts, Global-MMLU-Lite, MMLU-Pro and MATH-500), decrypts every manifest, and merges model records (including FrontierCode
+  pulls `/`, `/models` and the Intelligence Index evaluation page (the only one with CritPt v2, the Cyber Index's parts,
+  Global-MMLU-Lite, MMLU-Pro, MATH-500 and a few models; if it can't be read the data is marked `partial`, and Update data
+  keeps those results from the copy on show), decrypts every manifest, and merges model records (including FrontierCode
   1.1 and 2.0, HLE-Diamond, CritPt v2, HealthBench, Code2Video-AA, AA-3D, the Cyber and Decision indexes and domain
   capability scores, plus auto-discovery of any new benchmark fields Artificial Analysis adds), the site's changelog and its
   Coding Agent Index. Models without an Intelligence Index score are kept when they have any benchmark result (a new
