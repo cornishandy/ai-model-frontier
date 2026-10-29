@@ -30,9 +30,25 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
 
 - **Scraper**: the site ships its data as encrypted "manifests" in the Next.js payload
   (AES-256-GCM, key in the page, IV = sha256(key)[:12], gzipped JSON). `scrape.mjs`
-  pulls `/` and `/models`, decrypts every manifest, and merges model records (including `FrontierCode`, `Cyber Index`,
-  `Decision Index`, and domain capability scores, plus auto-discovery of any new benchmark fields Artificial Analysis adds),
-  the site's changelog and its Coding Agent Index.
+  pulls `/` and `/models` (and, in the deploy, the Intelligence Index evaluation page, for CritPt v2, the Cyber Index's
+  parts, Global-MMLU-Lite, MMLU-Pro and MATH-500), decrypts every manifest, and merges model records (including FrontierCode
+  1.1 and 2.0, HLE-Diamond, CritPt v2, HealthBench, Code2Video-AA, AA-3D, the Cyber and Decision indexes and domain
+  capability scores, plus auto-discovery of any new benchmark fields Artificial Analysis adds), the site's changelog and its
+  Coding Agent Index. Models without an Intelligence Index score are kept when they have any benchmark result (a new
+  index version is first run on the newest models only: v5.0 scored 78 of about 270 current models at launch).
+- **The index's makeup is read from the data, not written into the page.** Each index evaluation's weight comes from the
+  per-evaluation costs (`indexWeights`), its benchmark from matching its score against the model's own fields, and the
+  version from the site's changelog and its methodology page, which the deploy also reads for every evaluation's name,
+  status ("Included … at 15% weighting", "Removed … in v5.0") and description (`methodology` in the data). So when
+  Artificial Analysis changes the index (v5.0 on 27 Oct 2026: 9 evaluations; FrontierCode 2.0, HLE-Diamond and
+  CritPt v2's hard subset in, GDPval-AA, SciCode, AA-LCR, HLE and CritPt out), the page's index description, "AA's N index
+  benchmarks", the weights in Your index and the in/out note on each benchmark follow on the next refresh.
+- **Data check**: `scrape.mjs` stops before writing anything when the result looks broken (fewer than 20 current models
+  with an index score, cost per task missing for most of them, or no index weights), so the deploy fails, GitHub emails
+  the failure, and the last good deployment stays up instead of a quietly emptied one. It warns about an index
+  evaluation it can't match to a benchmark.
+- **Opening an old copy refreshes it**: GitHub starts the 30-minute deploy hours late, so when the page's data is more
+  than 2 hours old it runs Update data on its own (`?noAutoUpdate` skips that).
 - **Axes**: any metric on either axis: the Intelligence Index, every per-model benchmark Artificial Analysis publishes
   (knowledge & reasoning, coding & terminal, agents & tool use, work & documents, plus dynamically discovered evaluations),
   the independent benchmarks below, cost, price, tokens per task, speed, latency. Scales: linear, square root (spreads out
@@ -135,7 +151,9 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   commit to its data on GitHub, or the data file's date). The lists sort newest first within each section by default;
   **Default order** switches back to the usual grouping (remembered per device).
 - **Active only** (on by default, in the pickers and Who leads what): lists only benchmarks still run on the current
-  frontier, i.e. with a result for today's top model on the Intelligence Index and at least 3 of the top 5 families.
+  frontier, i.e. with a result for today's top model on the Intelligence Index and at least 3 of the top 5 families
+  (a family released in the 14 days before the data counts as having every result, since it hasn't been run on most
+  yet: Gemini 4 Carbon topped the index on its first day).
   Retired ones (AIME 2025, IFBench, GPQA Diamond once new models stopped getting it, WeirdML v2, …) are hidden, with a
   "Show them" link at the end of the list that greys them in until the menu closes (it changes no setting); searching
   still finds them, and the charted one stays listed. The hover card says which frontier models a benchmark is
@@ -180,7 +198,7 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   cost, tokens per task, total tokens, time per task or whatever is on an axis, linear or log, sorted best first, with
   the values under the dots (like the dot rows on slopalytics.com). Letters in the dots are the effort levels.
 - **Your index** (in the options, and "Score from" under Subscription math): rebuilds the score and its cost per task
-  from only the benchmarks you trust: AA's 10 index benchmarks as published (the default), Grade A only, Grade B or
+  from only the benchmarks you trust: AA's index benchmarks as published (the default; 9 in v5.0), Grade A only, Grade B or
   better, Grade C or better (graded benchmarks still run on the frontier), or everything the axis picker lists
   (its Active only filter and the benchmarks you included with Start from and Choose). The score is a weighted average on 0–100 (percentages as they are, GDPval and Briefcase
   Elo scaled the way AA scales GDPval, AA-Omniscience from −100…100, other Elo boards from lowest to highest; AA's weight

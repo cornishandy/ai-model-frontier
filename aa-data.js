@@ -9,6 +9,11 @@
 (() => {
   const BASE = 'https://artificialanalysis.ai';
   const PAGES = ['/models', '/'];
+  // Optional: the Intelligence Index evaluation page carries extra results the other two pages don't (CritPt v2, the Cyber
+  // Index's parts, Global-MMLU-Lite, MMLU-Pro, MATH-500). The deploy reads it; a failure there doesn't stop an update.
+  const EXTRA_PAGES = ['/evaluations/artificial-analysis-intelligence-index'];
+  // The methodology page names every evaluation, says whether it's in the index (and at what weight), and describes it.
+  const METHODOLOGY = '/methodology/intelligence-benchmarking';
   // A relay only supplies the manifests' names and keys: the manifests themselves still come straight from the site, and
   // AES-GCM rejects a key that doesn't belong to them, so a relay can't alter the numbers. X-No-Cache: a cached copy's
   // keys have usually expired.
@@ -31,7 +36,7 @@
     return JSON.parse(text);
   }
 
-  async function loadManifests(fetchOpts, log) {
+  async function loadManifests(fetchOpts, log, extraPages) {
     if (!globalThis.crypto?.subtle || typeof DecompressionStream === 'undefined') {
       throw new Error(globalThis.isSecureContext === false ? 'browsers only decode the data on https or localhost pages' : 'this browser can\'t decode the data');
     }
@@ -57,8 +62,11 @@
       throw new Error(`${page} — ${errs.join('; ')}`);
     };
     const list = [];
-    for (const found of await Promise.all(PAGES.map(readPage))) for (const m of found) if (!list.some((x) => x.path === m.path)) list.push(m);
-    return Promise.all(list.map(async ({ path, key, page }) => {
+    const optional = (page) => readPage(page).then((found) => found.map((m) => ({ ...m, optional: true })))
+      .catch((err) => { log(`skipped ${page} (${err.message})`); return []; });
+    const pages = await Promise.all([...PAGES.map(readPage), ...(extraPages ? EXTRA_PAGES.map(optional) : [])]);
+    for (const found of pages) for (const m of found) if (!list.some((x) => x.path === m.path)) list.push(m);
+    const read = async ({ path, key, page }) => {
       const buf = await (await get(BASE + path).catch((err) => { throw new Error(`${path}: ${err.message}`); })).arrayBuffer();
       const out = await decrypt(buf, key).catch((err) => {
         if (err.name !== 'OperationError') throw new Error(`${path}: ${err.message}`);
@@ -66,7 +74,9 @@
       });
       log(`decrypted ${path} (from ${page})`);
       return out;
-    }));
+    };
+    const out = await Promise.all(list.map((m) => m.optional ? read(m).catch((err) => { log(`skipped ${m.path} (${err.message})`); return null; }) : read(m)));
+    return out.filter(Boolean);
   }
 
   const median = (xs) => {
@@ -89,7 +99,12 @@
     'contextWindowTokens', 'reasoningTokens', 'hostModelCount', 'chartDefaultSelected', 'chartHighlighted',
     'briefcaseBreakdown', 'briefcaseTotalCost', 'briefcaseElo', 'gdpvalNormalized', 'openness', 'capabilities',
     'automationBenchPartialScore', 'enterpriseOpsGym', 'itBenchSre', 'gdpPdfAllPass', 'mlcrOverall', 'harveyLab',
-    'omniscienceHallucinationRate',
+    'omniscienceHallucinationRate', 'score', 'briefcaseElo', 'itbenchSre', 'opennessIndex', 'cyberIndex', 'activeParams',
+    'cacheHitRate', 'medianCanonicalAnswerOutputSpeed', 'enterpriseOpsGymAvgConversationTurns', 'itbenchAvgTurnsPerTask',
+    'cweBenchRefusalRate', 'deepsecBenchRefusalRate', 'cybergymE2eRefusalRate', 'analystAgentPassAt1', 'analystAgentPassAtK',
+    'mlcrAccuracy', 'mlcrCompleteness', 'knowledgeCutoffDate', 'sizeClass',
+    // read by BENCHMARKS under other names
+    'critptAgenticHard', 'critptAgentic', 'globalMmluLiteScore', 'healthbenchProfessional', 'code2videoElo', 'aa3dElo', 'cybergymE2e',
   ]);
 
   const humanizeKey = (k) => k.replace(/^cap_/, '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([a-zA-Z])(\d)/g, '$1 $2')
@@ -135,10 +150,14 @@
       (speedByModel.get(e.modelId) || speedByModel.set(e.modelId, []).get(e.modelId)).push(s);
     }
 
-    const rawModels = [...modelById.values()].filter((m) => Number.isFinite(m.intelligenceIndex));
+    // Every model AA lists. A new index version is first run on the newest models only (v5.0 scored 78 of ~270 current
+    // ones at launch), so a model without an index score is kept as long as it has some benchmark result.
+    const rawModels = [...modelById.values()].filter((m) => m.name && m.creator);
     // A numeric field AA adds later, and that this file does not already name, becomes a benchmark on its own.
     const dynamicBenchmarks = discoverNumericFields(rawModels);
     const dynamicKeys = dynamicBenchmarks.map((b) => b.key);
+    const getters = [...BENCHMARKS, ...dynamicKeys.map((k) => [k, (m) => (k.startsWith('cap_') ? m.capabilities?.[k.slice(4)] : m[k])])];
+    const slugKey = indexKeysOf(rawModels, getters);
 
     const models = rawModels
       .map((m) => ({
@@ -171,14 +190,14 @@
         tokensPerTask: num(m.intelligenceIndexOutputTokensPerTask?.output),
         timePerTask: num(m.intelligenceIndexTimePerTask),
         parameters: num(m.parameters),
-        ...Object.fromEntries(BENCHMARKS.map(([k, get]) => [k, num(get(m))])),
-        ...Object.fromEntries(dynamicKeys.map((k) => [k, num(k.startsWith('cap_') ? m.capabilities?.[k.slice(4)] : m[k])])),
+        ...Object.fromEntries(getters.map(([k, get]) => [k, num(get(m))])),
         // each Intelligence Index evaluation's own cost and output tokens per task: { key: [usd, tokens] }
-        evals: evalsOf(m),
+        evals: evalsOf(m, slugKey),
         defaultSelected: !!m.chartDefaultSelected,
       }))
-      .sort((a, b) => b.intelligence - a.intelligence);
-    return { models, dynamicBenchmarks };
+      .filter((m) => m.intelligence != null || getters.some(([k]) => k !== 'openness' && m[k] != null))
+      .sort((a, b) => (b.intelligence ?? -1) - (a.intelligence ?? -1));
+    return { models, dynamicBenchmarks, slugKey };
   }
   const CAP_KEYS = {
     financeAndAccounting: 'capFinance',
@@ -193,15 +212,20 @@
     gpqa: (m) => m.gpqa, hle: (m) => m.hle, critpt: (m) => m.critpt, scicode: (m) => m.scicode,
     omniscience: (m) => m.omniscience, omniscienceAccuracy: (m) => m.omniscienceAccuracy, hallucination: (m) => m.omniscienceHallucinationRate,
     lcr: (m) => m.lcr, ifbench: (m) => m.ifbench, mmmuPro: (m) => m.mmmuPro, livecodebench: (m) => m.livecodebench, aime25: (m) => m.aime25,
+    hleDiamond: (m) => m.hleDiamond, critptHard: (m) => m.critptAgenticHard, critptV2: (m) => m.critptAgentic,
+    globalMmlu: (m) => m.globalMmluLiteScore, mmluPro: (m) => m.mmluPro, math500: (m) => m.math500,
+    healthbench: (m) => m.healthbench, healthbenchPro: (m) => m.healthbenchProfessional,
     terminalBench40: (m) => m.terminalBench40, terminalBench21: (m) => m.terminalBench21, terminalbenchHard: (m) => m.terminalbenchHard, terminalBenchScience: (m) => m.terminalBenchScience,
-    frontierCode: (m) => m.frontierCode, cyberIndex: (m) => m._cyberIndex, decisionIndex: (m) => m._decisionIndex,
+    frontierCode20: (m) => m.frontierCode20, frontierCode: (m) => m.frontierCode, code2video: (m) => m.code2videoElo, aa3d: (m) => m.aa3dElo,
+    cyberIndex: (m) => m._cyberIndex ?? m.cyberIndex, cweBench: (m) => m.cweBench, deepsecBench: (m) => m.deepsecBench, cybergym: (m) => m.cybergymE2e,
+    decisionIndex: (m) => m._decisionIndex,
     tau2: (m) => m.tau2, tauBanking: (m) => m.tauBanking, automationBench: (m) => m.automationBenchPartialScore, enterpriseOps: (m) => m.enterpriseOpsGym,
     apexAgents: (m) => m.apexAgents, itBench: (m) => m.itBenchSre, analystAgent: (m) => m.analystAgent,
-    gdpval: (m) => m.gdpval, briefcase: (m) => m.briefcaseBreakdown?.overall?.elo, gdpPdf: (m) => m.gdpPdfAllPass, mlcr: (m) => m.mlcrOverall, harvey: (m) => m.harveyLab,
+    gdpval: (m) => m.gdpval, briefcase: (m) => m.briefcaseBreakdown?.overall?.elo ?? m.briefcaseElo, gdpPdf: (m) => m.gdpPdfAllPass, mlcr: (m) => m.mlcrOverall, harvey: (m) => m.harveyLab,
     capFinance: (m) => m.capabilities?.financeAndAccounting, capStrategy: (m) => m.capabilities?.strategyAndOps,
     capLegal: (m) => m.capabilities?.legal, capMedical: (m) => m.capabilities?.healthcareAndMedical,
     capEngineering: (m) => m.capabilities?.engineering, capEconomics: (m) => m.capabilities?.economics,
-    openness: (m) => m.openness?.opennessIndex,
+    openness: (m) => m.openness?.opennessIndex ?? m.opennessIndex,
   });
 
   // Numeric fields on AA's own records that are not in BENCHMARKS or NON_BENCH. Called from a scrape, and from
@@ -238,23 +262,44 @@
     });
   }
 
-  // The Intelligence Index evaluations (AA's slugs) under the page's metric keys.
+  // The Intelligence Index evaluations (AA's slugs) under the page's metric keys. Only a seed: indexKeysOf works the
+  // mapping out from the data, so an evaluation that joins the index later is matched without an edit here.
   const INDEX_EVALS = {
     'aa-briefcase': 'briefcase', 'gdpval-aa': 'gdpval', 'automationbench-aa': 'automationBench', 'terminalbench-4-0': 'terminalBench40',
     scicode: 'scicode', 'humanitys-last-exam': 'hle', 'gdp-pdf': 'gdpPdf', critpt: 'critpt', omniscience: 'omniscience',
-    'artificial-analysis-long-context-reasoning': 'lcr',
+    'artificial-analysis-long-context-reasoning': 'lcr', 'frontiercode-2-0': 'frontierCode20', 'hle-diamond': 'hleDiamond',
+    'critpt-v2-hard': 'critptHard', 'terminal-bench-science': 'terminalBenchScience',
   };
+  // Each index evaluation's slug -> the benchmark key whose value on the same model equals the evaluation's score
+  // (most matching models wins; the seed above breaks ties). Unmatched slugs keep their own name.
+  function indexKeysOf(rawModels, getters) {
+    const votes = new Map();
+    for (const m of rawModels) for (const e of m.intelligenceIndexEvaluations || []) {
+      if (!Number.isFinite(e.score)) continue;
+      const v = votes.get(e.slug) || votes.set(e.slug, new Map()).get(e.slug);
+      for (const [k, get] of getters) {
+        const x = get(m);
+        if (Number.isFinite(x) && Math.abs(x - e.score) <= 1e-9 * Math.max(1, Math.abs(x))) v.set(k, (v.get(k) || 0) + 1);
+      }
+    }
+    const out = {};
+    for (const [slug, v] of votes) {
+      const best = [...v].sort((a, b) => b[1] - a[1] || (b[0] === INDEX_EVALS[slug]) - (a[0] === INDEX_EVALS[slug]))[0];
+      out[slug] = best ? best[0] : INDEX_EVALS[slug] || slug;
+    }
+    return out;
+  }
   const round = (v) => +v.toPrecision(4);
-  function evalsOf(m) {
+  function evalsOf(m, slugKey) {
     const out = {};
     for (const e of m.intelligenceIndexEvaluations || []) {
-      const k = INDEX_EVALS[e.slug] || e.slug;
+      const k = slugKey[e.slug] || INDEX_EVALS[e.slug] || e.slug;
       if (Number.isFinite(e.costPerTask)) out[k] = [round(e.costPerTask), Number.isFinite(e.outputTokensPerTask) ? Math.round(e.outputTokensPerTask) : null];
     }
     return Object.keys(out).length ? out : null;
   }
   // Each evaluation's weight in the index, read off a model with the full cost breakdown (weighted cost ÷ cost).
-  function indexWeightsOf(manifests) {
+  function indexWeightsOf(manifests, slugKey) {
     for (const man of manifests) for (const arr of Array.isArray(man) ? [man] : Object.values(man).filter(Array.isArray)) for (const m of arr) {
       const weighted = m?.intelligenceIndexCostPerTask?.evaluations, evs = m?.intelligenceIndexEvaluations;
       if (!Array.isArray(weighted) || !Array.isArray(evs) || weighted.length < 2) continue;
@@ -262,12 +307,58 @@
       for (const e of weighted) {
         const c = evs.find((x) => x.slug === e.slug)?.costPerTask;
         if (!(c > 0) || !Number.isFinite(e.weightedCostPerTask)) { w.bad = 1; break; }
-        w[INDEX_EVALS[e.slug] || e.slug] = Math.round((e.weightedCostPerTask / c) * 1000) / 1000;
+        w[slugKey[e.slug] || INDEX_EVALS[e.slug] || e.slug] = Math.round((e.weightedCostPerTask / c) * 1000) / 1000;
       }
       const sum = Object.values(w).reduce((a, b) => a + b, 0);
       if (!w.bad && Math.abs(sum - 1) < 0.01) return w;
     }
     return null;
+  }
+  // The index's version, from the newest "methodology updated" entry in the site's feed that names one.
+  const indexVersionOf = (changelog) => {
+    for (const c of changelog) { const v = /Intelligence Index (v\d+(?:\.\d+)*)/.exec(c.title)?.[1]; if (v && c.type === 'methodologyUpdated') return { version: v, since: c.date }; }
+    for (const c of changelog) { const v = /Intelligence Index (v\d+(?:\.\d+)*)/.exec(c.title)?.[1]; if (v) return { version: v, since: c.date }; }
+    return null;
+  };
+
+  // The methodology page: every evaluation's name, section, status ("Included in … v5.0 at 15% weighting", "Removed …",
+  // "Standalone …") and description, under the page's metric keys. Run by the deploy (scrape.mjs) only.
+  const ANCHOR_KEYS = {
+    'critpt-v2-hard': 'critptHard', 'critpt-v2': 'critptV2', 'harvey-lab-aa': 'harvey', 'enterprise-ops-gym-aa': 'enterpriseOps',
+    'global-mmlu-lite': 'globalMmlu', 'gpqa-diamond': 'gpqa', 'tau3-banking': 'tauBanking', 'tau2-bench-telecom': 'tau2',
+    aime: 'aime25', 'aa-lcr': 'lcr', healthbench: 'healthbench',
+  };
+  const normKey = (k) => k.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/v(?=\d)/g, '').replace(/^aa|aa$/g, '');
+  function parseMethodology(html, keys) {
+    const rows = new Map();
+    for (const line of rscPayload(html).split('\n')) { const m = /^([0-9a-f]+):(.*)$/.exec(line); if (m) rows.set(m[1], m[2]); }
+    const text = (n) => typeof n === 'string' ? n : Array.isArray(n) ? (n[0] === '$' ? text(n[3]?.children) : n.map(text).join('')) : '';
+    const byNorm = new Map(keys.map((k) => [normKey(k), k]));
+    const evals = [], seen = new Set();
+    const walk = (o, path) => {
+      if (Array.isArray(o)) return o.forEach((x) => walk(x, path));
+      if (!o || typeof o !== 'object') return;
+      if (o.type === 'section' && o.section) {
+        const sec = o.section, nodes = (sec.content || []).filter((c) => c.type === 'node').map((c) => String(c.node).replace(/^\$L?/, ''));
+        let body = '';
+        for (const id of nodes) { try { body += text(JSON.parse(rows.get(id) || 'null')) + '\n'; } catch {} }
+        const status = /(?:Status|Note):\s*([^\n]*?)(?=Description:|$)/s.exec(body)?.[1]?.trim();
+        const desc = /Description:\s*(.*?)(?=(?:Paper|Dataset|Key|Repository|Source|Website|Code|Announcement|Implementation|Methodology|Blog|Leaderboard|Note)s?:|\n|$)/s.exec(body)?.[1]?.trim();
+        const key = ANCHOR_KEYS[sec.anchor] || byNorm.get(normKey(sec.anchor || '')) || null;
+        if (desc && sec.anchor && !seen.has(sec.anchor)) {
+          seen.add(sec.anchor);
+          const inc = /^Included in [^.]*?Intelligence Index (v[\d.]+?)\.? at (\d+(?:\.\d+)?)% weighting/.exec(status || '');
+          evals.push({ anchor: sec.anchor, key, name: sec.heading, group: path[path.length - 1] || null, status: status || null, desc,
+            ...(inc ? { inIndex: true, weight: +inc[2] / 100 } : {}) });
+        }
+        return walk(sec.content, [...path, sec.heading]);
+      }
+      for (const v of Object.values(o)) walk(v, path);
+    };
+    for (const raw of rows.values()) if (raw.includes('"type":"section"')) { try { walk(JSON.parse(raw), []); } catch {} }
+    const all = [...rows.values()].join('\n');
+    const head = /Intelligence Index (v\d+(?:\.\d+)*) incorporates (\d+) evaluations/.exec(all);
+    return evals.length ? { version: head?.[1] || null, count: head ? +head[2] : null, evals } : null;
   }
 
   // The site's "what's new" feed: models added, articles published, …
@@ -288,25 +379,35 @@
   };
 
   // -> { v, scrapedAt, source, models, dynamicBenchmarks, indexWeights, changelog, codingAgents }
-  async function scrape({ fetchOpts = {}, log = () => {} } = {}) {
+  // extraPages: also read the optional pages (the deploy does; the page's Update button skips them to stay quick).
+  async function scrape({ fetchOpts = {}, log = () => {}, extraPages = false } = {}) {
     let manifests;
-    try { manifests = await loadManifests(fetchOpts, log); }
+    try { manifests = await loadManifests(fetchOpts, log, extraPages); }
     catch (err) {
       // The pages and the manifests are cached separately, so just as the site changes its keys a page's key can briefly
       // belong to the manifest's next or previous version. Give the caches a moment and read everything again, once.
       if (!err.keyMismatch) throw err;
       log(`${err.message.replace(/; try again$/, '')}; reading again`);
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      manifests = await loadManifests(fetchOpts, log);
+      manifests = await loadManifests(fetchOpts, log, extraPages);
     }
-    const { models: built, dynamicBenchmarks } = buildModels(manifests);
+    const { models: built, dynamicBenchmarks, slugKey } = buildModels(manifests);
     // Most models have only some benchmarks: leave the missing ones out rather than storing nulls.
     const models = built.map((m) => Object.fromEntries(Object.entries(m).filter(([, v]) => v != null)));
     if (!models.length) throw new Error('Decoded the data but found no models — the format may have changed.');
-    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, ...(dynamicBenchmarks.length ? { dynamicBenchmarks } : {}), indexWeights: indexWeightsOf(manifests), changelog: changelogOf(manifests), codingAgents: codingAgentsOf(manifests) };
+    const changelog = changelogOf(manifests), indexWeights = indexWeightsOf(manifests, slugKey);
+    // What the index is made of right now: its version and each evaluation's benchmark key and weight.
+    const index = indexWeights ? { ...indexVersionOf(changelog), evals: Object.entries(indexWeights).map(([key, weight]) => ({ key, weight, slug: Object.keys(slugKey).find((s) => slugKey[s] === key) || key })) } : null;
+    return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, ...(dynamicBenchmarks.length ? { dynamicBenchmarks } : {}), indexWeights, index, changelog, codingAgents: codingAgentsOf(manifests) };
+  }
+  // The methodology page through the same fetch (Node only: it's large, and the deploy refreshes it for everyone).
+  async function scrapeMethodology({ fetchOpts = {}, keys = [] } = {}) {
+    const res = await fetch(BASE + METHODOLOGY, { signal: AbortSignal.timeout?.(30000), ...fetchOpts });
+    if (!res.ok) throw new Error(`${METHODOLOGY}: HTTP ${res.status}`);
+    return parseMethodology(await res.text(), keys);
   }
   // Bump when the saved shape changes, so the page ignores copies saved by an older version.
-  const VERSION = 4; // 4: dynamic AA benchmarks (FrontierCode, Cyber, Decision, domain capabilities)
+  const VERSION = 5; // 5: Intelligence Index v5 (index makeup from the data, models without an index score kept); 4: dynamic AA benchmarks
 
-  globalThis.AAData = { scrape, VERSION, discoverNumericFields };
+  globalThis.AAData = { scrape, scrapeMethodology, parseMethodology, VERSION, discoverNumericFields };
 })();

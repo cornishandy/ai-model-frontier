@@ -1147,9 +1147,17 @@
     // recomputed from the benchmarks you pick (see "your index" below); label and description follow the choice
     myIndex: { label: 'Your index', long: 'Your index: the benchmarks you picked, 0–100', fmt: one, better: 'high' },
     // knowledge & reasoning
+    hleDiamond: bench('HLE-Diamond', "HLE-Diamond (1,000 refined Humanity's Last Exam questions)"),
     hle: bench("Humanity's Last Exam", "Humanity's Last Exam"),
     gpqa: bench('GPQA Diamond', 'GPQA Diamond (graduate-level science)'),
+    critptHard: bench('CritPt v2 (hard)', 'CritPt v2, hard subset (research-level physics)'),
+    critptV2: bench('CritPt v2', 'CritPt v2 (research-level physics, all 70 challenges)'),
     critpt: bench('CritPt', 'CritPt (research-level physics)'),
+    healthbench: bench('HealthBench', 'HealthBench (health conversations, physician rubrics)'),
+    healthbenchPro: bench('HealthBench Professional', 'HealthBench Professional (clinician conversations)'),
+    globalMmlu: bench('Global-MMLU-Lite', 'Global-MMLU-Lite (multilingual knowledge)'),
+    mmluPro: bench('MMLU-Pro', 'MMLU-Pro (broad knowledge, 10 options)'),
+    math500: bench('MATH-500', 'MATH-500 (competition maths)'),
     omniscience: { label: 'AA-Omniscience Index', long: 'AA-Omniscience Index (knowledge, penalising wrong answers; −100 to 100)', fmt: one, better: 'high' },
     omniscienceAccuracy: bench('AA-Omniscience accuracy', 'AA-Omniscience accuracy'),
     hallucination: bench('AA-Omniscience hallucination rate', 'AA-Omniscience hallucination rate (answers wrong instead of abstaining)', { better: 'low' }),
@@ -1161,7 +1169,10 @@
     terminalBench21: bench('Terminal-Bench 2.1', 'Terminal-Bench 2.1'),
     terminalbenchHard: bench('Terminal-Bench Hard', 'Terminal-Bench Hard'),
     terminalBenchScience: bench('Terminal-Bench-Science', 'Terminal-Bench-Science 0.1'),
-    frontierCode: bench('AA-FrontierCode', 'AA-FrontierCode (frontier software engineering)'),
+    frontierCode20: bench('FrontierCode 2.0', 'FrontierCode 2.0 (mergeable changes to real open-source repositories)'),
+    frontierCode: bench('FrontierCode 1.1', 'FrontierCode 1.1 (changes to real open-source repositories)'),
+    code2video: { label: 'Code2Video-AA (Elo)', long: 'Code2Video-AA Elo (designing short videos in code)', fmt: elo, better: 'high' },
+    aa3d: { label: 'AA-3D (Elo)', long: 'AA-3D Elo (building interactive 3D experiences)', fmt: elo, better: 'high' },
     scicode: bench('SciCode', 'SciCode (scientific coding)'),
     livecodebench: bench('LiveCodeBench', 'LiveCodeBench'),
     // agents & tools
@@ -1173,6 +1184,9 @@
     itBench: bench('ITBench-AA (SRE)', 'ITBench-AA SRE (incident response)'),
     analystAgent: bench('AA-AnalystAgent', 'AA-AnalystAgent (spreadsheets & documents)'),
     cyberIndex: { label: 'AA Cyber Index', long: 'Artificial Analysis Cyber Index (defensive & offensive cybersecurity, 0–100)', fmt: one, better: 'high' },
+    cweBench: bench('CWE-Bench-AA', 'CWE-Bench-AA (vulnerabilities by weakness class; part of the Cyber Index)'),
+    deepsecBench: bench('DeepsecBench-AA', 'DeepsecBench-AA (security code review; part of the Cyber Index)'),
+    cybergym: bench('CyberGym-E2E-AA', 'CyberGym-E2E-AA (real open-source vulnerabilities; part of the Cyber Index)'),
     decisionIndex: { label: 'AA Decision Index', long: 'Artificial Analysis Decision Index (strategic decision-making in games & simulations, 0–100)', fmt: one, better: 'high' },
     // work & documents
     gdpval: { label: 'GDPval-AA (Elo)', long: 'GDPval-AA Elo (real-world knowledge work)', fmt: elo, better: 'high' },
@@ -1211,6 +1225,20 @@
   // Shown when hovering a metric in the axis lists and under the chart title.
   const DESC = {
     intelligence: 'A single 0–100 score combining 10 evaluations: AA-Briefcase, GDPval-AA, AutomationBench-AA, Terminal-Bench 4.0, SciCode, AA-Omniscience, GDP.pdf, AA-LCR, Humanity\'s Last Exam and CritPt (agentic work, coding, knowledge & long documents, scientific reasoning).',
+    hleDiamond: 'A refined and updated 1,000-question version of Humanity\'s Last Exam (Center for AI Safety and Scale AI): the original questions cleaned up with input from research communities, split evenly into 500 reasoning and 500 knowledge questions. % answered correctly.',
+    critptHard: 'The 40 hardest of CritPt v2\'s 70 research-level physics challenges: a fixed, private list leaving out the 30 that seven frontier models solved in all five attempts at launch. Mean accuracy over repeats.',
+    critptV2: 'The authors\' revision of CritPt: 70 research-level physics challenges, reviewed with physics experts to fix underspecified statements, errors and typos.',
+    healthbench: 'From OpenAI: 5,000 health conversations, each graded against a rubric written by physicians.',
+    healthbenchPro: 'From OpenAI: 525 conversations with clinicians, split into consult, writing and research use cases, graded against physician-written rubrics.',
+    globalMmlu: 'A lightweight multilingual version of MMLU: knowledge and reasoning across many languages and cultural contexts. Powers AA\'s Multilingual Index.',
+    mmluPro: 'Advanced knowledge across 14 domains, adapted from MMLU with 10 answer options instead of 4. Retired by Artificial Analysis.',
+    math500: 'A 500-problem subset of the MATH benchmark: high-school competition maths across subjects and difficulty levels. Retired by Artificial Analysis.',
+    frontierCode20: 'From Cognition, built with open-source maintainers: the agent makes a change to a real open-source repository, graded with held-out tests and a rubric on whether a maintainer would merge it. 132 tasks, 3 attempts each.',
+    code2video: 'Artificial Analysis\' run of HeyGen\'s Code2Video Bench: the model designs a short product or brand video in code (one HTML composition per brief), and a judge model compares two models\' rendered videos. Elo.',
+    aa3d: 'How well models build interactive 3D experiences (three.js / WebGL scenes), ranked by blind votes from Artificial Analysis\' recruited panel. Elo.',
+    cweBench: 'Artificial Analysis\' run of Collinear\'s CWE-Bench: secure-coding and vulnerability tasks organised by weakness class (CWE, OWASP). One of the Cyber Index\'s evaluations.',
+    deepsecBench: 'Artificial Analysis\' run of Vercel\'s DeepsecBench: security code review, spotting vulnerabilities in application code. One of the Cyber Index\'s evaluations.',
+    cybergym: 'Artificial Analysis\' end-to-end run of UC Berkeley RDI\'s CyberGym: memory-safety vulnerabilities in real OSS-Fuzz projects. One of the Cyber Index\'s evaluations.',
     hle: 'Expert-written academic questions across maths, science and the humanities, built so they can\'t be answered by searching the web. 2,158 text-only questions; % answered correctly.',
     gpqa: 'The hardest graduate-level biology, physics and chemistry multiple-choice questions (PhD experts score 65%, skilled non-experts with web access 34%). 198 questions; accuracy.',
     critpt: 'Unpublished, research-level physics problems from 50+ researchers across 11 subfields, with hard-to-guess answers (numbers, formulas, code). 70 challenges, graded by the authors\' server. Marked under review.',
@@ -1224,7 +1252,7 @@
     terminalBench21: 'A verified refresh of Terminal-Bench 2.0 (software engineering, sysadmin, data processing, model training, security). 89 tasks, Terminus 2 harness, 3 runs. Legacy.',
     terminalbenchHard: 'The hard subset of the original Terminal-Bench: compiling code, training models, configuring servers, playing games, debugging systems, checked by scripts in a Docker environment. Legacy.',
     terminalBenchScience: 'Research workflows written and reviewed by domain experts in the life, physical, mathematical, engineering and earth sciences, done in a terminal. 70 tasks; all tests must pass.',
-    frontierCode: 'Artificial Analysis\' frontier software-engineering evaluation: end-to-end repository tasks requiring multi-file edits and verification.',
+    frontierCode: 'From Cognition, built with open-source maintainers: changes to real open-source repositories, graded on whether a maintainer would merge them. Superseded by FrontierCode 2.0; the Coding Agent Index still uses 1.1.',
     scicode: 'Scientists\' real research problems solved by writing Python: 288 subproblems from 80 problems across 16 disciplines. Code must pass all unit tests.',
     livecodebench: 'Competitive programming problems collected continually from LeetCode, AtCoder and Codeforces, so they post-date training data. Legacy.',
     tau2: 'The agent and a simulated customer both act on a shared system to troubleshoot telecom service problems; every success criterion must be met. Legacy.',
@@ -1283,10 +1311,10 @@
     lmarenaSearch: 'LMArena Search: human preference votes on web-grounded search and synthesis tasks, with style control; Elo rating.',
   };
   const GROUPS = {
-    'Knowledge & reasoning': ['intelligence', 'myIndex', 'hle', 'gpqa', 'critpt', 'omniscience', 'omniscienceAccuracy', 'hallucination', 'ifbench', 'mmmuPro', 'aime25'],
-    'Coding & terminal': ['terminalBench40', 'frontierCode', 'terminalBench21', 'terminalbenchHard', 'terminalBenchScience', 'scicode', 'livecodebench'],
-    'Agents & tool use': ['tau2', 'tauBanking', 'automationBench', 'enterpriseOps', 'apexAgents', 'itBench', 'analystAgent', 'cyberIndex', 'decisionIndex'],
-    'Work & documents': ['gdpval', 'briefcase', 'gdpPdf', 'lcr', 'mlcr', 'harvey', 'capFinance', 'capStrategy', 'capLegal', 'capMedical', 'capEngineering', 'capEconomics', 'openness'],
+    'Knowledge & reasoning': ['intelligence', 'myIndex', 'hleDiamond', 'hle', 'gpqa', 'critptHard', 'critptV2', 'critpt', 'omniscience', 'omniscienceAccuracy', 'hallucination', 'ifbench', 'mmmuPro', 'globalMmlu', 'mmluPro', 'aime25', 'math500'],
+    'Coding & terminal': ['terminalBench40', 'frontierCode20', 'frontierCode', 'terminalBench21', 'terminalbenchHard', 'terminalBenchScience', 'scicode', 'livecodebench', 'code2video', 'aa3d'],
+    'Agents & tool use': ['tau2', 'tauBanking', 'automationBench', 'enterpriseOps', 'apexAgents', 'itBench', 'analystAgent', 'cyberIndex', 'cweBench', 'deepsecBench', 'cybergym', 'decisionIndex'],
+    'Work & documents': ['gdpval', 'briefcase', 'gdpPdf', 'lcr', 'mlcr', 'harvey', 'healthbench', 'healthbenchPro', 'capFinance', 'capStrategy', 'capLegal', 'capMedical', 'capEngineering', 'capEconomics', 'openness'],
     'Independent benchmarks': [], // filled from data/external.js
     'Cost': ['costPerTask', 'myCost', 'tasksPerDollar', 'pointsPerDollar', 'planTasks', 'costToRun', 'priceBlended', 'priceInput', 'priceOutput'],
     'Tokens & speed': ['tokensPerTask', 'outputTokens', 'outputSpeed', 'ttft', 'e2e', 'timePerTask', 'parameters'],
@@ -1384,25 +1412,31 @@
   }
   // "Active" benchmarks still get run on the current frontier: they have a result for today's top model on the
   // Intelligence Index and for at least 3 of the top 5 (by family, any effort; estimated scores don't pick the top).
-  // Retired ones, like AIME 2025, stop getting new models.
-  let FRONTIER = []; // best model of each of the top 5 families, best first
+  // Retired ones, like AIME 2025, stop getting new models. A family released in the 14 days before the data is too new
+  // to have been run on most benchmarks yet (Gemini 4 Carbon topped the index on its first day), so it doesn't count as
+  // missing one.
+  let FRONTIER = [], FRESH = []; // best model of each of the top 5 families, best first; the ones too new to count
   const MISSING = new Map(); // benchmark key -> the frontier families it has no result for
   function frontierOf() {
     const best = new Map();
     for (const m of ALL) if (!m.deprecated && !m.estimated && m.intelligence != null && !(best.get(m.family)?.intelligence >= m.intelligence)) best.set(m.family, m);
     FRONTIER = [...best.values()].sort((a, b) => b.intelligence - a.intelligence).slice(0, 5);
+    const newest = (f) => ALL.filter((m) => m.family === f.family).reduce((d, m) => (m.releaseDate || '') > d ? m.releaseDate : d, '');
+    FRESH = FRONTIER.filter((f) => newest(f) && new Date(DATA.scrapedAt) - new Date(newest(f) + 'T00:00:00Z') < 14 * 864e5);
     MISSING.clear();
     for (const k of Object.keys(METRICS)) {
       if (!isBench(k) && !METRICS[k].costOf) continue;
       const key = METRICS[k].costOf ? 'ext:' + METRICS[k].costOf : k; // a cost follows its benchmark
-      MISSING.set(k, FRONTIER.filter((f) => !ALL.some((m) => m.family === f.family && m[key] != null)));
+      MISSING.set(k, FRONTIER.filter((f) => !FRESH.includes(f) && !ALL.some((m) => m.family === f.family && m[key] != null)));
     }
   }
   const isActive = (k) => { const miss = MISSING.get(k); return !miss || !FRONTIER.length || (!miss.includes(FRONTIER[0]) && FRONTIER.length - miss.length >= Math.min(3, FRONTIER.length)); };
   function activeNote(k) {
     const miss = MISSING.get(k); if (!miss || !FRONTIER.length) return '';
     const has = `has ${FRONTIER.length - miss.length} of today's top ${FRONTIER.length}`, names = miss.map((m) => m.familyName).join(', ');
-    return isActive(k) ? `Active: ${has}${miss.length ? ` (not ${names})` : ''}` : `Inactive: ${has}; missing ${names}`;
+    const fresh = FRESH.filter((f) => !ALL.some((m) => m.family === f.family && m[k] != null)).map((m) => m.familyName);
+    const grace = fresh.length ? ` (${fresh.join(', ')}, out less than 2 weeks, counted as having it)` : '';
+    return isActive(k) ? `Active: ${has}${miss.length ? ` (not ${names})` : ''}${grace}` : `Inactive: ${has}; missing ${names}${grace}`;
   }
   const updatedDay = (k) => UPDATED.has(k) ? fmtDay(UPDATED.get(k).date) : '';
   function updatedNote(k) {
@@ -1419,10 +1453,24 @@
   // + independence from the frontier labs (0–2) + currency (0–1), then ±1 for audit findings. A = 9–10 … F = 0–2.
   const AUD = { hle: '~18–29% of bio/chem answers found wrong (FutureHouse; HLE team); physics re-grade lifts scores 47→79%', gpqa: 'paraphrased questions found in training data; dropped from the AA index (v4.2) as saturated', critpt: 'expert re-grading found reference and grader errors; Artificial Analysis marks it under review', scicode: 'SciCode-Verified found dataset defects; Artificial Analysis marks it under review', aime25: 'contest sets inflate 10–20% vs fresh problems (MathArena); dropped from the AA index (v4.0)', tau2: 'task and policy misalignments found (fixed in τ²-bench-verified, which AA doesn\'t run); replaced in the AA index (v4.1)', 'ext:lmarenaText': '"The Leaderboard Illusion" (NeurIPS 2025): private variant testing, data asymmetry, silent deprecations', gdpval: 'OpenAI\'s grader agrees with humans 66% of the time (humans with each other: 71%)', terminalBench40: 'harness-dependent: the official board, AA and Vals differ by ~5 points', gdpPdf: 'a PDF-parsing layer adds about 9 points; AA and Surge harnesses differ', apexAgents: '±5-point confidence intervals; Mercor\'s own leaderboard runs far higher', ifbench: 'dropped from the AA index (v4.1): no longer separates frontier models', livecodebench: 'dropped from the AA index (v4.0) as saturated on the window used', tauBanking: 'replaced in the AA index (v4.3) by AutomationBench', terminalBench21: 'superseded by Terminal-Bench 4.0 in the AA index (v4.3)', terminalbenchHard: 'legacy subset, replaced by Terminal-Bench 2.1 in the AA index (v4.1)' };
   const BENCH_META = {
-    intelligence: { maker: 'Artificial Analysis', set: 'mixed', size: '10 evaluations, ~45% private by weight', since: '2026-01', indep: 2, verdict: 'The best single composite, but an editorial mix (35% AA-made evals, two components under review); the top is often a tie.' },
+    intelligence: { maker: 'Artificial Analysis', set: 'mixed', size: '9 evaluations', since: '2026-10', indep: 2, verdict: 'The best single composite, but an editorial mix; the top is often a tie.' }, // size, since and verdict follow the data (applyIndexMakeup)
+    hleDiamond: { maker: 'CAIS & Scale AI', set: 'public', size: '1,000 questions', since: '2026-10', indep: 2, verdict: 'The cleaned-up HLE; replaced HLE in the index with v5.0.' },
+    critptHard: { maker: '50+ academic physicists', set: 'private', size: '40 of 70 challenges', since: '2026-10', indep: 2, auditNote: 'small n, and the subset was chosen by what frontier models failed at launch', verdict: 'Replaced CritPt in the index with v5.0; small, so noisy.' },
+    critptV2: { maker: '50+ academic physicists', set: 'private', size: '70 challenges', since: '2026-10', indep: 2, verdict: 'The corrected CritPt; its hard subset is what the index uses.' },
+    healthbench: { maker: 'OpenAI', set: 'public', size: '5,000 conversations', since: '2025-05', indep: 1, verdict: 'Run on few models so far.' },
+    healthbenchPro: { maker: 'OpenAI', set: 'public', size: '525 conversations', since: '2026-04', indep: 1, verdict: 'Run on few models so far.' },
+    globalMmlu: { maker: 'Cohere Labs and collaborators', set: 'public', since: '2024-12', indep: 2, verdict: 'Multilingual knowledge; a breadth check, not a frontier separator.' },
+    mmluPro: { maker: 'TIGER-Lab (University of Waterloo)', set: 'public', size: '12,000 questions', since: '2024-06', indep: 2, verdict: 'Retired by Artificial Analysis; legacy results only.' },
+    math500: { maker: 'OpenAI (subset of Hendrycks\' MATH)', set: 'public', size: '500 problems', since: '2023-05', indep: 1, verdict: 'Retired: saturated.' },
+    frontierCode20: { maker: 'Cognition, with open-source maintainers', set: 'mixed', size: '132 tasks', since: '2026-10', indep: 2, auditNote: 'Artificial Analysis doesn\'t say how much of the task set is public; an LLM judge grades the rubric', verdict: 'New in the index (v5.0) at 15%; real repositories, maintainer-style grading.' },
+    code2video: { maker: 'HeyGen (briefs); Artificial Analysis harness', set: 'mixed', size: '114 briefs (75 private)', since: '2026-10', indep: 2, auditNote: 'judged by a Gemini model, head to head', verdict: 'New; a design-in-code test judged by a model.' },
+    aa3d: { maker: 'Artificial Analysis', set: 'live', since: '2026-10', indep: 2, verdict: 'New; human blind votes on 3D scenes built in code.' },
+    cweBench: { maker: 'Collinear; run by Artificial Analysis', set: 'mixed', since: '2026-07', indep: 2, verdict: 'Part of the Cyber Index; run on few models.' },
+    deepsecBench: { maker: 'Vercel; run by Artificial Analysis', set: 'mixed', since: '2026-07', indep: 2, verdict: 'Part of the Cyber Index; run on few models.' },
+    cybergym: { maker: 'UC Berkeley RDI; run by Artificial Analysis', set: 'public', since: '2026-07', indep: 2, verdict: 'Part of the Cyber Index; run on few models.' },
     hle: { maker: 'CAIS & Scale AI', set: 'public', size: '2,158 text questions', since: '2025-01', indep: 2, audit: -1, verdict: 'Still separates models, but the ceiling is error-laden: treat 2-point gaps as noise.' },
     gpqa: { maker: 'NYU and others (some authors at Anthropic, Cohere)', set: 'public', size: '198 questions', since: '2023-11', indep: 2, audit: -1, verdict: 'Saturated (top models at 96%, within a point): a sanity check, not a frontier comparison.' },
-    critpt: { maker: '50+ academic physicists', set: 'private', size: '71 challenges', since: '2025-11', indep: 2, audit: -1, verdict: 'On hold until the revised set ships.' },
+    critpt: { maker: '50+ academic physicists', set: 'private', size: '71 challenges', since: '2025-11', indep: 2, audit: -1, verdict: 'Superseded by CritPt v2; its hard subset replaced CritPt in the index (v5.0).' },
     omniscience: { maker: 'Artificial Analysis', set: 'private', size: '6,000 questions', since: '2025-11', indep: 2, auditNote: 'questions generated by one LLM family; the abstention reward can be gamed (the authors\' own caveats)', verdict: 'Meaningful and unsaturated; made by the index owner.' },
     omniscienceAccuracy: { maker: 'Artificial Analysis', set: 'private', size: '6,000 questions', since: '2025-11', indep: 2, verdict: 'A part of AA-Omniscience: accuracy alone, without the penalty for wrong answers.' },
     hallucination: { maker: 'Artificial Analysis', set: 'private', size: '6,000 questions', since: '2025-11', indep: 2, verdict: 'A part of AA-Omniscience: how often a model guesses instead of abstaining.' },
@@ -1433,7 +1481,7 @@
     terminalBench21: { maker: 'Stanford & Laude Institute', set: 'public', size: '89 tasks', since: '2025-12', indep: 2, auditNote: AUD.terminalBench21, verdict: 'Saturated (top three within 2 points); superseded by 4.0.' },
     terminalbenchHard: { maker: 'Artificial Analysis (subset of Terminal-Bench 2.0)', set: 'public', size: '44 tasks', since: '2025-10', indep: 2, auditNote: AUD.terminalbenchHard, verdict: 'Legacy; don\'t use for current models.' },
     terminalBenchScience: { maker: 'Terminal-Bench team with domain scientists', set: 'public', size: '70 tasks', since: '2026-05', indep: 2, auditNote: 'single runs in a generic harness: high variance', verdict: 'Meaningful but noisy.' },
-    scicode: { maker: 'Academic consortium', set: 'public', size: '288 subproblems', since: '2024-07', indep: 2, audit: -1, verdict: 'Wait for the corrected set.' },
+    scicode: { maker: 'Academic consortium', set: 'public', size: '288 subproblems', since: '2024-07', indep: 2, audit: -1, verdict: 'Removed from the index in v5.0; wait for the corrected set.' },
     livecodebench: { maker: 'UC Berkeley, MIT, Cornell', set: 'rolling', size: 'contest problems, continually added', since: '2024-03', indep: 2, audit: -1, verdict: 'Saturated on the window AA uses; sound design for newer windows.' },
     tau2: { maker: 'Sierra', set: 'public', since: '2025-06', indep: 2, audit: -1, verdict: 'Dead at 99%.' },
     tauBanking: { maker: 'Sierra, run privately by Artificial Analysis', set: 'private', size: '97 tasks', since: '2025-12', indep: 2, auditNote: AUD.tauBanking, verdict: 'Unsaturated but the top is bunched; no longer in the index.' },
@@ -1453,7 +1501,7 @@
     'ext:llmChess': { maker: 'Maxim Saplin (independent)', set: 'public', since: '2024-11', indep: 2, auditNote: 'Elo is anchored by weak opponents (random, Komodo ≤1000), so the ceiling is low', verdict: 'Niche; weak discrimination at the frontier.' },
     'ext:gameArena': { maker: 'Google DeepMind & Kaggle', set: 'live', since: '2025-08', indep: 0, auditNote: 'the owner\'s model tops its own board', verdict: 'Interesting, with a conflict-of-interest caveat; chess only.' },
     'ext:dubesorChess': { maker: 'dubesor (hobbyist)', set: 'public', since: '2025-01', indep: 2, audit: -1, auditNote: 'no methodology page; tiny samples (a handful of games per pair)', verdict: 'Not for frontier comparison.' },
-    frontierCode: { maker: 'Artificial Analysis', set: 'private', since: '2026-06', indep: 2, verdict: 'Meaningful, private coding evaluation; wide spread across frontier models.' },
+    frontierCode: { maker: 'Cognition, with open-source maintainers', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Superseded by FrontierCode 2.0.' },
     cyberIndex: { maker: 'Artificial Analysis', set: 'private', since: '2026-07', indep: 2, verdict: 'Composite cybersecurity index; separates frontier models well.' },
     decisionIndex: { maker: 'Artificial Analysis', set: 'live', since: '2026-08', indep: 2, verdict: 'Composite strategic decision-making score across interactive environments.' },
     capFinance: { maker: 'Artificial Analysis', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Domain composite for financial analysis work.' },
@@ -1583,15 +1631,15 @@
   };
   // ---------- your index: the score and cost recomputed from the benchmarks you trust ----------
   // Artificial Analysis publishes each index evaluation's score, cost and output tokens per task, and its weight in the
-  // index. "Your index" is a weighted average of the benchmarks you pick (AA's own ten, by report-card grade, or whatever
+  // index. "Your index" is a weighted average of the benchmarks you pick (AA's own, by report-card grade, or whatever
   // the axis picker lists), on 0–100: percentages as they are (lower-is-better ones turned round), GDPval and Briefcase
   // Elo the way AA scales GDPval ((Elo − 500) ÷ 2000), AA-Omniscience from its −100…100, other Elo boards from the lowest
   // to the highest score on them. AA's weight where it has one, 10% (its usual weight) otherwise. A model needs results
   // covering 3/4 of the weight. "Cost per task, your benchmarks" averages AA's per-evaluation costs the same way, over the
   // picked benchmarks AA publishes a cost for (its index evaluations). The value-for-money measures use both.
-  const BASES = { aa: 'AA\'s 10 index benchmarks (as published)', A: 'Grade A benchmarks only', B: 'Grade B or better', C: 'Grade C or better', listed: 'Everything the axis picker lists' };
-  const BASIS_SHORT = { aa: 'AA\'s 10', A: 'grade A', B: 'grade B+', C: 'grade C+', listed: 'picker list' };
-  const INDEX_W = { briefcase: 0.15, gdpval: 0.1, automationBench: 0.05, terminalBench40: 0.1, scicode: 0.1, hle: 0.1, gdpPdf: 0.1, critpt: 0.1, omniscience: 0.15, lcr: 0.05 }; // as of v4.3, if the data lacks them
+  const BASES = { aa: 'AA\'s index benchmarks (as published)', A: 'Grade A benchmarks only', B: 'Grade B or better', C: 'Grade C or better', listed: 'Everything the axis picker lists' };
+  const BASIS_SHORT = { aa: 'AA\'s index', A: 'grade A', B: 'grade B+', C: 'grade C+', listed: 'picker list' };
+  const INDEX_W = { briefcase: 0.15, automationBench: 0.05, terminalBench40: 0.1, frontierCode20: 0.15, omniscience: 0.15, gdpPdf: 0.05, hleDiamond: 0.1, critptHard: 0.1, terminalBenchScience: 0.15 }; // as of v5.0, if the data lacks them
   const PARTS = new Set(['intelligence', 'omniscienceAccuracy', 'hallucination']); // the index itself, and two parts of AA-Omniscience
   const PART_WHY = { intelligence: 'it combines other benchmarks', omniscienceAccuracy: 'part of AA-Omniscience Index', hallucination: 'part of AA-Omniscience Index' };
   const ELO_AA = new Set(['gdpval', 'briefcase']), COVER = 0.75;
@@ -1868,9 +1916,35 @@
       BENCH_META[b.key] ||= { maker: 'Artificial Analysis', set: 'mixed', since: (d.scrapedAt || '').slice(0, 7) || '2026-10', indep: 2, verdict: 'Newly added Artificial Analysis evaluation.' };
     }
   }
+  // What the Intelligence Index is made of comes from the data (its version, evaluations and weights; see aa-data.js), so a
+  // new version of the index needs no edit here. The methodology page's descriptions fill in any benchmark this page has
+  // none for, and each description says whether the benchmark is in the index now, or when it left.
+  function applyIndexMakeup(d) {
+    const W = d.indexWeights || INDEX_W, ver = d.index?.version || '', since = d.index?.since;
+    const meth = new Map(((d.methodology || window.AA_DATA?.methodology)?.evals || []).filter((e) => e.key).map((e) => [e.key, e]));
+    for (const [k, M] of Object.entries(METRICS)) {
+      if (M.ext || k === 'intelligence') continue;
+      M.baseDesc ??= M.desc || '';
+      const e = meth.get(k);
+      let desc = (M.dynamic ? '' : M.baseDesc) || e?.desc || M.baseDesc;
+      if (W[k] != null) desc += ` In the Intelligence Index${ver ? ' ' + ver : ''} at ${Math.round(W[k] * 100)}%.`;
+      else if (e?.status && /^(Removed|Replaced|Superseded|Retired)/.test(e.status)) desc += ' ' + e.status.split(/(?<=\.)\s/)[0].replace(/Artificial Analysis /g, '').replace(/\bour\b/g, 'AA\'s').replace(/\.?$/, '.');
+      M.desc = desc.trim();
+      if (M.dynamic && e?.name) { M.label = e.name; M.long = e.name; }
+    }
+    const keys = Object.keys(W).filter((k) => METRICS[k]).sort((a, b) => W[b] - W[a]);
+    const aaMade = Math.round(100 * keys.filter((k) => BENCH_META[k]?.maker === 'Artificial Analysis').reduce((a, k) => a + W[k], 0));
+    METRICS.intelligence.desc = `A single 0–100 score combining ${keys.length} evaluations${ver ? ` (${ver}${since ? `, since ${fmtDay(since, true)}` : ''})` : ''}: ` +
+      `${keys.map((k) => `${METRICS[k].label} ${Math.round(W[k] * 100)}%`).join(', ')}. A new version is first run on the newest models, so older ones may have no score yet.`;
+    Object.assign(BENCH_META.intelligence, { size: `${keys.length} evaluations`, ...(since ? { since: since.slice(0, 7) } : {}),
+      verdict: `The best single composite, but an editorial mix (${aaMade}% of it Artificial Analysis' own evaluations); the top is often a tie.` });
+    BASES.aa = `AA's ${keys.length} index benchmarks${ver ? ` (${ver})` : ' (as published)'}`; BASIS_SHORT.aa = `AA's ${keys.length}`;
+    document.querySelectorAll('.basisSel option[value="aa"]').forEach((o) => { o.textContent = BASES.aa; });
+  }
   function loadData(d) {
     DATA = d;
     registerDynamicBenchmarks(d);
+    applyIndexMakeup(d);
     ALL = d.models.map((m) => ({ ...m, label: m.shortName.replace(/ with fallback\)/, ')') }));
     BY_ID = new Map(ALL.map((m) => [m.id, m]));
     joinExternal(); datesOf(); frontierOf(); derive();
@@ -5710,7 +5784,8 @@
     el.textContent = !ALL.length ? extra :
       `${ALL.filter((m) => !m.deprecated).length} current models · data from ${ago(DATA.scrapedAt)} (${new Date(DATA.scrapedAt).toLocaleString()})` + (extra ? ' · ' + extra : '');
   }
-  async function updateData() {
+  // auto: the automatic refresh when the page opens on an old copy (quieter when it can't get anything newer)
+  async function updateData(auto = false) {
     if (updating) return;
     if (!window.AAData) { showMeta('Update needs aa-data.js next to this page — open "AI Model Frontier.html" instead.', true); return; }
     updating = true;
@@ -5727,7 +5802,7 @@
         if (!site) throw err;
         d = site; why = `artificialanalysis.ai couldn't be read just now (${err.message})`;
         // a copy only replaces what's on show if it's newer (and a current shape beats an older one, as at startup)
-        if (((currentShape(d) - currentShape(DATA)) || d.scrapedAt.localeCompare(DATA.scrapedAt)) <= 0) { showMeta(`${why}, and the site's own copy has nothing newer`, true); return; }
+        if (((currentShape(d) - currentShape(DATA)) || d.scrapedAt.localeCompare(DATA.scrapedAt)) <= 0) { showMeta(auto ? '' : `${why}, and the site's own copy has nothing newer`, !auto); return; }
       }
       // A fresh scrape always counts (it's newer by definition), but say so when nothing in it actually changed.
       const content = (x) => JSON.stringify([x.models, x.indexWeights, x.changelog, x.codingAgents]);
@@ -5745,7 +5820,7 @@
         (why ? ` · ${why}` : '') + (saved ? '' : ' · shown until you close the page (this browser wouldn\'t save it)'), !!why);
     } catch (err) {
       const why = /failed to fetch|load failed|networkerror/i.test(err.message) ? `${err.message}: couldn't reach artificialanalysis.ai; check the connection, or an ad blocker or VPN may be in the way` : err.message;
-      showMeta(`update failed (${why}) — still showing the previous data`, true);
+      showMeta(auto ? 'couldn\'t fetch newer numbers just now' : `update failed (${why}) — still showing the previous data`, !auto);
     } finally {
       updating = false; btn.disabled = false; btn.innerHTML = label;
     }
@@ -5766,7 +5841,7 @@
     }));
     return copies.filter(Boolean).sort((a, b) => b.scrapedAt.localeCompare(a.scrapedAt))[0] || null;
   }
-  $('updateData').addEventListener('click', updateData);
+  $('updateData').addEventListener('click', () => updateData());
   $('syncBtn').addEventListener('click', syncButton);
   $('tokenShare').addEventListener('click', shareToken);
 
@@ -5786,6 +5861,9 @@
   fixAxes(); fixMarks(); syncControls(); applyWide(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
   checkNews(qp.has('celebrate')); // ?celebrate previews the celebration (the latest feed entries and benchmark updates)
   sync(false);
+  // The deploy refreshes the site's copy every 30 minutes in theory, but GitHub often starts it hours late: a copy more
+  // than 2 hours old fetches the latest numbers on its own (same as pressing Update data). ?noAutoUpdate skips it.
+  if ((!DATA.models.length || Date.now() - new Date(DATA.scrapedAt) > 2 * 3600e3) && !qp.has('noAutoUpdate')) updateData(true);
   let lastW = 0;
   new ResizeObserver(() => { const w = $('chartCard').clientWidth; if (w !== lastW) { lastW = w; render(); } }).observe($('chartCard'));
   // the phone header is sticky; the axis toolbar sticks just under it
