@@ -33,6 +33,7 @@ const problems = [
   scored.length < 20 && `only ${scored.length} current models have an Intelligence Index score`,
   scored.filter((m) => m.costPerTask != null).length < scored.length / 2 && `cost per task is missing for ${scored.filter((m) => m.costPerTask == null).length} of ${scored.length} scored models`,
   !out.indexWeights && 'the index weights could not be worked out',
+  !out.models.some((m) => !m.deprecated && m.outputSpeed != null) && 'no current model has an output speed',
 ].filter(Boolean);
 const unmatched = (out.index?.evals || []).filter((e) => e.key === e.slug && !out.models.some((m) => m[e.key] != null));
 if (unmatched.length) console.log(`  warning: index evaluations with no matching benchmark field: ${unmatched.map((e) => e.slug).join(', ')}`);

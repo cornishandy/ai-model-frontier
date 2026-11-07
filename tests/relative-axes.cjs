@@ -106,65 +106,81 @@ async function checkTags(page) {
   assert.deepEqual(failures,[],'Chart tags avoid all rendered text');
 }
 
-async function assertReference(page,id,x,y) {
-  const ref=await page.evaluate(()=>{
-    const {geom,points,kneeOf,paretoFront}=window.__bundleC;
-    const knee=kneeOf(paretoFront(points.map(p=>({...p,xv:p.rawX,yv:p.rawY}))));
-    return {id:geom.X.ref?.point.m.id,key:geom.X.ref?.point.m.family+':'+geom.X.ref?.point.m.effort,x:geom.X.ref?.value,y:geom.X.ref?.point.rawY,gap:knee?.gap};
+// Sweet-spot checks take the pick from the page's current data rather than naming a model and its values, which went
+// stale with every data refresh. Which dot the knee rule picks is pinned down by the synthetic scenarios
+// (round2-signed-gap-and-endpoints, known-knee-and-recompute); these check that the relative axis, its note and the
+// Good zone agree on real data, whether or not that data bends.
+async function assertSweetSpot(page) {
+  const {knee,ref}=await page.evaluate(()=>{
+    const {geom,points,kneeOf,paretoFront,METRICS,S}=window.__bundleC;
+    const k=kneeOf(paretoFront(points.map(p=>({...p,xv:p.rawX,yv:p.rawY})))), r=geom?.X.ref;
+    // the note must print the reference's own raw values, in each metric's format
+    const X=METRICS[S.x],Y=METRICS[S.y];
+    return {knee:k&&{id:k.point.m.id,gap:k.gap},ref:r&&{id:r.point?.m.id,label:r.point?.m.label,value:r.value,rawX:r.point?.rawX,
+      shownX:X.fmt(r.point.rawX),shownY:Y.label+' '+Y.fmt(r.point.rawY)}};
   });
-  assert.equal(ref.key,id);
-  assert.ok(ref.gap>0,'Sweet spot bends toward better on both');
-  if(x!==undefined)assert.ok(Math.abs(ref.x-x)<0.005,'Expected raw X value');
-  if(y!==undefined)assert.ok(Math.abs(ref.y-y)<0.1,'Expected raw Y value');
+  const note=await page.locator('#relativeNote').innerText();
+  if(!knee){
+    console.log('  (no sweet spot in this data)');
+    assert.match(note,/No sweet spot on this scale|at least 3/);assert.ok(!ref,'No reference without a sweet spot');
+    await page.locator('#zoneSeg [data-v="knee"]').click();
+    assert.match(await page.locator('#chartNote').innerText(),/does not bend toward better on both|at least 3/);
+    assert.equal(await page.locator('.zone-tag').count(),0);
+    await checkGeometry(page);
+    return null;
+  }
+  assert.ok(knee.gap>0,'Sweet spot bends toward better on both');
+  assert.equal(ref?.id,knee.id,'The relative axis takes the knee of the raw frontier');
+  assert.ok(Math.abs(ref.value-ref.rawX)<1e-9,'1.0 is the sweet spot\'s raw X value');
+  assert.ok(note.includes(ref.label+' (')&&note.includes('the sweet spot'),note);
+  assert.ok(note.includes(ref.shownX+', '+ref.shownY+')'),`The note shows the sweet spot's raw values (${ref.shownX}, ${ref.shownY}): ${note}`);
+  assert.equal(/The bend is slight/.test(note),knee.gap<0.12,'A slight bend is mentioned only when the gap is small');
   await page.locator('#zoneSeg [data-v="knee"]').click();
-  assert.match(await page.locator('#legend').innerText(),new RegExp(id.startsWith('gpt')?'sweet spot at GPT':'sweet spot at'));
+  assert.ok((await page.locator('#legend').innerText()).includes('sweet spot at '+ref.label),'The Good zone names the same model');
   assert.equal(await page.locator('.zone-tag').getAttribute('data-id'),ref.id,'Zone and relative axis share the pick');
   await checkGeometry(page);await checkTags(page);
+  return ref;
 }
 
 async function round2(c,w,desktop) {
   await scenario(c,'round2-default-linear-values',desktop,'?xRel=sweet',null,async p=>{
-    await assertReference(p,'claude-opus-5-5:medium',1.34,51.2);
-    assert.match(await p.locator('#relativeNote').innerText(),/\$1\.34, Intelligence Index 51\.2/);
-    assert.doesNotMatch(await p.locator('#relativeNote').innerText(),/bend is slight/);
+    if(await assertSweetSpot(p)){
+      const note=await p.locator('#relativeNote').innerText();
+      assert.match(note,/on this linear scale/);
+      assert.match(note,/\(\$\d+\.\d\d, Intelligence Index \d+\.\d\)/,'Cost in dollars and cents, the index to one decimal');
+    }
     assert.match(await p.locator('#zoneSeg [data-v="knee"]').getAttribute('title'),/returns diminish/);
     await snapshot(p,'round2-default-linear-zone');
   });
   await scenario(c,'round2-default-log-values',desktop,'?xRel=sweet&xScale=log&theme=dark',null,async p=>{
-    await assertReference(p,'gpt-6-luna:max',0.068,38.1);
-    assert.match(await p.locator('#relativeNote').innerText(),/The bend is slight on this scale/);
+    if(await assertSweetSpot(p))assert.match(await p.locator('#relativeNote').innerText(),/on this log X \/ linear Y scale/);
     await snapshot(p,'round2-default-log-zone');
   });
   await scenario(c,'round2-current-linear-values',desktop,'?xRel=sweet',null,async p=>{
-    await currentCatalog(p);await assertReference(p,'gpt-6-1-sol:xhigh',0.39,51.0);
+    await currentCatalog(p);await assertSweetSpot(p);
   });
   await scenario(c,'round2-grok-gpqa-cost-log',desktop,'?x=costPerTask&y=gpqa&xScale=log&xRel=sweet',null,async p=>{
-    await assertReference(p,'gpt-5-6-sol:medium',0.505,0.926);
+    const ref=await assertSweetSpot(p);
     await snapshot(p,'round2-gpqa-cost-log');
     await p.locator('#xRel').selectOption('off');
-    assert.match(await p.locator('#legend').innerText(),/sweet spot at GPT-5.6 Sol \(medium\)/,'Zone alone also rejects the dent');
+    const legend=await p.locator('#legend').innerText(); // the Good zone alone makes the same call
+    if(ref)assert.ok(legend.includes('sweet spot at '+ref.label),legend);else assert.doesNotMatch(legend,/sweet spot at/);
   });
   await scenario(c,'round2-grok-time-current-log',desktop,'?x=timePerTask&xScale=log&y=intelligence&xRel=sweet',null,async p=>{
-    await currentCatalog(p);await assertReference(p,'gpt-6-astra:low',undefined,45.8);
+    await currentCatalog(p);await assertSweetSpot(p);
     assert.doesNotMatch(await p.locator('#relativeNote').innerText(),/cost vs score|dollar/);
     await snapshot(p,'round2-time-current-log');
   });
   await scenario(c,'round2-grok-speed-current-log',desktop,'?x=outputSpeed&xScale=log&y=intelligence&xRel=sweet',null,async p=>{
-    await currentCatalog(p);await assertReference(p,'muse-spark-1-3:xhigh',undefined,45.1);
-    assert.match(await p.locator('#relativeNote').innerText(),/The bend is slight/);
+    await currentCatalog(p);await assertSweetSpot(p);
     await snapshot(p,'round2-speed-current-log');
   });
   for(const [name,query,all] of [
     ['hallucination-default','?x=hallucination&y=intelligence&xRel=sweet',false],
     ['speed-current-linear','?x=outputSpeed&y=intelligence&xRel=sweet',true],
-  ])await scenario(c,'round2-no-positive-bend-'+name,desktop,query,null,async p=>{
+  ])await scenario(c,'round2-sweet-spot-'+name,desktop,query,null,async p=>{
     if(all)await currentCatalog(p);
-    assert.match(await p.locator('#relativeNote').innerText(),/No sweet spot on this scale/);
-    assert.ok(!(await p.evaluate(()=>window.__bundleC.geom.X.ref)));
-    await p.locator('#zoneSeg [data-v="knee"]').click();
-    assert.match(await p.locator('#chartNote').innerText(),/does not bend toward better on both/);
-    assert.equal(await p.locator('.zone-tag').count(),0);
-    await checkGeometry(p);
+    await assertSweetSpot(p);
   });
   await scenario(c,'round2-signed-gap-and-endpoints',desktop,'',null,async p=>{
     await setSynthetic(p,[1,2,5,10],[10,20,21,80]);
@@ -262,7 +278,8 @@ async function round2(c,w,desktop) {
   });
   await scenario(c,'pinned-and-tooltip',desktop,'?xRel=pinned&yRel=pinned&pin=claude-opus-5-5:high',null,async p=>{
     await checkGeometry(p);await snapshot(p,'pinned');
-    const hover=await p.evaluate(()=>{const t=window.__bundleC, q=t.points.find(q=>q.m.id===t.geom.X.ref.point.m.id),r=document.querySelector('#chart').getBoundingClientRect();return {x:r.left+q.px,y:r.top+q.py};});
+    // The chart can sit below the fold (the header above it has grown), so bring it into view before aiming at a dot.
+    const hover=await p.evaluate(()=>{const t=window.__bundleC, q=t.points.find(q=>q.m.id===t.geom.X.ref.point.m.id),c=document.querySelector('#chart');c.scrollIntoView({block:'center'});const r=c.getBoundingClientRect();return {x:r.left+q.px,y:r.top+q.py};});
     await p.mouse.move(hover.x,hover.y);
     await p.waitForFunction(()=>document.querySelector('#tooltip').style.display==='block');
     const text=await p.locator('#tooltip').innerText();

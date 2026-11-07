@@ -186,7 +186,8 @@
         priceBlended: num(m.price1mBlended0To3To1),
         priceInput: num(m.price1mInputTokens),
         priceOutput: num(m.price1mOutputTokens),
-        outputSpeed: num(m.timescaleData?.medianOutputSpeed) ?? median(speedByModel.get(m.id) || []),
+        // AA now sends the median speed as a plain outputSpeed number (timescaleData is gone from its records)
+        outputSpeed: num(m.timescaleData?.medianOutputSpeed) ?? num(m.outputSpeed) ?? median(speedByModel.get(m.id) || []),
         ttft: num(m.timeToFirstAnswerToken?.total),
         e2e: num(m.endToEndResponseTime?.total),
         outputTokens: num(m.canonicalIntelligenceIndexTokenCount?.output),

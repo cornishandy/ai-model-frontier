@@ -29,6 +29,13 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
     await context.close();
   }
   const ev = (page, fn, arg) => page.evaluate(fn, arg);
+  // The chart can sit below the fold, so scroll it into view before aiming at a dot.
+  const dotXY = (page, id) => ev(page, (id) => { const c = document.querySelector('#chart'); c.scrollIntoView({ block: 'center' });
+    const box = c.getBoundingClientRect(), p = __t.points.find((q) => q.m.id === id); return [box.left + p.px, box.top + p.py]; }, id);
+  // A reasoning model from another lab than Opus that is on the chart, as [id, family, effort]. It is picked from the
+  // page's current data rather than by name, so a model leaving the data can't break a check.
+  const otherDot = (page) => ev(page, () => { const opus = __t.points.find((q) => q.m.family === 'claude-opus-5-5');
+    const p = __t.points.find((q) => q.m.creator !== opus.m.creator && q.m.effort !== 'non-reasoning'); return [p.m.id, p.m.family, p.m.effort]; });
 
   await scenario('1.0 = a model from the URL, both axes', `?theme=light&xRel=${OPUS}&yRel=${OPUS}`, async (page) => {
     const r = await ev(page, () => ({ x: __t.geom.X.ref, y: __t.geom.Y.ref, title: document.querySelector('#chartTitle').textContent,
@@ -48,9 +55,9 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
     });
     assert.equal(r.snapRel, OPUS); assert.equal(r.off, undefined); assert.equal(r.after, 'model'); assert.equal(r.sel, OPUS);
     // pin one dot, hover another: the tooltip's ratio line names the reference model
-    const [a, b] = await ev(page, () => { const box = document.querySelector('#chart').getBoundingClientRect(), ps = __t.points.filter((p) => p.m.family === 'gpt-6-sol');
-      return ps.slice(0, 2).map((p) => [box.left + p.px, box.top + p.py]); });
-    await page.mouse.click(...a); await page.mouse.move(...b); await page.waitForTimeout(150);
+    const [a, b] = await ev(page, () => { const by = new Map(); for (const p of __t.points) if (p.m.family !== 'claude-opus-5-5') by.set(p.m.family, [...(by.get(p.m.family) || []), p.m.id]);
+      return [...by.values()].find((ids) => ids.length >= 2).slice(0, 2); }); // two dots of one family, from the current data
+    await page.mouse.click(...(await dotXY(page, a))); await page.mouse.move(...(await dotXY(page, b))); await page.waitForTimeout(150);
     const tip = await ev(page, () => document.querySelector('#tooltip').textContent);
     assert.match(tip, /of Claude Opus 5\.5 xhigh/);
   });
@@ -75,11 +82,13 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
   });
 
   await scenario('right-click a dot: use it as 1.0, then stop', '?theme=light', async (page) => {
-    const xy = await ev(page, () => { const box = document.querySelector('#chart').getBoundingClientRect(), p = __t.points.find((q) => q.m.family === 'gpt-6-sol' && q.m.effort === 'high'); return [box.left + p.px, box.top + p.py]; });
-    await page.mouse.click(...xy, { button: 'right' });
+    const [id, fam, eff] = await otherDot(page);
+    await page.mouse.click(...(await dotXY(page, id)), { button: 'right' });
     await page.locator('.ctx-item', { hasText: 'Use as 1.0 on X' }).click();
-    assert.equal(await ev(page, () => [__t.S.xRel, __t.S.yRel].join()), 'model:gpt-6-sol:high,off');
-    await page.mouse.click(...(await ev(page, () => { const box = document.querySelector('#chart').getBoundingClientRect(), p = __t.points.find((q) => q.m.family === 'gpt-6-sol' && q.m.effort === 'high'); return [box.left + p.px, box.top + p.py]; })), { button: 'right' });
+    const r = await ev(page, (id) => ({ x: __t.S.xRel, y: __t.S.yRel, key: __t.geom.X.ref?.key, v: __t.points.find((q) => q.m.id === id)?.xv }), id);
+    assert.ok(r.x === `model:${fam}:${eff}` || r.x.startsWith(`model:${fam}:${eff}:`), r.x); assert.equal(r.y, 'off'); assert.equal(r.key, 'model');
+    assert.ok(Math.abs(r.v - 1) < 1e-9, 'the clicked dot sits at 1.0');
+    await page.mouse.click(...(await dotXY(page, id)), { button: 'right' });
     await page.locator('.ctx-item', { hasText: 'Stop using as 1.0' }).click();
     assert.equal(await ev(page, () => __t.S.xRel), 'off');
   });
@@ -104,15 +113,18 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
     await set('guideBox', 'none'); a = await area(); assert.equal(a.length, 0);
     assert.ok(await ev(page, () => document.querySelectorAll('#guideLayer line').length) >= 2, 'the guide lines stay');
     // hovering a dot follows the same setting
-    const xy = await ev(page, () => { const box = document.querySelector('#chart').getBoundingClientRect(), p = __t.points.find((q) => q.m.family === 'gpt-6-sol'); return [box.left + p.px, box.top + p.py]; });
-    await page.mouse.move(...xy); await page.waitForTimeout(150);
+    await page.mouse.move(...(await dotXY(page, (await otherDot(page))[0]))); await page.waitForTimeout(150);
     assert.equal(await ev(page, () => document.querySelectorAll('#hoverLayer polygon').length), 0);
     // the control hides when guides run to one axis
     await page.locator('#guideAxisSeg [data-v="x"]').click();
     assert.equal(await page.locator('.group[data-g="guideBox"]').isVisible(), false);
   });
 
-  await scenario('Good zone None draws no area; Beats pinned keeps its lines; Model colour per pin', '?theme=light&zone=beats&pin=claude-opus-5-5:xhigh,gpt-6-sol:high', async (page) => {
+  await scenario('Good zone None draws no area; Beats pinned keeps its lines; Model colour per pin', '?theme=light&zone=beats&pin=claude-opus-5-5:xhigh', async (page) => {
+    // the second pin is a model from another lab, picked from the current data, and still set through the URL
+    const [, fam, eff] = await otherDot(page);
+    await page.goto(origin + `?theme=light&zone=beats&pin=claude-opus-5-5:xhigh,${fam}:${eff}`); await page.waitForFunction(() => window.__t?.geom);
+    assert.equal(await ev(page, () => __t.S.pinned.size), 2, 'both pins from the URL');
     const set = (k, v) => ev(page, ([k, v]) => { __t.S[k] = v; __t.render(); }, [k, v]);
     await set('zoneStyle', 'none');
     let r = await ev(page, () => ({ polys: document.querySelectorAll('#chart .zone-layer polygon, #chart .zone-layer circle[r="30"]').length, legend: document.querySelector('#legend').textContent, sw: document.querySelector('.legend i.zone-sw')?.getAttribute('style') }));
@@ -133,7 +145,8 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
   });
 
   await scenario('Values: frontier only', '?theme=light&valueLabels=y', async (page) => {
-    const count = () => ev(page, () => [...document.querySelectorAll('#chart text[data-fam]')].filter((t) => /^\d+\.\d$/.test(t.textContent.trim().split(' · ').pop())).length);
+    // a value is a label of its own ("59", "L · 35") or, when there is room, a tspan after the model's name ("GPT-6 Luna 28")
+    const count = () => ev(page, () => [...document.querySelectorAll('#chart text[data-fam]')].filter((t) => /^\d+(\.\d)?$/.test(t.textContent.trim().split(' · ').pop()) || (t.lastElementChild?.tagName === 'tspan' && /^\d+(\.\d)?$/.test(t.lastElementChild.textContent.trim()))).length);
     const all = await count();
     await page.locator('#valueFront').check();
     const front = await count(), size = null;
@@ -142,7 +155,7 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
     const check = () => ev(page, () => {
       const ps = __t.points, front = ps.filter((p) => !ps.some((q) => q !== p && q.xv <= p.xv && q.yv >= p.yv && (q.xv < p.xv || q.yv > p.yv)));
       const fams = new Set(front.map((p) => p.m.family)), ghostOnly = new Set(__t.ghosts.map((p) => p.m.family).filter((f) => !ps.some((p) => p.m.family === f)));
-      const labels = [...document.querySelectorAll('#chart text[data-fam]')].filter((t) => /^\d+\.\d$/.test(t.textContent.trim().split(' · ').pop())).map((t) => t.getAttribute('data-fam'));
+      const labels = [...document.querySelectorAll('#chart text[data-fam]')].filter((t) => /^\d+(\.\d)?$/.test(t.textContent.trim().split(' · ').pop()) || (t.lastElementChild?.tagName === 'tspan' && /^\d+(\.\d)?$/.test(t.lastElementChild.textContent.trim()))).map((t) => t.getAttribute('data-fam'));
       return { labels: labels.length, bad: labels.filter((f) => !fams.has(f) || ghostOnly.has(f)) };
     });
     let c = await check(); assert.deepEqual(c.bad, []); assert.ok(c.labels > 0);
@@ -174,7 +187,9 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
   await scenario('an update that drops the reference model falls back to Off', `?theme=light&xRel=${OPUS}`, async (page) => {
     await ev(page, () => {
       const next = JSON.parse(JSON.stringify(window.AA_DATA));
-      next.models = next.models.filter((m) => !(m.family === 'claude-opus-5-5' && m.effort === 'xhigh'));
+      // the whole family: one missing effort of a family still on AA comes back as an estimated variant when an
+      // independent benchmark lists it (joinExternal), so that reference would rightly stay
+      next.models = next.models.filter((m) => m.family !== 'claude-opus-5-5');
       next.scrapedAt = new Date().toISOString();
       window.AAData.scrape = async () => next;
     });
