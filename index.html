@@ -627,6 +627,10 @@
   .card-head a { font-size: 12px; color: var(--accent); text-decoration: none; }
 
   /* Coding agents table: inline bars behind the numbers */
+  #agentsCard { overflow-x: auto; flex-shrink: 0; }
+  #agentsTable th:nth-child(1), #agentsTable td:nth-child(1) { min-width: 140px; }
+  #agentsTable th:nth-child(2), #agentsTable td:nth-child(2) { min-width: 200px; }
+  #tableCard, #planCard, #agentsCard, #usageCard, #feedCard { scroll-margin-top: var(--section-scroll-top, 0px); }
   table.data td.bar { position: relative; min-width: 70px; }
   table.data td.bar span { position: absolute; left: 0; top: 4px; bottom: 4px; background: var(--accent); opacity: .16; border-radius: 3px; }
   table.data tr.hl-row td { font-weight: 600; }
@@ -1023,15 +1027,15 @@
   </details>
 
   <details class="card" id="usageCard">
-    <summary title="The models you actually use in T3 Code, day by day, priced at API list prices: rolling totals, what your plans are worth, trends and a model table. Encrypted; readable only on devices you've unlocked">Your usage <span class="note" style="font-weight:400">· your T3 Code use at API prices</span></summary>
+    <summary title="The models in your local agent logs, day by day, priced at API list prices: rolling totals, what your plans are worth, trends and a model table. Encrypted; readable only on devices you've unlocked">Your usage <span class="note" style="font-weight:400">· your local agent logs</span></summary>
     <div id="usageLocked">
-      <p>What the models you use in T3 Code would cost at API list prices — today, this week, this month and all time — with what each subscription is worth, day-by-day charts, a model table and trends. The numbers are encrypted: only a device that has opened your unlock link can read them, and the key stays on that device.</p>
-      <p>To unlock: on the Mac, run <code>node usage/collect.mjs --link</code> and open the link it prints (or paste it below), or press <b>Send to phone</b> on a device that's already unlocked.</p>
+      <p>What the models in your local agent logs would cost at API list prices — today, this week, this month and all time — with what each subscription is worth, day-by-day charts, a model table and trends. The numbers are encrypted: only a device that has opened your unlock link can read them, and the key stays on that device.</p>
+      <p>To unlock: on the Mac, run <code>node usage/collect.mjs --link</code> and open the link it prints (or paste it below), or press <b>Share unlock link</b> on a device that's already unlocked.</p>
       <div class="row"><input type="text" id="usagePaste" placeholder="Paste your unlock link…" autocomplete="off" spellcheck="false" style="flex:1;min-width:0;max-width:520px" title="The link from node usage/collect.mjs --link; it's read here and never sent anywhere" /><button id="usageUnlock" class="primary" title="Save the key on this device and load your usage">Unlock</button></div>
     </div>
     <div class="u-status" id="usageBar" hidden><span class="note" id="usageStatus"></span>
       <button id="usageRefresh" title="Check GitHub for newer numbers now (otherwise at most every 10 minutes)">Refresh</button>
-      <button id="usageShare" title="Send the unlock link to your own phone. The link is the password: anyone who opens it can read your usage. AirDrop it (or use Universal Clipboard); don't text or email it"><span class="desk-only">Send to phone</span><span class="mobile-only">Share link</span></button>
+      <button id="usageShare" title="Share the unlock link with another device. The link is the password: anyone who opens it can read your usage. AirDrop it (or use Universal Clipboard); don't text or email it">Share unlock link</button>
       <button id="usageForget" title="Remove the key and the cached copy from this device; you'll need the unlock link again">Forget on this device</button></div>
     <div id="usageBody" hidden>
       <div class="toolbar" style="margin:2px 0 6px">
@@ -1079,7 +1083,7 @@
   <details class="card" id="agentsCard">
     <summary>Coding agents — harness + model (Artificial Analysis Coding Agent Index)</summary>
     <p class="note" style="margin:8px 0 0">The same model scores differently depending on the agent driving it. Each row is one agent running one model on
-      DeepSWE, SWE-Atlas-QnA and Terminal-Bench v4; cost, time and tokens are per task. Click a header to sort.
+      FrontierCode 1.1, SWE-Atlas-QnA and Terminal-Bench 4.0; cost, time and tokens are per task. Click a header to sort.
       <a href="https://artificialanalysis.ai/agents/coding-agents" target="_blank" rel="noopener">Source ↗</a></p>
     <table class="data" id="agentsTable"></table>
   </details>
@@ -1638,7 +1642,7 @@
   // covering 3/4 of the weight. "Cost per task, your benchmarks" averages AA's per-evaluation costs the same way, over the
   // picked benchmarks AA publishes a cost for (its index evaluations). The value-for-money measures use both.
   const BASES = { aa: 'AA\'s index benchmarks (as published)', A: 'Grade A benchmarks only', B: 'Grade B or better', C: 'Grade C or better', listed: 'Everything the axis picker lists' };
-  const BASIS_SHORT = { aa: 'AA\'s index', A: 'grade A', B: 'grade B+', C: 'grade C+', listed: 'picker list' };
+  const BASIS_SHORT = { aa: 'AA\'s index', A: 'grade A', B: 'grade B or better', C: 'grade C or better', listed: 'picker list' };
   const INDEX_W = { briefcase: 0.15, automationBench: 0.05, terminalBench40: 0.1, frontierCode20: 0.15, omniscience: 0.15, gdpPdf: 0.05, hleDiamond: 0.1, critptHard: 0.1, terminalBenchScience: 0.15 }; // as of v5.0, if the data lacks them
   const PARTS = new Set(['intelligence', 'omniscienceAccuracy', 'hallucination']); // the index itself, and two parts of AA-Omniscience
   const PART_WHY = { intelligence: 'it combines other benchmarks', omniscienceAccuracy: 'part of AA-Omniscience Index', hallucination: 'part of AA-Omniscience Index' };
@@ -1840,7 +1844,7 @@
     if (!flipped && Math.abs(gapNow - gapThen) < 0.3 && !added.length) return '';
     const when = fmtDay(prior.scrapedAt.slice(0, 10), true);
     const who = (row) => `${esc(row.m.shortName)} ${fmtScore(row.now.score)}`;
-    let html = `On <b>Your index (grade B+)</b>, `;
+    let html = `On <b>Your index (grade B or better)</b>, `;
     html += flipped
       ? `${esc(nowLead.m.creator)} leads the ${prior.keys.length}-benchmark list from ${when} by ${fmtScore(Math.abs(gapNow))}: ${who(nowLead)} versus ${who(nowNext)}. On ${when}, ${esc(wasLead.m.creator)} led that list by ${fmtScore(gapThen)}.`
       : `${esc(nowLead.m.creator)} still leads the ${prior.keys.length}-benchmark list from ${when}, by ${fmtScore(Math.abs(gapNow))} (${who(nowLead)} versus ${who(nowNext)}).`;
@@ -1856,7 +1860,7 @@
     }
     if (added.length && full[0] && full[1]) {
       const same = full[0].slug === wasLead.slug;
-      html += ` This page's grade B+ list also includes ${added.map(([k]) => esc(METRICS[k].label)).join(', ')}. On that fuller list ${esc(full[0].lab)} ${same ? 'still leads' : 'leads'}: ${esc(full[0].m.shortName)} ${fmtScore(full[0].score)} versus ${esc(full[1].m.shortName)} ${fmtScore(full[1].score)}.`;
+      html += ` This page's grade B or better list also includes ${added.map(([k]) => esc(METRICS[k].label)).join(', ')}. On that fuller list ${esc(full[0].lab)} ${same ? 'still leads' : 'leads'}: ${esc(full[0].m.shortName)} ${fmtScore(full[0].score)} versus ${esc(full[1].m.shortName)} ${fmtScore(full[1].score)}.`;
     }
     const ii = ALL.filter((m) => !m.deprecated && !m.extOnly && m.intelligence != null).sort((a, b) => b.intelligence - a.intelligence)[0];
     if (ii && ii.creatorSlug !== nowLead.slug) html += ` The Intelligence Index did not flip: ${esc(ii.creator)} leads it (${esc(ii.shortName)}, ${ii.intelligence.toFixed(1)}).`;
@@ -3192,7 +3196,8 @@
     const groups = new Map();
     for (const g of BENCH_GROUPS) for (const k of GROUPS[g]) {
       if (!isBench(k) || !match(k)) continue;
-      const [a, b] = topModels(k, 2); if (!a || !shown(k)) continue;
+      if (!shown(k)) continue;
+      const [a, b] = topModels(k, 2); if (!a) continue;
       const byLab = S.leadBy === 'lab', key = byLab ? a.creatorSlug : a.family;
       if (!groups.has(key)) groups.set(key, { name: byLab ? a.creator : a.familyName, color: byLab ? labBase(a.creatorSlug) : familyColor(a), items: [] });
       groups.get(key).items.push({ k, meta: `${METRICS[k].fmt(a[k])}${b ? ' · ' + leadBy(k, Math.abs(a[k] - b[k])) : ''}` });
@@ -3282,7 +3287,8 @@
     $('menuSearch').value = '';
     menu.hidden = false; renderMenu(); placeMenu();
     const sel = menu.querySelector('.mi[aria-selected="true"]'), list = $('menuList');
-    if (sel) list.scrollTop = sel.offsetTop - list.clientHeight / 2;
+    if (kind === 'leaders') list.scrollTop = 0;
+    else if (sel) list.scrollTop = sel.offsetTop - list.clientHeight / 2;
     if (!matchMedia('(hover: none)').matches) $('menuSearch').focus();
   }
   function closeMenu() {
@@ -3588,7 +3594,7 @@
     }
     const hiddenByEffort = S.selected.size - chosen.length;
     let note = [];
-    if (missing.length) note.push(`${missing.length} selected model${missing.length > 1 ? 's have' : ' has'} no ${!missing.every((m) => m[S.x] != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missing.slice(0, 6).map((m) => m.label).join(', ')}${missing.length > 6 ? '…' : ''}`);
+    if (missing.length) note.push(`${missing.length} selected model-effort variant${missing.length > 1 ? 's have' : ' has'} no ${!missing.every((m) => m[S.x] != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missing.slice(0, 6).map((m) => m.label).join(', ')}${missing.length > 6 ? '…' : ''}`);
     if (hiddenByEffort) note.push(`${hiddenByEffort} hidden by the effort filter.`);
     $('chartNote').textContent = note.join(' · ');
     const olderShown = S.connect && points.some((p) => FAMILY.get(p.m.family)?.older);
@@ -4247,7 +4253,7 @@
     // sorted like slopalytics: by each row's top value, cheapest (or best) first
     const rows = [...fams.values()].map((ms) => ({ ms: ms.sort((a, b) => a.effortLevel - b.effortLevel || a[key] - b[key]), top: low ? Math.max(...ms.map((m) => m[key])) : Math.max(...ms.map((m) => m[key])) }))
       .sort((a, b) => low ? a.top - b.top : b.top - a.top);
-    $('rowsNote').textContent = rows.length ? `${Mt.long} (${low ? 'lower' : 'higher'} is better)${scale === 'log' ? ', log scale' : ''}. Hover a dot for its value; letters are effort levels (L low, M medium, H high, X xhigh, MX max, N non-reasoning, D default).${without ? ` ${without} selected model${without > 1 ? 's have' : ' has'} no ${Mt.label} data.` : ''}` : `None of the selected models have ${Mt.label} data.`;
+    $('rowsNote').textContent = rows.length ? `${Mt.long} (${low ? 'lower' : 'higher'} is better)${scale === 'log' ? ', log scale' : ''}. Hover a dot for its value; letters are effort levels (L low, M medium, H high, X xhigh, MX max, N non-reasoning, D default).${without ? ` ${without} selected model famil${without > 1 ? 'ies have' : 'y has'} no ${Mt.label} data.` : ''}` : `None of the selected model families have ${Mt.label} data.`;
     svgR.replaceChildren();
     if (!rows.length) { svgR.setAttribute('height', 0); return; }
     const nameSize = narrow ? 12 : 12.5, LW = narrow ? 0 : Math.min(190, Math.max(...rows.map((r) => textW(r.ms[0].familyName, nameSize, 600))) + 26);
@@ -4846,7 +4852,7 @@
     const groups = uGroupBy(rows, G).sort((a, b) => Mx.get(b.a) - Mx.get(a.a) || b.a.cost - a.a.cost || b.a.req - a.a.req);
     const hasPrev = S.usagePeriod !== 'all' && start - per >= 0, prev = hasPrev ? uSum(U.rows, start - per, start - 1) : null;
     const partial = U.latest === U.today; // the latest day is today, still under way
-    const name = S.usagePeriod === 'all' ? `all ${days} days` : days < per ? `the last ${per} days (${days} with data)` : `the last ${per} days`;
+    const name = S.usagePeriod === 'all' ? `all ${days} ${days === 1 ? 'day' : 'days'}` : days < per ? `the last ${per} days (${days} with data)` : `the last ${per} days`;
     // month to date; the projection's pace runs to the last complete day
     const dom = +U.latest.slice(8), dim = uMonthDays(U.latest), mStart = A - dom + 1, rateTo = partial ? A - 1 : A;
     return { A, per, start, days, G, Mx, rows, tot, groups, prev, partial, name, dom, dim, mStart, rateTo, score: uFamScores() };
@@ -5883,7 +5889,15 @@
   new ResizeObserver(() => { const w = $('chartCard').clientWidth; if (w !== lastW) { lastW = w; render(); } }).observe($('chartCard'));
   // the phone header is sticky; the axis toolbar sticks just under it
   const headEl = document.querySelector('header');
-  new ResizeObserver(() => document.documentElement.style.setProperty('--head-h', headEl.offsetHeight + 'px')).observe(headEl);
+  const axesEl = document.querySelector('.toolbar.axes');
+  const sectionScrollOffset = () => {
+    document.documentElement.style.setProperty('--head-h', headEl.offsetHeight + 'px');
+    const top = parseFloat(getComputedStyle(axesEl).top) || 0;
+    document.documentElement.style.setProperty('--section-scroll-top', (top + axesEl.getBoundingClientRect().height + 8) + 'px');
+  };
+  const stickyObserver = new ResizeObserver(sectionScrollOffset);
+  stickyObserver.observe(headEl); stickyObserver.observe(axesEl);
+  sectionScrollOffset();
 })();
 </script>
 </body>
