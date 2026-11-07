@@ -95,7 +95,7 @@
     'price1mBlended100To1To1', 'price1mBlended0To100To1', 'price1mInputTokens', 'price1mOutputTokens',
     'pricePerInputToken', 'pricePerOutputToken', 'pricePerReasoningToken', 'pricePerCachedInputToken', 'cacheReadPrice',
     'cacheHitPrice', 'cacheHitDiscountPercent', 'cacheWritePrice', 'pricePer1k1mpImages',
-    'timescaleData', 'medianOutputSpeed', 'outputSpeedVariance', 'timeToFirstChunkVariance', 'performanceByPromptType',
+    'outputSpeed', 'endToEndTime', 'timescaleData', 'medianOutputSpeed', 'outputSpeedVariance', 'timeToFirstChunkVariance', 'performanceByPromptType',
     'timeToFirstAnswerToken', 'endToEndResponseTime', 'parameters', 'inferenceParametersActiveBillions',
     'contextWindowTokens', 'reasoningTokens', 'hostModelCount', 'chartDefaultSelected', 'chartHighlighted',
     'briefcaseBreakdown', 'briefcaseTotalCost', 'briefcaseElo', 'gdpvalNormalized', 'openness', 'capabilities',
@@ -107,6 +107,8 @@
     // read by BENCHMARKS under other names
     'critptAgenticHard', 'critptAgentic', 'globalMmluLiteScore', 'healthbenchProfessional', 'code2videoElo', 'aa3dElo', 'cybergymE2e',
   ]);
+
+  const isNonBenchKey = (k) => NON_BENCH.has(k) || /(Speed|Time|Latency|Price|Cost|Tokens|Turns|RefusalRate)$/.test(k);
 
   const humanizeKey = (k) => k.replace(/^cap_/, '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([a-zA-Z])(\d)/g, '$1 $2')
     .replace(/^./, (c) => c.toUpperCase());
@@ -236,7 +238,7 @@
     const extraBench = new Map();
     for (const m of rawModels) {
       for (const [k, v] of Object.entries(m)) {
-        if (k.startsWith('_') || NON_BENCH.has(k) || knownKeys.has(k) || !Number.isFinite(v)) continue;
+        if (k.startsWith('_') || isNonBenchKey(k) || knownKeys.has(k) || !Number.isFinite(v)) continue;
         const cur = extraBench.get(k) || { n: 0, min: Infinity, max: -Infinity, cap: false };
         cur.n++; cur.min = Math.min(cur.min, v); cur.max = Math.max(cur.max, v);
         extraBench.set(k, cur);
@@ -244,7 +246,7 @@
       if (m.capabilities && typeof m.capabilities === 'object') {
         for (const [ck, cv] of Object.entries(m.capabilities)) {
           const key = CAP_KEYS[ck] || 'cap_' + ck;
-          if (knownKeys.has(key) || !Number.isFinite(cv)) continue;
+          if (isNonBenchKey(key) || isNonBenchKey(ck) || knownKeys.has(key) || !Number.isFinite(cv)) continue;
           const cur = extraBench.get(key) || { n: 0, min: Infinity, max: -Infinity, cap: true, rawKey: ck };
           cur.n++; cur.min = Math.min(cur.min, cv); cur.max = Math.max(cur.max, cv);
           extraBench.set(key, cur);
@@ -417,5 +419,5 @@
   // Bump when the saved shape changes, so the page ignores copies saved by an older version.
   const VERSION = 5; // 5: Intelligence Index v5 (index makeup from the data, models without an index score kept); 4: dynamic AA benchmarks
 
-  globalThis.AAData = { scrape, scrapeMethodology, parseMethodology, VERSION, discoverNumericFields };
+  globalThis.AAData = { scrape, scrapeMethodology, parseMethodology, VERSION, discoverNumericFields, isNonBenchKey };
 })();

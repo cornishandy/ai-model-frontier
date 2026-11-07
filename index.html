@@ -466,8 +466,29 @@
   .explain button.x { color: var(--muted); font-size: 16px; line-height: 1; padding: 1px 4px; }
   .explain button.x:hover, .explain button.linkish:hover { color: var(--ink); background: transparent; }
   .explain .tools { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
-  .explain .mini { display: inline-flex; width: 72px; height: 8px; gap: 1px; vertical-align: -1px; margin-right: 6px; }
+  .explain .mini { overflow: hidden; display: inline-flex; width: 72px; height: 8px; gap: 1px; vertical-align: -1px; margin-right: 6px; }
   .explain .mini i, .explain .bar i { display: block; height: 100%; background: var(--ink); opacity: .72; min-width: 2px; }
+  .explain .mini i { min-width: 0; }
+  .card .desc { max-width: 80ch; }
+  #chartCard { container-type: inline-size; }
+  #aaiiBlock { font-size: 12px; margin: 10px 0; line-height: 1.6; }
+  .ii-heading { display: flex; flex-wrap: wrap; column-gap: 8px; }
+  .ii-heading b { font-weight: 600; }
+  .ii-heading span, .ii-label, .ii-version { color: var(--muted); }
+  .ii-rows { display: grid; grid-template-columns: max-content minmax(0,1fr); gap: 6px 12px; margin-top: 7px; }
+  .ii-content { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+  .ii-chip, .ii-tag { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+  .ii-chip { white-space: nowrap; }
+  .ii-chip.left-out { border-style: dashed; color: var(--muted); }
+  .ii-weight { font-variant-numeric: tabular-nums; margin-left: 5px; }
+  .ii-tag { font-size: 10px; color: var(--muted); margin-left: 5px; font-weight: 400; }
+  .mh.ii { text-transform: none; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+  .mi.ii { background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
+  .mi.ii.composite { border-bottom: 1px solid var(--border); }
+  #aaiiBlock button.linkish { font: inherit; background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+  #ladderAtWrap { margin-left: auto; white-space: nowrap; }
+  #ladderAtWrap select { width: auto; max-width: 11em; }
+  @container (max-width: 559px) { .ii-rows { grid-template-columns: minmax(0,1fr); gap: 2px; } .ii-content { margin-bottom: 5px; } }
   .explain .bar { display: flex; height: 10px; gap: 2px; margin: 8px 0 4px; }
   .explain .wrow { display: grid; grid-template-columns: minmax(0, 1.3fr) 40px minmax(72px, 1fr); gap: 8px; align-items: center; font-size: 12px; margin: 4px 0; }
   .explain .wtrack { display: block; height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 12%, transparent); overflow: hidden; }
@@ -791,6 +812,7 @@
     .card { padding: 10px 10px 8px; border-radius: 8px; }
     .card h3 { font-size: 14px; }
     .card .sub { display: none; }
+    #chartSub { display: block; }
     .card .desc { margin-top: 2px; }
     #tableCard, #planCard, #agentsCard { overflow-x: auto; }
     .u-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
@@ -984,6 +1006,7 @@
     <h3 id="chartTitle"></h3>
     <div class="sub" id="chartSub"></div>
     <div class="desc" id="chartDesc"></div>
+    <div id="aaiiBlock"></div>
     <div class="note relative-note" id="relativeNote" aria-live="polite" hidden></div>
     <div class="explain" id="explain">
       <div class="shift" id="shiftRow" hidden>
@@ -993,6 +1016,7 @@
       <div class="tools">
         <button type="button" class="linkish" id="shiftReopen" hidden>What changed</button>
         <button type="button" class="linkish" id="explainToggle" aria-expanded="false" aria-controls="explainPanel"><span class="mini" id="weightMini" aria-hidden="true"></span>Weights and estimates</button>
+        <label id="ladderAtWrap" title="Which effort each ladder name joins, and whose Y value it shows" hidden>Ladder at <select id="ladderAtSel"><option value="top">Highest effort shown</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="xhigh">XHigh</option><option value="max">Max</option></select></label>
       </div>
       <div class="panel" id="explainPanel" hidden></div>
     </div>
@@ -1642,6 +1666,7 @@
   // covering 3/4 of the weight. "Cost per task, your benchmarks" averages AA's per-evaluation costs the same way, over the
   // picked benchmarks AA publishes a cost for (its index evaluations). The value-for-money measures use both.
   const BASES = { aa: 'AA\'s index benchmarks (as published)', A: 'Grade A benchmarks only', B: 'Grade B or better', C: 'Grade C or better', listed: 'Everything the axis picker lists' };
+  const BASIS_PHRASE = { listed: 'from your picker list', A: 'from grade A benchmarks', B: 'from grade B or better benchmarks', C: 'from grade C or better benchmarks', aa: "from AA's index" };
   const BASIS_SHORT = { aa: 'AA\'s index', A: 'grade A', B: 'grade B or better', C: 'grade C or better', listed: 'picker list' };
   const INDEX_W = { briefcase: 0.15, automationBench: 0.05, terminalBench40: 0.1, frontierCode20: 0.15, omniscience: 0.15, gdpPdf: 0.05, hleDiamond: 0.1, critptHard: 0.1, terminalBenchScience: 0.15 }; // as of v5.0, if the data lacks them
   const PARTS = new Set(['intelligence', 'omniscienceAccuracy', 'hallucination']); // the index itself, and two parts of AA-Omniscience
@@ -1884,10 +1909,41 @@
     }
     return floors;
   }
+  const iiMembers = () => Object.keys(indexW()).filter((k) => METRICS[k]).sort((a,b) => indexW()[b] - indexW()[a] || METRICS[a].label.localeCompare(METRICS[b].label));
+  const iiMethod = (k) => DATA.methodology?.evals?.find((e) => e.key === k);
+  const iiVersion = (k) => { const v = iiMethod(k)?.name?.match(/v\d+(?:\.\d+)*|\d+\.\d+/g)?.at(-1); return v && !METRICS[k].label.includes(v) ? v : ''; };
+  const iiTag = (text, title = '') => text ? `<span class="ii-tag" title="${esc(title)}">${esc(text)}</span>` : '';
+  function iiFormer(k) {
+    if (indexW()[k] != null) return '';
+    const status = iiMethod(k)?.status || '';
+    for (const [re, text] of [[/constituent up to and including (v[\d.]+)/, 'in index to '], [/constituent of the .*? prior to (v[\d.]+)/, 'in index before '], [/removed from the Intelligence Index in (v[\d.]+)/i, 'removed in '], [/^Replaced by .*? in (v[\d.]+)/, 'replaced in '], [/Retired from the Artificial Analysis Intelligence Index|no longer part of Artificial Analysis Intelligence Index/, 'retired from index']]) {
+      const m = status.match(re); if (m) return iiTag(text + (m[1] || '').replace(/\.$/, ''), status);
+    }
+    return '';
+  }
+  const usesYourIndex = () => [S.x, S.y].some((k) => ['myIndex','myCost','pointsPerDollar','tasksPerDollar','planTasks'].includes(k));
+  function renderAAII() {
+    const el = $('aaiiBlock'), members = iiMembers(), N = members.length, ver = DATA.index?.version || '';
+    el.hidden = !N; if (!N) return;
+    const yes = members.filter(pickerLists), no = members.filter((k) => !pickerLists(k)), n = yes.length;
+    const names = (ks) => ks.map((k) => METRICS[k].label).join(', ');
+    const coverage = n === N ? `all ${N} of its benchmarks are in your picker list` : !n ? `none of its ${N} benchmarks are in your picker list` : `${n} of its ${N} benchmarks are in your picker list (${Math.round(yes.reduce((a,k) => a + indexW()[k]*100,0))}% of AA's weight)`;
+    el.innerHTML = `<div class="ii-heading"><b>AA Intelligence Index ${esc(ver)}</b><span>${coverage}${!usesYourIndex() && no.length ? `; left out: ${esc(names(no))}` : ''}</span></div>`;
+    if (!usesYourIndex()) return;
+    if (!BASIS_KEYS.length) { el.innerHTML += `<div>No benchmark qualifies as &quot;${esc(BASES[BASIS])}&quot; right now.</div>`; return; }
+    const rows = [], row = (label, content) => { if (content) rows.push(`<div class="ii-label">${label}</div><div class="ii-content">${content}</div>`); };
+    const chips = (ks, out) => ks.map((k) => { const w = Math.round(indexW()[k]*100), v = iiVersion(k), title = `${iiMethod(k)?.name || METRICS[k].label}: ${w}% of AA's Intelligence Index ${ver}. ${out ? 'Not in your picker list. Open a picker and press Choose to tick it.' : 'In your picker list.'}`; return `<span class="ii-chip${out ? ' left-out' : ''}" data-k="${k}" title="${esc(title)}">${esc(METRICS[k].label)}${v ? ` <span class="ii-version">${esc(v)}</span>` : ''}<span class="ii-weight">${w}%</span></span>`; }).join('');
+    row('In your list (AA weight)', chips(yes, false)); row('Left out', chips(no, true));
+    if (BASIS !== 'listed') { const ks = new Set(BASIS_KEYS.map(([k]) => k)), left = members.filter((k) => !ks.has(k)); row('Your index', esc(BASIS === 'aa' ? `AA's own: all ${N} at AA's weights` : `${BASES[BASIS]}: ${N-left.length} of the ${N}${left.length ? '; leaves out ' + names(left) : ''}`)); }
+    if (BASIS !== 'aa') { const extra = BASIS_KEYS.map(([k]) => k).filter((k) => !members.includes(k)); if (extra.length) row(BASIS === 'listed' ? 'Also in your list' : 'Also in your index', `${extra.length} more: ${esc(names(extra.slice(0,7)))}${extra.length > 7 ? ' …' : ''} <button type="button" class="linkish" data-weights aria-controls="explainPanel" aria-expanded="${!$('explainPanel').hidden}">all ${BASIS_KEYS.length} with weights</button>`); }
+    const skipped = BASIS === 'listed' ? [...PARTS].filter((k) => METRICS[k] && pickerLists(k)).map((k) => `${METRICS[k].label} (${PART_WHY[k]})`) : [];
+    row('Not counted twice', esc(skipped.join(', ')));
+    el.innerHTML += `<div class="ii-rows">${rows.join('')}</div>`;
+  }
   function renderExplain() {
     const fullKeys = keysFor('B'), full = board(fullKeys, FILL);
     if (full.length) rememberShift({ basis: 'B', keys: fullKeys.map(([k]) => k), raws: Object.fromEntries(full.slice(0, 2).map((r) => [r.slug, { name: r.m.shortName, family: r.m.family, effort: r.m.effort, raw: rawOf(r.m, fullKeys) }])) });
-    const rows = weightRows();
+    const rows = weightRows().sort((a,b) => Number(b.aa) - Number(a.aa));
     const mini = $('weightMini');
     if (mini) mini.innerHTML = rows.map((r) => `<i style="width:${(r.share * 100).toFixed(2)}%"></i>`).join('');
     const story = shiftStory();
@@ -1899,11 +1955,14 @@
     const listName = BASIS === 'aa' ? "Artificial Analysis' Intelligence Index" : `Your index (${BASIS_SHORT[BASIS]})`;
     const pcts = wholePercents(rows.map((r) => r.share));
     const bars = rows.map((r, i) => `<i style="width:${(r.share * 100).toFixed(2)}%" title="${esc(r.label)} ${pcts[i]}%"></i>`).join('');
-    const list = rows.map((r, i) => `<div class="wrow"><span>${esc(r.label)}</span><b>${pcts[i]}%</b><span class="src"><span class="wtrack"><i style="width:${Math.max(2, pcts[i])}%"></i></span> ${r.aa ? 'AA index weight' : 'Standard weight, equal to a 10% AA evaluation before this list is scaled to 100%'}</span></div>`).join('');
+    const grouped = rows.some((r) => r.aa) && rows.some((r) => !r.aa);
+    let prevGroup;
+    const list = rows.map((r, i) => { const head = grouped && prevGroup !== r.aa ? `<h4>${r.aa ? `In AA's Intelligence Index ${esc(DATA.index?.version || '')}` : 'Other benchmarks'}</h4>` : ''; prevGroup = r.aa; return head + `<div class="wrow"><span>${esc(r.label)}</span><b>${pcts[i]}%</b><span class="src"><span class="wtrack"><i style="width:${Math.max(2, pcts[i])}%"></i></span> ${r.aa ? 'AA index weight' : 'Standard weight, equal to a 10% AA evaluation before this list is scaled to 100%'}</span></div>`; }).join('');
     $('explainPanel').innerHTML = `<h4>Weights</h4><p>These are the shares of ${esc(listName)}. Each bar is that benchmark's weight divided by the total, so the shares add to 100%. A model missing a benchmark is averaged over the ones it has, once those cover at least 75% of the weight.</p><div class="bar" aria-hidden="true">${bars}</div>${list}<p>Percent benchmarks count as published. A lower-is-better percent is flipped. GDPval-AA and AA-Briefcase use (Elo − 500) / 2000. AA-Omniscience uses (score + 100) / 200. Any other scale is stretched from the lowest score here to the highest.</p><h4>Estimated values</h4><p>A faded dot can mean two different things.</p><p><b>Estimated by Artificial Analysis.</b> They published an estimated Intelligence Index for that model. The dot stays faded whether or not fill gaps is on.</p><p><b>Filled in here.</b> With fill gaps on, a missing benchmark is taken from the nearest effort of the same model that has a measured result. That result is put on a 0–1 scale, multiplied by this effort's Intelligence Index divided by the donor's, and capped at 100%. In the table, ≈ is the filled share of the weight that model covers. A missing result with no donor stays missing.</p>`;
   }
   function registerDynamicBenchmarks(d) {
     for (const b of d.dynamicBenchmarks || []) {
+      if (AAData.isNonBenchKey(b.key) || AAData.isNonBenchKey(b.rawKey)) continue;
       if (METRICS[b.key] && !METRICS[b.key].dynamic) continue;
       METRICS[b.key] = {
         label: b.label, long: b.long || b.label,
@@ -2299,7 +2358,7 @@
   const theoSelection = () => ALL.filter((m) => THEO_FAMILIES.includes(m.family) && m.effort !== 'non-reasoning').map((m) => m.id);
   const DEFAULT_STATE = {
     x: 'costPerTask', y: 'intelligence', xScale: 'linear', yScale: 'linear',
-    pareto: 'step', frontStyle: 'shade', fullFrontier: false, guides: 'hover', labels: 'auto', colorBy: 'lab', connect: true, markEffort: 'high', markStyle: 'hash',
+    pareto: 'step', frontStyle: 'shade', fullFrontier: false, guides: 'hover', labels: 'auto', ladderAt: 'top', colorBy: 'lab', connect: true, markEffort: 'high', markStyle: 'hash',
     grid: 'normal', axisText: 'normal',
     efforts: EFFORTS.slice(), selected: theoSelection(), pinned: [],
     showDeprecated: false, openOnly: false, hideOlder: false, allLabs: false, addEffort: 'all', theme: 'system', glow: 'off', activeSet: '',
@@ -2345,6 +2404,7 @@
   // "No mark" used to be markEffort 'none' (older saved views, sets and links); it's now the mark style, and the effort stays
   // a real one. ?lineStyle=off turns the lines off. Anything unknown falls back to the default.
   function fixMarks() {
+    if (!['top', 'low', 'medium', 'high', 'xhigh', 'max'].includes(S.ladderAt)) S.ladderAt = 'top';
     if (S.colorBy === 'open' || !['lab', 'effort', 'x', 'y', 'both'].includes(S.colorBy)) S.colorBy = 'lab';
     if (S.colorBy === 'lab' || S.colorBy === 'effort') S.idColor = S.colorBy;
     if (!['lab', 'effort'].includes(S.idColor)) S.idColor = 'lab';
@@ -2973,13 +3033,13 @@
 
   // ---------- saved sets ----------
   function snapshot() {
-    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor };
+    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, ladderAt: S.ladderAt, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor };
   }
   function applySet(snap) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
-    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (snap[k] != null) S[k] = snap[k];
+    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (snap[k] != null) S[k] = snap[k];
     if (snap.shortEffort != null && snap.shortEffortTouched == null) S.shortEffortTouched = true;
     fixAxes(); fixMarks(); syncControls(); save(); renderList(); render();
   }
@@ -3167,7 +3227,7 @@
     const tweaks = (extra.length ? `, plus ${extra.length} you ticked` : '') + (out.length ? `, minus ${out.length} you unticked` : '');
     // A new Artificial Analysis benchmark has no report card yet, so every start except None takes it.
     const join = seed === 'none' ? 'A new benchmark stays out until you tick it.' : 'A new benchmark joins on its own, since it has no grade yet.';
-    return `${benches.filter(pickerLists).length} of ${benches.length} benchmarks in your list, starting from ${esc(SEED_NAME[seed])}${S.activeOnly ? ' (active only)' : ''}${tweaks}. ${join}`
+    return `${benches.filter(pickerLists).length} of ${benches.length} benchmarks in your list, starting from ${esc(SEED_NAME[seed])}${S.activeOnly ? ' (active only)' : ''}${tweaks}. ${join} ${iiMembers().filter(pickerLists).length} of the ${iiMembers().length} in AA's Intelligence Index ${esc(DATA.index?.version || '')} are in it.`
       + (on.length || off.length ? ` <button type="button" class="linkish" id="pickClear" title="Forget the benchmarks you ticked or unticked by hand, leaving just what Start from gives">Reset to start</button>` : '');
   }
   // -> { groups, hidden (benchmarks left out of the list, or inactive while Active only is on) }
@@ -3181,9 +3241,10 @@
     // "Newest first": most recently updated first within each section (sort is stable, so ties keep the usual order)
     const order = (items) => S.menuSort === 'date' ? items.sort((a, b) => (UPDATED.get(b.k)?.date || '').localeCompare(UPDATED.get(a.k)?.date || '')) : items;
     if (menuKind !== 'leaders') {
+      const members = iiMembers(), iiKeys = new Set(['intelligence', ...members]);
       const half = ALL.filter((m) => !m.deprecated).length / 2;
       const groups = (menuKind === 'x' ? X_GROUPS : Y_GROUPS).map((g) => {
-        const items = order(GROUPS[g].filter((k) => match(k) && shown(k)).map((k) => {
+        const items = order(GROUPS[g].filter((k) => !iiKeys.has(k) && match(k) && shown(k)).map((k) => {
           const n = liveCount(k); return { k, meta: n < half ? `${n} models` : '' };
         }));
         // in Choose mode the section head ticks or unticks every benchmark it shows (all of them, or just the search matches)
@@ -3191,6 +3252,10 @@
         const box = menuEditing && keys.length ? `<input type="checkbox" class="mh-box" data-keys="${esc(keys.join(' '))}" ${on === keys.length ? 'checked' : ''}${on && on < keys.length ? ' data-mixed' : ''} aria-label="Include every ${esc(g)} benchmark shown" title="Tick or untick every benchmark in this section${q ? ' that matches the search' : ''}" />` : '';
         return { head: `${box}${esc(g)}<span class="n">${menuEditing ? `${on} of ${keys.length}` : 'updated'}</span>`, items };
       }).filter((g) => g.items.length);
+      const keys = members.filter(match), on = keys.filter(pickerLists).length;
+      const box = menuEditing && keys.length ? `<input type="checkbox" class="mh-box" data-keys="${keys.join(' ')}" ${on === keys.length ? 'checked' : ''}${on && on < keys.length ? ' data-mixed' : ''} aria-label="Include every AA Intelligence Index benchmark shown" />` : '';
+      const items = ['intelligence', ...members].filter(match).map((k) => ({ k, meta: k === 'intelligence' ? '' : `${Math.round(indexW()[k]*100)}%` }));
+      if (items.length) groups.unshift({ ii: true, head: `${box}AA Intelligence Index ${esc(DATA.index?.version || '')}<span class="n">${menuEditing ? `${on} of ${keys.length}` : 'AA weight'}</span>`, items });
       return { groups, hidden };
     }
     const groups = new Map();
@@ -3222,11 +3287,11 @@
     const { groups, hidden } = menuGroups($('menuSearch').value.trim().toLowerCase(), cur);
     const why = [S.activeOnly && 'inactive', (pickState().seed !== 'any' || pickState().off.length) && 'left out of your list'].filter(Boolean).join(', ');
     const peeked = menuPeek && !menuEditing ? Object.keys(METRICS).filter((k) => isBench(k) && !pickerLists(k)).length : 0;
-    list.innerHTML = groups.map((g) => `<div class="mh${g.lead ? ' lead' : ''}">${g.head}</div>` +
+    list.innerHTML = groups.map((g) => `<div class="mh${g.lead ? ' lead' : ''}${g.ii ? ' ii' : ''}">${g.head}</div>` +
       g.items.map(({ k, meta }) => {
         const bench = isBench(k), listed = pickerLists(k);
-        const box = menuEditing && bench ? `<input type="checkbox" class="mi-box" tabindex="-1" ${listed ? 'checked' : ''} aria-hidden="true" />` : '';
-        return `<div class="mi${!isActive(k) ? ' inactive' : ''}${bench && !listed && (menuEditing || menuPeek) ? ' left-out' : ''}" role="option" data-k="${esc(k)}" aria-selected="${k === cur}"${menuEditing ? ` aria-checked="${listed}"` : ''}><span class="mi-label">${box}${esc(METRICS[k].label)}${gradeChip(k)}${benchFresh.has(k) ? ' <span class="pill-new" title="Updated since your last visit">NEW</span>' : ''}</span><span class="mi-meta">${meta}</span><span class="mi-date" title="${esc(updatedNote(k))}">${esc(updatedDay(k))}</span>${descOf(k) ? `<span class="mi-desc">${esc(descOf(k))}</span>` : ''}</div>`;
+        const box = menuEditing && bench && !(g.ii && k === 'intelligence') ? `<input type="checkbox" class="mi-box" tabindex="-1" ${listed ? 'checked' : ''} aria-hidden="true" />` : '';
+        return `<div class="mi${g.ii ? ' ii' : ''}${g.ii && k === 'intelligence' ? ' composite' : ''}${!isActive(k) ? ' inactive' : ''}${bench && !listed && (menuEditing || menuPeek || g.ii) ? ' left-out' : ''}" role="option" data-k="${esc(k)}" aria-selected="${k === cur}"${menuEditing ? ` aria-checked="${listed}"` : ''}><span class="mi-label">${box}${esc(METRICS[k].label)}${g.ii ? k === 'intelligence' ? iiTag(`all ${iiMembers().length} combined${DATA.index?.since ? ', since ' + fmtDay(DATA.index.since, true) : ''}`) : iiTag(iiVersion(k)) + (!listed ? iiTag('not in your list') : '') : menuKind === 'leaders' && indexW()[k] != null ? iiTag('AA-II', `In AA's Intelligence Index ${DATA.index?.version || ''} at ${Math.round(indexW()[k]*100)}%`) : iiFormer(k)}${gradeChip(k)}${benchFresh.has(k) ? ' <span class="pill-new" title="Updated since your last visit">NEW</span>' : ''}</span><span class="mi-meta">${meta}</span><span class="mi-date" title="${esc(updatedNote(k))}">${esc(updatedDay(k))}</span>${descOf(k) ? `<span class="mi-desc">${esc(descOf(k))}</span>` : ''}</div>`;
       }).join('')).join('')
       + (menuEditing ? ''
         : peeked ? `<div class="mi-more" role="button" tabindex="0">Showing ${peeked} not in your list (greyed) · <u>Hide them</u></div>`
@@ -3243,7 +3308,7 @@
     save();
     if (BASIS === 'listed') applyBasis();
     renderMenu();
-    if (BASIS === 'listed') { render(); renderUsage(); }
+    render(); if (BASIS === 'listed') renderUsage();
   };
   // Tick (want) or untick benchmarks. A tick is stored when the start alone wouldn't list it (including an inactive
   // one under Active only); an untick whenever the grade would take it.
@@ -3343,7 +3408,7 @@
       setIncluded(keys, !keys.every(pickerLists)); filtersChanged(); return;
     }
     const it = e.target.closest('.mi'); if (!it) return;
-    if (menuEditing) return toggleRow(it.dataset.k);
+    if (menuEditing) return it.classList.contains('composite') ? undefined : toggleRow(it.dataset.k); // the index itself isn't tickable
     pickMetric(it.dataset.k);
   });
   $('menuList').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('.mi-more')) togglePeek(); });
@@ -3359,7 +3424,7 @@
       e.preventDefault();
       const next = items[Math.max(0, Math.min(items.length - 1, i < 0 ? 0 : i + (e.key === 'ArrowDown' ? 1 : -1)))];
       if (next) setActive(next, true);
-    } else if (e.key === 'Enter') { e.preventDefault(); const it = items[i] || items[0]; if (it) (menuEditing ? toggleRow : pickMetric)(it.dataset.k); }
+    } else if (e.key === 'Enter') { e.preventDefault(); const it = items[i] || items[0]; if (it && !(menuEditing && it.classList.contains('composite'))) (menuEditing ? toggleRow : pickMetric)(it.dataset.k); }
     else if (e.key === 'Escape') { const a = menuAnchor; closeMenu(); a?.focus(); }
   });
   document.addEventListener('pointerdown', (e) => { if (menuKind && !menu.contains(e.target) && !e.target.closest?.('.picker')) closeMenu(); });
@@ -3395,10 +3460,13 @@
     shiftForce = false; renderExplain();
   });
   $('shiftReopen').addEventListener('click', () => { shiftForce = true; renderExplain(); });
+  $('ladderAtSel').addEventListener('change', (e) => { S.ladderAt = e.target.value; markDirty(); save(); render(); });
+  $('aaiiBlock').addEventListener('click', (e) => { if (e.target.closest('[data-weights]')) { e.target.closest('[data-weights]').setAttribute('aria-expanded', 'true'); $('explainPanel').hidden = false; $('explainToggle').setAttribute('aria-expanded', 'true'); } });
   $('explainToggle').addEventListener('click', () => {
     const open = $('explainPanel').hidden;
     $('explainPanel').hidden = !open;
     $('explainToggle').setAttribute('aria-expanded', String(open));
+    $('aaiiBlock').querySelectorAll('[data-weights]').forEach((b) => b.setAttribute('aria-expanded', String(open)));
   });
   $('fullFrontier').addEventListener('change', (e) => { S.fullFrontier = e.target.checked; if (S.fullFrontier && S.pareto === 'off') { S.pareto = 'step'; syncControls(); } markDirty(); save(); render(); });
   $('showDeprecated').addEventListener('change', (e) => { S.showDeprecated = e.target.checked; save(); renderList(); });
@@ -3521,7 +3589,7 @@
 
   // ---------- chart ----------
   const svg = $('chart');
-  let lastPoints = [], lastGhosts = [], lastGeom = null;
+  let lastPoints = [], lastGhosts = [], lastAnchors = [], lastGeom = null;
   // Families highlighted by clicking their ladder names (or from the right-click menu): the rest dim. View state, not saved.
   const highlight = new Set();
   let colorKey = null; // coloring by value: the legend's key, which the SVG/PNG export draws under the chart
@@ -3544,12 +3612,14 @@
     let X = METRICS[S.x], Y = METRICS[S.y];
     const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
 
-    $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && (i === 0 || isBench(k)) && (i === 0 || S.x !== S.y))
+    $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && !(usesYourIndex() && k === 'myIndex') && (i === 0 || isBench(k)) && (i === 0 || S.x !== S.y))
       .map((k) => { const c = reportCard(k); return `<b>${esc(METRICS[k].label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(descOf(k))}${c ? ` <span class="upd" title="${esc(c.lines.join('\n'))}">Report card <b>${c.letter}</b> (${c.score}/10): ${esc(c.verdict)}</span>` : ''}`; }).join('<br>');
     const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
     svg.replaceChildren();
 
+    const ladder = S.labels === 'ladder' && !diamond;
+    $('ladderAtWrap').hidden = !ladder; $('ladderAtSel').value = S.ladderAt;
     const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort) && !superseded(m));
     const missing = [];
     let points = [];
@@ -3558,6 +3628,16 @@
       const okX = scaleOk(S.xScale, xv), okY = scaleOk(S.yScale, yv);
       if (okX && okY) points.push({ m, xv, yv }); else missing.push(m);
     }
+    const anchors = [];
+    // Ladder at an effort the effort filter hides: a selected model's result at that effort is drawn hollow, so its
+    // ladder row still shows that effort. Only the filter hides it: a variant that isn't selected stays off the chart,
+    // and its row joins the nearest shown effort with that effort named.
+    if (ladder && S.ladderAt !== 'top' && !S.efforts.has(S.ladderAt)) for (const id of S.selected) {
+      const m = BY_ID.get(id);
+      if (!m || m.effort !== S.ladderAt || superseded(m) || points.some((p) => p.m.family === m.family && p.m.effort === S.ladderAt)) continue;
+      if (scaleOk(S.xScale, m[S.x]) && scaleOk(S.yScale, m[S.y])) anchors.push({ m, xv: m[S.x], yv: m[S.y], anchorOnly: true });
+    }
+    lastAnchors = anchors;
     // Frontier membership and the sweet spot are decided before any division, using only shown models for references.
     const rawFront = paretoFront(points), refCtx = { front: rawFront, knee: kneeOf(rawFront), notes: [], ghosts: [] };
     const sweetRef = REF_DEFS.sweet.pick(points, 'x', refCtx), knee = sweetRef?.point || null;
@@ -3576,41 +3656,58 @@
     refCtx.ghosts = inScale; // the faint frontier dots that get drawn (a model reference may be one of them)
     X = relativeMetric(X, points, 'x', refCtx); Y = relativeMetric(Y, points, 'y', refCtx);
     if (X.ref?.key === 'sweet' && Y.ref?.key === 'sweet' && X.ref.point === Y.ref.point) refCtx.notes = [refCtx.notes[0].replace(/^X: 1.0 =/, '1.0 on both axes =')];
-    for (const p of points.concat(ghosts)) { p.rawX = p.xv; p.rawY = p.yv; if (X.ref) p.xv /= X.ref.value; if (Y.ref) p.yv /= Y.ref.value; }
+    for (const p of points.concat(ghosts, anchors)) { p.rawX = p.xv; p.rawY = p.yv; if (X.ref) p.xv /= X.ref.value; if (Y.ref) p.yv /= Y.ref.value; }
     $('relativeNote').hidden = !refCtx.notes.length;
     $('relativeNote').textContent = refCtx.notes.join(' ');
-    $('chartTitle').textContent = `${Y.label} vs. ${X.label}`;
-    $('chartSub').textContent = `${Y.long} (${dir(Y)}) against ${/^[A-Z][a-z]/.test(X.long) ? X.long.charAt(0).toLowerCase() + X.long.slice(1) : X.long} (${dir(X)}). ${word[S.xScale].replace(/^./, (c) => c.toUpperCase())} x · ${word[S.yScale]} y.`;
+    const basisTag = ` (${BASIS_SHORT[BASIS]})`, sharedBasis = usesYourIndex() && Y.label.includes(basisTag) && X.label.includes(basisTag);
+    $('chartTitle').textContent = sharedBasis ? `${Y.label.replace(basisTag, '')} vs. ${X.label.replace(basisTag, '')}, ${BASIS_PHRASE[BASIS]}` : `${Y.label} vs. ${X.label}`;
+    const subtitleText = (k, T, lower) => {
+      const c = BASIS_KEYS.filter(([key]) => indexW()[key] != null).length, n = BASIS_KEYS.length;
+      let text = k === 'myIndex' ? `${n} benchmarks averaged, 0–100` : k === 'myCost' ? !c ? 'no AA cost for any of them' : c === n ? 'cost per task on them, USD' : `cost per task on the ${c} of them with an AA cost, USD` : T.long;
+      if (['myIndex','myCost'].includes(k) && T.ref) text += T.long.match(/ \([^()]*\)$/)?.[0] || '';
+      return lower && /^[A-Z][a-z]/.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text;
+    };
+    const cap = (t) => t.replace(/^./, (c) => c.toUpperCase());
+    const scales = S.xScale === S.yScale ? `${cap(word[S.xScale])} scales` : `${cap(word[S.xScale])} x, ${word[S.yScale]} y`;
+    $('chartSub').textContent = `Y: ${subtitleText(S.y,Y,false)} (${dir(Y)}). X: ${subtitleText(S.x,X,true)} (${dir(X)}). ${scales}.`;
+    renderAAII();
     renderExplain();
     svg.setAttribute('aria-label', $('chartTitle').textContent);
     // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
     if (!narrow && !diamond) { const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700))); if (yw + 44 > M.left) { M.left = Math.ceil(yw + 44); PW = W - M.left - M.right; } }
     // "Ladder" labels: model names in a column to the right of the plot, so they never sit on the data
-    const ladder = S.labels === 'ladder' && !diamond;
     if (ladder) {
-      const names = [...new Set(points.map((p) => p.m.familyName))];
-      const lw = Math.max(60, ...names.map((n) => textW(n, narrow ? 11 : 12, 600))) + 24;
-      M.right = Math.min(Math.ceil(lw), Math.round(W * (narrow ? 0.42 : 0.3))); PW = W - M.left - M.right;
+      const names = [...new Set(points.concat(anchors).map((p) => p.m.familyName))];
+      const maxName = Math.max(0, ...names.map((n) => textW(n, narrow ? 11 : 12, 600)));
+      // one ladder row per line (a non-reasoning dot is its own line), plus a hollow dot whose reasoning line shows no dot
+      const lineOf = (p) => p.m.family + (p.m.effort === 'non-reasoning' ? ':nr' : '');
+      const valuePoints = [...new Set(points.map(lineOf))].map((line) => {
+        const ps = points.filter((p) => lineOf(p) === line).sort((a,b) => a.m.effortLevel - b.m.effortLevel), fam = ps[0].m.family;
+        return S.ladderAt === 'top' ? ps.at(-1) : ps.find((p) => p.m.effort === S.ladderAt) || (line.endsWith(':nr') ? null : anchors.find((p) => p.m.family === fam)) || ps.slice().sort((a,b) => Math.abs(a.m.effortLevel-EFFORT_LEVEL[S.ladderAt])-Math.abs(b.m.effortLevel-EFFORT_LEVEL[S.ladderAt]) || a.m.effortLevel-b.m.effortLevel)[0];
+      }).filter(Boolean).concat(anchors.filter((p) => !points.some((q) => q.m.family === p.m.family && q.m.effort !== 'non-reasoning')));
+      const maxValue = Math.max(0, ...valuePoints.map((p) => textW(ladderValue(p, Y).text, narrow ? 11 : 12, 500)));
+      M.right = Math.min(Math.ceil(maxName + 10 + maxValue + 24), Math.round(W * (narrow ? 0.45 : 0.32))); PW = W - M.left - M.right;
     }
-    const hiddenByEffort = S.selected.size - chosen.length;
+    const shownIds = new Set(chosen.concat(anchors.map((p) => p.m)).map((m) => m.id));
+    const hiddenByEffort = [...S.selected].filter((id) => !shownIds.has(id)).length;
     let note = [];
     if (missing.length) note.push(`${missing.length} selected model-effort variant${missing.length > 1 ? 's have' : ' has'} no ${!missing.every((m) => m[S.x] != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missing.slice(0, 6).map((m) => m.label).join(', ')}${missing.length > 6 ? '…' : ''}`);
     if (hiddenByEffort) note.push(`${hiddenByEffort} hidden by the effort filter.`);
     $('chartNote').textContent = note.join(' · ');
     const olderShown = S.connect && points.some((p) => FAMILY.get(p.m.family)?.older);
-    $('chartFoot').innerHTML = `Each dot is one reasoning effort level, low to max${S.markStyle !== 'none' ? `; the ${S.markStyle} marks ${EFFORT_LABEL[S.markEffort]}` : ''}. A lone dot has one setting only.${olderShown ? ` ${LOOK_WORD[lineLook(true)]} lines are older versions.` : ''} ${matchMedia('(hover: none)').matches ? 'Tap a dot for its values; tap again to pin it, then tap another to compare the two.' : 'Hover a dot for its values; click to pin it, then hover another to compare the two. Right-click a dot or a model in the list for more.'}${ladder ? ` ${matchMedia('(hover: none)').matches ? 'Tap' : 'Click'} names in the ladder to highlight those models.` : ''}<br>Data: <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">Artificial Analysis</a>, ${esc(new Date(DATA.scrapedAt).toISOString().slice(0, 10))}` +
+    $('chartFoot').innerHTML = `Each dot is one reasoning effort level, low to max${S.markStyle !== 'none' ? `; the ${S.markStyle} marks ${EFFORT_LABEL[S.markEffort]}` : ''}. A lone dot has one setting only.${olderShown ? ` ${LOOK_WORD[lineLook(true)]} lines are older versions.` : ''} ${matchMedia('(hover: none)').matches ? 'Tap a dot for its values; tap again to pin it, then tap another to compare the two.' : 'Hover a dot for its values; click to pin it, then hover another to compare the two. Right-click a dot or a model in the list for more.'}${ladder ? ` ${matchMedia('(hover: none)').matches ? 'Tap' : 'Click'} names in the ladder to highlight those models.` : ''}${ladder && S.ladderAt !== 'top' ? ` Ladder names join each model's ${EFFORT_LABEL[S.ladderAt]} dot. A hollow dot is that effort where your effort filter hides it; a value marked with another effort means the model has no ${EFFORT_LABEL[S.ladderAt]} result.` : ''}<br>Data: <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">Artificial Analysis</a>, ${esc(new Date(DATA.scrapedAt).toISOString().slice(0, 10))}` +
       [...new Set([X.ext, Y.ext].filter(Boolean))].map((e) => ` · ${esc(e.label)}: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.by)}</a>, ${esc((e.updated || e.fetchedAt || '').slice(0, 10))}${e.stale ? ' (couldn\'t refresh; last good copy)' : ''}. Matched to Artificial Analysis models by name; where the source doesn't say which effort it ran, it's shown on the model's default one.`).join('');
 
     // background
     svg.append(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: C.surface }));
-    if (!points.length) {
+    if (!points.length && !anchors.length) {
       const why = !chosen.length ? 'Select models in the sidebar to plot them.' : `None of the selected models have ${[S.x, S.y].filter((k) => chosen.every((m) => !scaleOk(k === S.x ? S.xScale : S.yScale, m[k]))).map((k) => METRICS[k].label).join(' or ') || `both ${X.label} and ${Y.label}`} data — add some that do.`;
       svg.append(svgEl('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', fill: C.muted, 'font-size': 14 }, why));
       $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); syncHighlights(new Set(), narrow); return;
     }
 
-    const sx = makeScale(points.concat(inScale).map((p) => p.xv), S.xScale, [M.left, M.left + PW], !!X.ref);
-    const sy = makeScale(points.concat(inScale).map((p) => p.yv), S.yScale, [M.top + PH, M.top], !!Y.ref);
+    const sx = makeScale(points.concat(inScale, anchors).map((p) => p.xv), S.xScale, [M.left, M.left + PW], !!X.ref);
+    const sy = makeScale(points.concat(inScale, anchors).map((p) => p.yv), S.yScale, [M.top + PH, M.top], !!Y.ref);
     // a model that isn't on the chart can be 1.0 outside what's shown: the scales aren't stretched to reach it, the note says so
     const offScale = [['X', X, sx, M.left, M.left + PW], ['Y', Y, sy, M.top, M.top + PH]].filter(([, metric, sc, a, b]) => metric.ref?.offChart && !(sc.f(1) >= a - 0.5 && sc.f(1) <= b + 0.5)).map(([axis]) => axis);
     if (offScale.length) { $('relativeNote').hidden = false; $('relativeNote').textContent += ` ${offScale.join(' and ')}: 1.0 is beyond the edge of the chart.`; }
@@ -3626,14 +3723,14 @@
     };
     const pts = (list) => list.map(([x, y]) => T(x, y).map((n) => +n.toFixed(2)).join(',')).join(' ');
     const corners = [[M.left, M.top], [M.left + PW, M.top], [M.left + PW, M.top + PH], [M.left, M.top + PH]];
-    for (const p of points.concat(ghosts)) { p.vx = sx.f(p.xv); p.vy = sy.f(p.yv); [p.px, p.py] = T(p.vx, p.vy); }
+    for (const p of points.concat(ghosts, anchors)) { p.vx = sx.f(p.xv); p.vy = sy.f(p.yv); [p.px, p.py] = T(p.vx, p.vy); }
     // color by value: each dot's place between the worse and better ends of the axis. Both: the sum of the two, which barely
     // varies along a cost-vs-score frontier, so it's stretched from the lowest dot shown to the highest.
     const rawU = (p) => { const ux = (p.vx - xWorse) / (xBest - xWorse), uy = (p.vy - yWorse) / (yBest - yWorse); return S.colorBy === 'x' ? ux : S.colorBy === 'y' ? uy : ux + uy; };
     const [u0, u1] = S.colorBy === 'both' ? [Math.min(...points.map(rawU)), Math.max(...points.map(rawU))] : [0, 1];
     const valueU = (p) => Math.max(0, Math.min(1, (rawU(p) - u0) / ((u1 - u0) || 1)));
     const ramp = byVal ? valueRamp(points.map(valueU)) : null, dual = dualMode();
-    for (const p of points.concat(ghosts)) {
+    for (const p of points.concat(ghosts, anchors)) {
       p.lab = idColorOf(p.m); p.val = ramp ? ramp.f(valueU(p)) : p.lab;
       p.color = ramp ? (dual === 'field' ? p.lab : p.val) : colorOf(p.m);
     }
@@ -3844,6 +3941,7 @@
       if (onFront && S.frontStyle === 'rings') layer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r: ro + 3.5, fill: 'none', stroke: C.ink, 'stroke-width': 1, 'stroke-opacity': 0.45 }));
       layer.append(dotMark(p, r, C.surface, { 'data-id': p.m.id, 'data-fam': p.m.family }, dual));
     }
+    for (const p of anchors) dotLayer.append(svgEl('circle', { class: 'ladder-anchor', 'data-id': p.m.id, 'data-fam': p.m.family, cx: p.px, cy: p.py, r: 4.5, stroke: S.colorBy === 'lab' || (dual !== 'off' && S.idColor === 'lab') ? familyColor(p.m) : dual === 'lines' && S.idColor === 'effort' ? p.lab : C.muted, 'stroke-width': 1.5, fill: C.surface }));
     const references = new Map();
     for (const [axis, metric] of [['X', X], ['Y', Y]]) {
       const ps = metric.ref?.key === 'best' ? points.filter((p) => p[axis.toLowerCase() + 'v'] === 1) : [metric.ref?.point].filter(Boolean);
@@ -3859,7 +3957,7 @@
     const labelLayer = svgEl('g'); plot.append(labelLayer);
     // "frontier only" values follow the frontier that's drawn, or with Pareto off the frontier of the models shown
     const valueIds = S.valueFront ? (S.pareto !== 'off' ? frontSet : new Set(rawFront.map((p) => p.m.id))) : null;
-    if (S.labels !== 'none' || S.valueLabels !== 'off') placeLabels(points, frontSet, labelLayer, { M, PW, PH, C, X, Y, segs, ghosts: visibleGhosts, dimmed, ladder, narrow, rings: new Set(references.keys()), valueIds });
+    if (S.labels !== 'none' || S.valueLabels !== 'off') placeLabels(points, frontSet, labelLayer, { M, PW, PH, C, X, Y, segs, ghosts: visibleGhosts, dimmed, ladder, narrow, anchors, rings: new Set(references.keys()), valueIds });
     const tags = zone?.tag ? [zone.tag] : [];
     if (X.ref && Y.ref) for (const [point, axes] of references) {
       const text = axes.join('/') + ' 1.0', tag = tags.find((tag) => tag.point === point);
@@ -3997,8 +4095,14 @@
       layer.append(svgEl('text', { class: tag.class, 'data-id': p.m.id, x, y: y + 4, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 11, 'font-weight': 600, ...halo(3), 'pointer-events': 'none' }, tag.text));
     }
   }
-  function placeLabels(points, frontSet, layer, { M, PW, PH, C, X, Y, segs, ghosts = [], dimmed = () => false, ladder = false, narrow = false, rings = new Set(), valueIds = null }) {
-    const H = 14, pad = 3, ladderPts = [];
+  // short: use L/M/H/X/MX even with long effort words on, when a long word would cut a model's name in the ladder
+  function ladderValue(p, Y, short = false) {
+    const fallback = S.ladderAt !== 'top' && p.m.effort !== S.ladderAt;
+    const prefix = S.ladderAt === 'top' || fallback ? (S.shortEffort || short ? EFFORT_SHORT[p.m.effort] || p.m.effort.toUpperCase() : (EFFORT_LABEL[p.m.effort] || p.m.effort).toLowerCase()) : '';
+    const value = valFmt(Y, p.yv); return { prefix, value, fallback, text: [prefix, value].filter(Boolean).join(' ') };
+  }
+  function placeLabels(points, frontSet, layer, { M, PW, PH, C, X, Y, segs, ghosts = [], dimmed = () => false, ladder = false, narrow = false, anchors = [], rings = new Set(), valueIds = null }) {
+    const H = 14, pad = 3, ladderPts = anchors.filter((p) => !points.some((q) => q.m.family === p.m.family && q.m.effort !== 'non-reasoning')); // a hollow dot whose reasoning line shows no dot gets its own row
     const xMax = M.left + PW + (ladder ? 0 : M.right - 4); // labels may use the right margin, unless the ladder's names are there
     // each dot keeps its labels off it; a reference dot's ring (r 10) is kept clear too
     const padR = dotOuter(6) - 6;
@@ -4034,7 +4138,7 @@
       const pinned = S.pinned.has(p.m.id);
       if (named && seriesMode && p.isEnd && !pinned) jobs.push({ p, kind: 'name', rank: 0 });
       else if (named && (pinned || !seriesMode)) jobs.push({ p, kind: 'label', rank: 0 });
-      const tag = named && autoMode && !pinned && (!p.isEnd || S.labels === 'autoplus') ? effortWord(p) : '', value = valueOf && (!valueIds || valueIds.has(p.m.id)) ? valueOf(p) : '';
+      const tag = named && autoMode && !pinned && (!p.isEnd || S.labels === 'autoplus' || (ladder && S.ladderAt !== 'top')) ? effortWord(p) : '', value = valueOf && (!valueIds || valueIds.has(p.m.id)) ? valueOf(p) : '';
       if (tag || value) jobs.push({ p, kind: tag ? 'tag' : 'value', tag, value, rank: p.isEnd ? 1 : 2 });
     }
     jobs.sort((a, b) => a.rank - b.rank || prio(b.p) - prio(a.p));
@@ -4052,7 +4156,7 @@
       if (rank > 0 && !ladderPlaced) { placeLadder(); ladderPlaced = true; }
       if (rank === 2 && !ghostsPlaced) { placeGhosts(); ghostsPlaced = true; } // faint frontier names outrank effort tags
       const asSeries = kind === 'name', pinned = S.pinned.has(p.m.id), small = kind === 'tag' || kind === 'value';
-      if (asSeries && ladder) { ladderPts.push(p); continue; } // named in the ladder instead
+      if (asSeries && ladder) { const ps = p.series || [p]; const anchor = S.ladderAt === 'top' ? p : ps.find((q) => q.m.effort === S.ladderAt) || (ps[0].m.effort !== 'non-reasoning' ? anchors.find((q) => q.m.family === p.m.family) : null) || ps.slice().sort((a,b) => Math.abs(a.m.effortLevel-EFFORT_LEVEL[S.ladderAt])-Math.abs(b.m.effortLevel-EFFORT_LEVEL[S.ladderAt]) || a.m.effortLevel-b.m.effortLevel)[0]; ladderPts.push(anchor); continue; } // named in the ladder instead
       const dotLabel = S.shortEffort && p.m.effort !== 'default' && p.m.effort !== 'non-reasoning' ? `${p.m.familyName} (${EFFORT_SHORT[p.m.effort] || p.m.effort.toUpperCase()})` : p.m.label;
       const t = asSeries ? (p.m.effort === 'non-reasoning' && p.series.length === 1 && points.some((o) => o.m.family === p.m.family && o !== p) ? dotLabel : p.m.familyName)
         : kind === 'label' ? dotLabel : [tag, value].filter(Boolean).join(' · ');
@@ -4126,22 +4230,29 @@
       // leader. Rows are pushed apart so they never overlap, and kept within the plot's height. Laid out straight after
       // the names, so the tags and values placed later keep off the leaders. Each name is a button that highlights its model
       // (a transparent row behind it makes the whole row the target).
-      const x0 = M.left + PW, LH = narrow ? 14 : 16, size = narrow ? 11 : 12, top = M.top + 6, bottom = M.top + PH - 2;
+      const x0 = M.left + PW, LH = narrow ? 14 : 16, size = narrow ? 11 : 12, top = M.top + 20, bottom = M.top + PH - 2;
       const rows = ladderPts.map((p) => ({ p, y: p.py })).sort((a, b) => a.y - b.y);
       const step = Math.min(LH, rows.length > 1 ? (bottom - top) / (rows.length - 1) : LH);
       rows[0].y = Math.max(rows[0].y, top);
       for (let i = 1; i < rows.length; i++) rows[i].y = Math.max(rows[i].y, rows[i - 1].y + step);
       if (rows[rows.length - 1].y > bottom) { rows[rows.length - 1].y = bottom; for (let i = rows.length - 2; i >= 0; i--) rows[i].y = Math.min(rows[i].y, rows[i + 1].y - step); }
-      const maxW = M.right - 14, dark = isDark();
+      const edge = x0 + M.right - 4, dark = isDark();
+      layer.append(svgEl('text', { class: 'ladder-heading', x: edge, y: M.top + 5, 'text-anchor': 'end', fill: C.muted, 'font-size': 10 }, `Y at ${S.ladderAt === 'top' ? 'highest shown' : EFFORT_LABEL[S.ladderAt]}`));
+      const nameFits = (p, short) => textW(p.m.familyName, size, 600) <= M.right - 24 - textW(ladderValue(p, Y, short).text, size, 500);
+      const shortWords = rows.some(({ p }) => !nameFits(p, false));
       for (const { p, y } of rows) {
-        let t = p.m.familyName; while (textW(t, size, 600) > maxW && t.length > 3) t = t.replace(/…?$/, '').slice(0, -1) + '…';
+        const value = ladderValue(p, Y, shortWords), maxW = Math.max(0, M.right - 24 - textW(value.text, size, 500));
+        let t = p.m.familyName; while (textW(t, size, 600) > maxW && t.length > 1) t = t.replace(/…?$/, '').slice(0, -1) + '…';
         const byLab = S.colorBy === 'lab' || dualMode() !== 'off', dim = (p.series || [p]).every(dimmed), color = byLab ? idColor(p) : C.ink2, into = dim ? faded : layer;
         into.append(svgEl('line', { 'data-fam': p.m.family, x1: p.px + 6, y1: p.py, x2: x0 + 6, y2: y, stroke: color, 'stroke-width': 1, 'stroke-opacity': 0.5 }));
         const on = highlight.has(p.m.family), name = p.m.familyName;
-        const btn = into.appendChild(svgEl('g', { class: 'ladder-btn', 'data-fam': p.m.family, role: 'button', tabindex: 0, 'aria-pressed': String(on), 'aria-label': `Highlight ${name}` }));
+        const btn = into.appendChild(svgEl('g', { class: 'ladder-btn', 'data-fam': p.m.family, role: 'button', tabindex: 0, 'aria-pressed': String(on), 'data-anchor': p.m.id, 'data-value': value.text, 'aria-label': `Highlight ${name}, ${value.text} at ${EFFORT_LABEL[p.m.effort]}` }));
         btn.append(svgEl('rect', { x: x0 + 7, y: y - step / 2 + 0.5, width: M.right - 8, height: Math.max(10, step - 1), rx: 3, fill: 'transparent' }));
         btn.append(svgEl('text', { x: x0 + 10, y: y + 4, fill: byLab ? readable(color) : color, 'font-size': size, 'font-weight': dark ? 500 : 600 }, t));
-        btn.append(svgEl('title', {}, `${name}: click to ${on ? 'stop highlighting it' : 'highlight it and dim the other models'}`));
+        const valueEl = svgEl('text', { class: 'ladder-value', x: edge, y: y + 4, 'text-anchor': 'end', fill: C.ink2, 'font-size': size, 'font-weight': 500, style: 'font-variant-numeric:tabular-nums' });
+        if (value.prefix) valueEl.append(svgEl('tspan', { fill: C.muted, 'font-weight': 400 }, value.prefix + ' '));
+        valueEl.append(value.value); btn.append(valueEl);
+        btn.append(svgEl('title', {}, value.fallback ? `${name}${p.m.effort === 'non-reasoning' ? ' (its non-reasoning line)' : ''} has no ${EFFORT_LABEL[S.ladderAt]} result; joined at ${EFFORT_LABEL[p.m.effort]}` : `${name}: click to ${on ? 'stop highlighting it' : 'highlight it and dim the other models'}`));
         segs.push([p.px + 6, p.py, x0 + 6, y]);
       }
     } }
@@ -5387,11 +5498,11 @@
   // ---------- hover / pin ----------
   const tip = $('tooltip');
   function nearest(evt) {
-    if (!lastPoints.length) return null;
+    if (!lastPoints.length && !lastAnchors.length) return null;
     const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
     const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
     let best = null, bd = 28 * 28;
-    for (const p of lastPoints.concat(lastGhosts)) { const d = (p.px - loc.x) ** 2 + (p.py - loc.y) ** 2; if (d < bd) { bd = d; best = p; } }
+    for (const p of lastPoints.concat(lastGhosts, lastAnchors)) { const d = (p.px - loc.x) ** 2 + (p.py - loc.y) ** 2; if (d < bd) { bd = d; best = p; } }
     return best;
   }
   // Pinned vs. this dot, metric by metric: the two axes, then the usual four, with this ÷ pinned. Raw values (not the
@@ -5456,7 +5567,7 @@
     const cmpRel = cmp.keys.map(relOf).filter(Boolean).join(' · ');
     const sw = dualMode() !== 'off' ? `background:${p.val};box-shadow:0 0 0 2px ${p.lab}` : `background:${p.color}`;
     tip.innerHTML = `<div class="t-name"><i style="${sw}"></i>${esc(m.label)}</div>
-      <div class="t-sub">${esc(m.creator)} · ${EFFORT_LABEL[m.effort]} effort · ${m.openWeights ? 'open weights' : 'proprietary'}${m.releaseDate ? ' · ' + m.releaseDate : ''}${m.estimated ? ' · Intelligence Index estimated by Artificial Analysis' : ''}${m.myEst && [S.x, S.y].some((k) => MY_SCORED.has(k)) ? ` · ${Math.round(m.myEst * 100)}% of Your index filled from another effort` : ''}${S.pinned.has(m.id) ? ' · pinned' : ''}</div>
+      <div class="t-sub">${esc(m.creator)} · ${EFFORT_LABEL[m.effort]} effort${p.anchorOnly ? ` (shown for the ladder; your effort filter hides ${EFFORT_LABEL[m.effort]})` : ''} · ${m.openWeights ? 'open weights' : 'proprietary'}${m.releaseDate ? ' · ' + m.releaseDate : ''}${m.estimated ? ' · Intelligence Index estimated by Artificial Analysis' : ''}${m.myEst && [S.x, S.y].some((k) => MY_SCORED.has(k)) ? ` · ${Math.round(m.myEst * 100)}% of Your index filled from another effort` : ''}${S.pinned.has(m.id) ? ' · pinned' : ''}</div>
       ${cmp.html}${cmpRel ? `<div class="note" style="margin:-2px 0 6px">${esc(cmpRel)}</div>` : ''}${rows ? `<table>${rows}</table>` : ''}${[...new Set([S.y, S.x].map((k) => METRICS[k].ext).filter(Boolean))].map((e) => { const r = m.ext?.[e.key]; return r ? `<div class="t-foot">${esc(e.label)} lists it as “${esc(r.name)}”${r.guessed ? ' (effort not stated)' : ''}</div>` : ''; }).join('')}<div class="t-foot">${p.ghost ? `On the frontier but not selected · ${touch ? 'tap again' : 'click'} to add it` : `${touch ? 'Tap again' : 'Click'} to ${S.pinned.has(m.id) ? 'unpin' : 'pin'}`}</div>`;
     tip.classList.toggle('docked', touch); tip.classList.toggle('cmp', !!cmp.html);
     tip.style.display = 'block';
@@ -5870,7 +5981,7 @@
   showMeta();
   // URL overrides, e.g. ?theme=dark&x=costPerTask&xScale=log&pin=claude-opus-5-5:low
   const qp = new URLSearchParams(location.search);
-  for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'colorBy', 'idColor', 'dual', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale', 'basis', 'planView', 'planScope', 'lineStyle', 'valueLabels', 'xRel', 'yRel', 'ramp', 'zone', 'zoneStyle', 'frontStyle', 'shape', 'glow', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (qp.get(k) && !(qp.get(k) in Object.prototype)) S[k] = qp.get(k); // names like ?x=constructor would reach inherited properties
+  for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale', 'basis', 'planView', 'planScope', 'lineStyle', 'valueLabels', 'xRel', 'yRel', 'ramp', 'zone', 'zoneStyle', 'frontStyle', 'shape', 'glow', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (qp.get(k) && !(qp.get(k) in Object.prototype)) S[k] = qp.get(k); // names like ?x=constructor would reach inherited properties
   if (qp.get('basis')) applyBasis();
   if (qp.get('fullFrontier')) S.fullFrontier = qp.get('fullFrontier') === '1';
   if (qp.get('valueFront')) S.valueFront = qp.get('valueFront') === '1';
