@@ -4630,10 +4630,10 @@
     } catch { return null; }
   }
   // Cache prices for models priced from the site's data (AA lists only input and output): cache reads and writes as a
-  // multiple of the input price, per lab — Anthropic 0.1× / 1.25× (5-minute cache), OpenAI and Google 0.1× with writes at
-  // the input price, xAI 0.25×; others 0.25×.
+  // multiple of the input price, per lab — Anthropic 0.1× / 1.25× (5-minute cache), OpenAI, Google and DeepSeek 0.1× with
+  // writes at the input price, xAI 0.25×; others 1×. Writes are 1× except for Anthropic.
   const U_CACHE_MULT = { anthropic: [0.1, 1.25], openai: [0.1, 1], google: [0.1, 1], xai: [0.25, 1], spacexai: [0.25, 1], deepseek: [0.1, 1] };
-  const uAAPrice = (m) => { const [c, w] = U_CACHE_MULT[m.creatorSlug] || [0.25, 1]; return { in: m.priceInput, cachedIn: m.priceInput * c, cacheWrite: m.priceInput * w, out: m.priceOutput }; };
+  const uAAPrice = (m) => { const [c, w] = U_CACHE_MULT[m.creatorSlug] || [1, 1]; return { in: m.priceInput, cachedIn: m.priceInput * c, cacheWrite: m.priceInput * w, out: m.priceOutput }; };
   // the same tokens at a price table (USD per 1M); writes with no price of their own are billed as plain input
   const uPrice = (r, p) => (r.inp * p.in + r.cr * (p.cachedIn ?? p.in) + r.cw * (p.cacheWrite || p.in) + r.out * p.out) / 1e6;
   // How you pay each T3 Code provider unless the data or you say otherwise. Antigravity is listed even when no use of it
