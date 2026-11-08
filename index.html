@@ -457,7 +457,18 @@
   /* Standings, weights, and estimates sit above the plot and push it down. One line until the list opens. */
   .explain { margin: 2px 0 10px; color: var(--ink-2); font-size: 13px; line-height: 1.45; }
   .explain .shift { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
-  .explain .shift p { margin: 0; flex: 1; min-width: 0; }
+  .explain .shift #shiftText { margin: 0; flex: 1; min-width: 0; font-size: 12px; line-height: 1.6; color: var(--ink); }
+  #shiftText .ii-rows { margin-top: 4px; gap: 2px 12px; }
+  #shiftText .ii-num { font-weight: 600; font-variant-numeric: tabular-nums; }
+  @container (max-width: 559px) { #shiftText .shift-line { margin-bottom: 5px; } }
+  #shiftText .shift-item { display: inline-block; max-width: 100%; }
+  #shiftText .shift-item.sep::before { content: '· '; color: var(--muted); }
+  #shiftText .shift-item.sep.bol::before { content: none; }
+  #shiftText .nw { white-space: nowrap; }
+  #shiftText .ii-chip.shift-item { white-space: normal; }
+  #shiftText .shift-added { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; }
+  #shiftText .shift-added .ii-chip { white-space: nowrap; }
+  .explain #shiftText button.linkish { font-weight: 400; }
   .explain a { color: var(--accent); }
   .explain button.linkish, .explain button.x {
     font: inherit; background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink);
@@ -1010,7 +1021,7 @@
     <div class="note relative-note" id="relativeNote" aria-live="polite" hidden></div>
     <div class="explain" id="explain">
       <div class="shift" id="shiftRow" hidden>
-        <p id="shiftText"></p>
+        <div id="shiftText"></div>
         <button type="button" class="x" id="shiftDismiss" aria-label="Hide this note until the next data update">×</button>
       </div>
       <div class="tools">
@@ -1766,7 +1777,7 @@
     },
   };
   const SHIFT_SEEN = 'aimf-shift-seen', SHIFT_SNAP = 'aimf-lead-snapshot-v1';
-  let shiftForce = false;
+  let shiftForce = false, shiftDetails = false;
   const fmtScore = (n) => n.toFixed(1);
   function keysFor(basis) {
     const prev = BASIS;
@@ -1867,28 +1878,45 @@
     const flipped = wasLead.slug !== nowLead.slug;
     const gapThen = wasLead.then.score - wasNext.then.score, gapNow = nowLead.now.score - nowNext.now.score;
     if (!flipped && Math.abs(gapNow - gapThen) < 0.3 && !added.length) return '';
+    // Laid out like the AA Intelligence Index block above the chart: a heading with a muted sub-line, one line per label,
+    // and an expander (like the header's "all 22 with weights") for the detail that used to sit in the paragraph.
     const when = fmtDay(prior.scrapedAt.slice(0, 10), true);
-    const who = (row) => `${esc(row.m.shortName)} ${fmtScore(row.now.score)}`;
-    let html = `On <b>Your index (grade B or better)</b>, `;
-    html += flipped
-      ? `${esc(nowLead.m.creator)} leads the ${prior.keys.length}-benchmark list from ${when} by ${fmtScore(Math.abs(gapNow))}: ${who(nowLead)} versus ${who(nowNext)}. On ${when}, ${esc(wasLead.m.creator)} led that list by ${fmtScore(gapThen)}.`
-      : `${esc(nowLead.m.creator)} still leads the ${prior.keys.length}-benchmark list from ${when}, by ${fmtScore(Math.abs(gapNow))} (${who(nowLead)} versus ${who(nowNext)}).`;
+    const since = prior === SHIFT_SEED ? `this page’s ${fmtDay(prior.scrapedAt.slice(0, 10))} snapshot` : `the data you last saw (${when})`;
+    const item = (html) => ` <span class="shift-item sep">${html}</span>`;
+    const nw = (html) => `<span class="nw">${html}</span>`;
+    const who = (m, score) => item(`${esc(m.shortName)} ${nw(`<b class="ii-num">${fmtScore(score)}</b>`)}`);
+    const rows = [], row = (label, content) => { if (content) rows.push(`<div class="ii-label">${label}</div><div class="shift-line">${content}</div>`); };
+    const lead = (html) => `<span class="shift-lead">${html}</span>`;
+    row('Leads now', `${lead(`${esc(nowLead.m.creator)}${flipped ? '' : ' still'}, by ${fmtScore(Math.abs(gapNow))}; ${flipped ? `${esc(wasLead.m.creator)} led by ${fmtScore(gapThen)}` : `by ${fmtScore(gapThen)}`} then`)}${who(nowLead.m, nowLead.now.score)}${who(nowNext.m, nowNext.now.score)}`);
+    const details = [];
     if (cause && Math.abs(cause.g) >= 0.2) {
+      const regrade = String(prior.scrapedAt).startsWith('2026-10-18') && cause.k === 'mlcr';
       const name = cause.k === 'mlcr' ? '<a href="https://artificialanalysis.ai/evaluations/mlcr-aa" target="_blank" rel="noopener">MLCR-AA</a>' : esc(METRICS[cause.k].label);
-      html += ` The move is ${name}: ${esc(wasLead.m.familyName)} ${benchPct(cause.k, cause.lead.ov)} to ${benchPct(cause.k, cause.lead.nv)}, ${esc(wasNext.m.familyName)} ${benchPct(cause.k, cause.next.ov)} to ${benchPct(cause.k, cause.next.nv)}.`;
-      if (String(prior.scrapedAt).startsWith('2026-10-18') && cause.k === 'mlcr') {
-        html += ` Artificial Analysis regraded it on 21 Oct 2026 (a medical-record prompt, a three-judge panel, and 15 of 60 reference answers refined; <a href="https://x.com/ArtificialAnlys/status/2112935427422527584" target="_blank" rel="noopener">their note</a>). A pass needs both a complete answer and an accurate one.`;
-        const missing = wasLead.nowRaw.itBench == null && wasNext.nowRaw.itBench != null ? wasLead : wasNext.nowRaw.itBench == null && wasLead.nowRaw.itBench != null ? wasNext : null;
-        const other = missing === wasLead ? wasNext : wasLead;
-        if (missing) html += ` ${esc(missing.m.familyName)} has no ${esc(METRICS.itBench.label)} result, so this benchmark is ${(100 * cause.w / missing.now.sw).toFixed(1)}% of its score, against ${(100 * cause.w / other.now.sw).toFixed(1)}% for ${esc(other.m.familyName)}.`;
-      }
+      // MLCR-AA weighs more in a score that lacks ITBench-AA (SRE): its weight shows on each model, the reason in the details
+      const missing = !regrade ? null : wasLead.nowRaw.itBench == null && wasNext.nowRaw.itBench != null ? wasLead : wasNext.nowRaw.itBench == null && wasLead.nowRaw.itBench != null ? wasNext : null;
+      const wt = (r) => `${(100 * cause.w / r.now.sw).toFixed(1)}%`;
+      const why = missing ? `${wt(missing)} of its score: no ${METRICS.itBench.label.replace(/ \(.*\)$/, '')} result` : '';
+      const move = (r, d) => item(`${esc(r.m.familyName)} ${nw(`${benchPct(cause.k, d.ov)} → <b class="ii-num">${benchPct(cause.k, d.nv)}</b>`)}` +
+        (r !== missing ? '' : ` <span class="ii-label">(${esc(why)})</span>`));
+      row('The move', `${lead(`${name}${regrade ? ', regraded 21 Oct' : ''}`)}${move(wasLead, cause.lead)}${move(wasNext, cause.next)}`);
+      if (regrade) details.push(['Regrade', `Artificial Analysis regraded ${name} on 21 Oct 2026: a medical-record prompt, a three-judge panel, and 15 of 60 reference answers refined. A pass needs both a complete answer and an accurate one (<a href="https://x.com/ArtificialAnlys/status/2112935427422527584" target="_blank" rel="noopener">their note</a>).`]);
     }
     if (added.length && full[0] && full[1]) {
       const same = full[0].slug === wasLead.slug;
-      html += ` This page's grade B or better list also includes ${added.map(([k]) => esc(METRICS[k].label)).join(', ')}. On that fuller list ${esc(full[0].lab)} ${same ? 'still leads' : 'leads'}: ${esc(full[0].m.shortName)} ${fmtScore(full[0].score)} versus ${esc(full[1].m.shortName)} ${fmtScore(full[1].score)}.`;
+      row('Today’s list', `${lead(`${esc(full[0].lab)} ${same ? 'still leads' : 'leads'} across all ${fullKeys.length}`)}${who(full[0].m, full[0].score)}${who(full[1].m, full[1].score)}`);
+      const dropped = prior.keys.filter((k) => !fullKeys.some(([f]) => f === k));
+      details.push(['List', `${added.length} added${dropped.length ? `, ${dropped.length} left (${esc(dropped.map((k) => METRICS[k]?.label || k).join(', '))})` : ''}, so ${prior.keys.length} became ${fullKeys.length}: <span class="shift-added">${added.map(([k]) => `<span class="ii-chip">${esc(METRICS[k].label)}</span>`).join(' ')}</span>`]);
     }
     const ii = ALL.filter((m) => !m.deprecated && !m.extOnly && m.intelligence != null).sort((a, b) => b.intelligence - a.intelligence)[0];
-    if (ii && ii.creatorSlug !== nowLead.slug) html += ` The Intelligence Index did not flip: ${esc(ii.creator)} leads it (${esc(ii.shortName)}, ${ii.intelligence.toFixed(1)}).`;
+    if (ii && ii.creatorSlug !== nowLead.slug) row('AA’s index', `${lead(`${esc(ii.creator)} leads it now`)}${item(`${esc(ii.shortName)} ${nw(`<b class="ii-num">${ii.intelligence.toFixed(1)}</b>`)}`)}`);
+    if (details.length) {
+      const what = [details.some(([l]) => l === 'Regrade') && 'the regrade', added.length && 'how the list changed'].filter(Boolean);
+      const label = what.length > 1 ? what.slice(0, -1).join(', ') + ' and ' + what[what.length - 1] : what[0];
+      rows.push(`<div class="ii-label"></div><div class="shift-line"><button type="button" class="linkish" data-shift-details aria-expanded="${shiftDetails}">${shiftDetails ? ('Hide ' + label) : label[0].toUpperCase() + label.slice(1)}</button></div>`);
+      if (shiftDetails) for (const [l, c] of details) rows.push(`<div class="ii-label">${l}</div><div class="shift-line">${c}</div>`);
+    }
+    const html = `<div class="ii-heading"><b>What changed since ${esc(since)}</b><span>Your index (grade B or better), on the ${prior.keys.length} benchmarks it had then</span></div>` +
+      `<div class="ii-rows">${rows.join('')}</div>`;
     return html;
   }
   function weightRows() {
@@ -1940,6 +1968,12 @@
     row('Not counted twice', esc(skipped.join(', ')));
     el.innerHTML += `<div class="ii-rows">${rows.join('')}</div>`;
   }
+  function markLineStarts() {
+    const el = $('shiftText'); if (!el || el.closest('[hidden]')) return;
+    el.querySelectorAll('.shift-item.bol').forEach((it) => it.classList.remove('bol'));
+    const lastTop = (e) => { const r = e.getClientRects(); return r.length ? r[r.length - 1].top : -1e9; };
+    el.querySelectorAll('.shift-item.sep').forEach((it) => { const prev = it.previousElementSibling, r = it.getClientRects()[0]; if (prev && r && r.top > lastTop(prev) + 2) it.classList.add('bol'); });
+  }
   function renderExplain() {
     const fullKeys = keysFor('B'), full = board(fullKeys, FILL);
     if (full.length) rememberShift({ basis: 'B', keys: fullKeys.map(([k]) => k), raws: Object.fromEntries(full.slice(0, 2).map((r) => [r.slug, { name: r.m.shortName, family: r.m.family, effort: r.m.effort, raw: rawOf(r.m, fullKeys) }])) });
@@ -1951,7 +1985,7 @@
     const show = !!story && (shiftForce || !seen);
     $('shiftRow').hidden = !show;
     $('shiftReopen').hidden = !story || show;
-    if (show) $('shiftText').innerHTML = story;
+    if (show) { $('shiftText').innerHTML = story; markLineStarts(); }
     const listName = BASIS === 'aa' ? "Artificial Analysis' Intelligence Index" : `Your index (${BASIS_SHORT[BASIS]})`;
     const pcts = wholePercents(rows.map((r) => r.share));
     const bars = rows.map((r, i) => `<i style="width:${(r.share * 100).toFixed(2)}%" title="${esc(r.label)} ${pcts[i]}%"></i>`).join('');
@@ -3461,6 +3495,8 @@
   });
   $('shiftReopen').addEventListener('click', () => { shiftForce = true; renderExplain(); });
   $('ladderAtSel').addEventListener('change', (e) => { S.ladderAt = e.target.value; markDirty(); save(); render(); });
+  $('shiftText').addEventListener('click', (e) => { if (e.target.closest('[data-shift-details]')) { shiftDetails = !shiftDetails; $('shiftText').innerHTML = shiftStory(); markLineStarts(); $('shiftText').querySelector('[data-shift-details]')?.focus(); } });
+  if (window.ResizeObserver) new ResizeObserver(() => markLineStarts()).observe($('shiftText'));
   $('aaiiBlock').addEventListener('click', (e) => { if (e.target.closest('[data-weights]')) { e.target.closest('[data-weights]').setAttribute('aria-expanded', 'true'); $('explainPanel').hidden = false; $('explainToggle').setAttribute('aria-expanded', 'true'); } });
   $('explainToggle').addEventListener('click', () => {
     const open = $('explainPanel').hidden;
