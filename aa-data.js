@@ -188,8 +188,8 @@
         priceOutput: num(m.price1mOutputTokens),
         // AA now sends the median speed as a plain outputSpeed number (timescaleData is gone from its records)
         outputSpeed: num(m.timescaleData?.medianOutputSpeed) ?? num(m.outputSpeed) ?? median(speedByModel.get(m.id) || []),
-        ttft: num(m.timeToFirstAnswerToken?.total),
-        e2e: num(m.endToEndResponseTime?.total),
+        ttft: num(m.headline?.timeToFirstAnswerToken),
+        e2eMean: num(m.endToEndTime),
         outputTokens: num(m.canonicalIntelligenceIndexTokenCount?.output),
         tokensPerTask: num(m.intelligenceIndexOutputTokensPerTask?.output),
         timePerTask: num(m.intelligenceIndexTimePerTask),
@@ -418,7 +418,7 @@
     return parseMethodology(await res.text(), keys);
   }
   // Bump when the saved shape changes, so the page ignores copies saved by an older version.
-  const VERSION = 5; // 5: Intelligence Index v5 (index makeup from the data, models without an index score kept); 4: dynamic AA benchmarks
+  const VERSION = 6; // 6: headline first-answer-token and mean single-request end-to-end speed fields
 
   globalThis.AAData = { scrape, scrapeMethodology, parseMethodology, VERSION, discoverNumericFields, isNonBenchKey };
 })();

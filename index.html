@@ -1256,7 +1256,7 @@
     outputTokens: { label: 'Tokens used for Intelligence Index', long: 'Output tokens used to run the Intelligence Index', fmt: compact, better: 'low', scale: 'log' },
     outputSpeed: { label: 'Output speed', long: 'Output speed (tokens per second)', fmt: (v) => Math.round(v) + ' t/s', better: 'high', scale: 'log' },
     ttft: { label: 'Time to first answer token', long: 'Time to first answer token (seconds)', fmt: secs, better: 'low', scale: 'log' },
-    e2e: { label: 'End-to-end response time', long: 'End-to-end response time, 500 output tokens (seconds)', fmt: secs, better: 'low', scale: 'log' },
+    e2eMean: { label: 'End-to-end time (mean of single requests)', long: 'End-to-end time (mean of single requests)', fmt: secs, better: 'low', scale: 'log' },
     timePerTask: { label: 'Time per index task', long: 'Average time per Intelligence Index task (seconds)', fmt: secs, better: 'low', scale: 'log' },
     parameters: { label: 'Parameters', long: 'Total parameters (open-weights models)', fmt: (v) => v >= 1000 ? +(v / 1000).toPrecision(3) + 'T' : +v.toPrecision(3) + 'B', better: 'low', scale: 'log' },
   };
@@ -1327,8 +1327,8 @@
     tokensPerTask: 'Average output tokens (reasoning plus answer) a model spends on one Intelligence Index task: how verbose or deep-thinking it is.',
     outputTokens: 'All output tokens used to run the whole Intelligence Index.',
     outputSpeed: 'Tokens per second while the answer is streaming, measured on the model\'s API.',
-    ttft: 'Seconds from sending a request to the first answer token (after any thinking).',
-    e2e: 'Seconds to get a complete 500-token answer, including thinking time.',
+    ttft: 'Seconds from sending a request to the first answer token (after any thinking). Measured on real requests since 3 Nov 2026 (Artificial Analysis methodology v3), so not comparable with earlier values.',
+    e2eMean: 'Seconds from sending a request to the final token, across single requests, including any thinking, with no fixed answer length. Replaces the earlier fixed 500-token measure, so not comparable with earlier values.',
     timePerTask: 'Average wall-clock time for one Intelligence Index task.',
     parameters: 'Total parameter count, for open-weights models that publish it.',
   };
@@ -1356,7 +1356,7 @@
     'Work & documents': ['gdpval', 'briefcase', 'gdpPdf', 'lcr', 'mlcr', 'harvey', 'healthbench', 'healthbenchPro', 'capFinance', 'capStrategy', 'capLegal', 'capMedical', 'capEngineering', 'capEconomics', 'openness'],
     'Independent benchmarks': [], // filled from data/external.js
     'Cost': ['costPerTask', 'myCost', 'tasksPerDollar', 'pointsPerDollar', 'planTasks', 'costToRun', 'priceBlended', 'priceInput', 'priceOutput'],
-    'Tokens & speed': ['tokensPerTask', 'outputTokens', 'outputSpeed', 'ttft', 'e2e', 'timePerTask', 'parameters'],
+    'Tokens & speed': ['tokensPerTask', 'outputTokens', 'outputSpeed', 'ttft', 'e2eMean', 'timePerTask', 'parameters'],
   };
   // Independent benchmarks (data/external.js): each source becomes a metric, plus a cost metric where the source reports one.
   const EXT = window.EXT_DATA?.sources || [];
@@ -1616,7 +1616,7 @@
 
   // Any metric can go on either axis; the lists just lead with the usual choice.
   const Y_GROUPS = Object.keys(GROUPS), X_GROUPS = ['Cost', 'Tokens & speed', ...Y_GROUPS.filter((g) => g !== 'Cost' && g !== 'Tokens & speed')];
-  const RENAMED = { terminalBench: 'terminalBench40' }; // metric keys used by older saved sets
+  const RENAMED = { terminalBench: 'terminalBench40', e2e: 'e2eMean' }; // metric keys used by older saved sets
 
   // Axis scales. Sqrt sits between linear and log (and keeps zero); logit spreads out scores bunched near 0% or 100%.
   const SCALES = { linear: 'Linear', sqrt: '√', log: 'Log', logit: 'Logit' };
@@ -3271,7 +3271,8 @@
     // Otherwise the list is the starting grade plus ticks, minus unticks, and Active only hides retired ones
     // unless that one was ticked. The charted metric stays either way, and "Show them" lists the rest until the menu closes.
     let hidden = 0;
-    const shown = (k) => menuEditing ? isBench(k) : q || k === cur || pickerLists(k) || (menuPeek && isBench(k)) || (hidden++, false);
+    const hasCurrentValues = (k) => ALL.some((m) => !m.deprecated && Number.isFinite(m[k]));
+    const shown = (k) => hasCurrentValues(k) && (menuEditing ? isBench(k) : q || k === cur || pickerLists(k) || (menuPeek && isBench(k)) || (hidden++, false));
     // "Newest first": most recently updated first within each section (sort is stable, so ties keep the usual order)
     const order = (items) => S.menuSort === 'date' ? items.sort((a, b) => (UPDATED.get(b.k)?.date || '').localeCompare(UPDATED.get(a.k)?.date || '')) : items;
     if (menuKind !== 'leaders') {
@@ -3286,9 +3287,9 @@
         const box = menuEditing && keys.length ? `<input type="checkbox" class="mh-box" data-keys="${esc(keys.join(' '))}" ${on === keys.length ? 'checked' : ''}${on && on < keys.length ? ' data-mixed' : ''} aria-label="Include every ${esc(g)} benchmark shown" title="Tick or untick every benchmark in this section${q ? ' that matches the search' : ''}" />` : '';
         return { head: `${box}${esc(g)}<span class="n">${menuEditing ? `${on} of ${keys.length}` : 'updated'}</span>`, items };
       }).filter((g) => g.items.length);
-      const keys = members.filter(match), on = keys.filter(pickerLists).length;
+      const keys = members.filter((k) => hasCurrentValues(k) && match(k)), on = keys.filter(pickerLists).length;
       const box = menuEditing && keys.length ? `<input type="checkbox" class="mh-box" data-keys="${keys.join(' ')}" ${on === keys.length ? 'checked' : ''}${on && on < keys.length ? ' data-mixed' : ''} aria-label="Include every AA Intelligence Index benchmark shown" />` : '';
-      const items = ['intelligence', ...members].filter(match).map((k) => ({ k, meta: k === 'intelligence' ? '' : `${Math.round(indexW()[k]*100)}%` }));
+      const items = ['intelligence', ...members].filter((k) => hasCurrentValues(k) && match(k)).map((k) => ({ k, meta: k === 'intelligence' ? '' : `${Math.round(indexW()[k]*100)}%` }));
       if (items.length) groups.unshift({ ii: true, head: `${box}AA Intelligence Index ${esc(DATA.index?.version || '')}<span class="n">${menuEditing ? `${on} of ${keys.length}` : 'AA weight'}</span>`, items });
       return { groups, hidden };
     }
@@ -3648,7 +3649,7 @@
     let X = METRICS[S.x], Y = METRICS[S.y];
     const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
 
-    $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && !(usesYourIndex() && k === 'myIndex') && (i === 0 || isBench(k)) && (i === 0 || S.x !== S.y))
+    $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && !(usesYourIndex() && k === 'myIndex') && (i === 0 || S.x !== S.y))
       .map((k) => { const c = reportCard(k); return `<b>${esc(METRICS[k].label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(descOf(k))}${c ? ` <span class="upd" title="${esc(c.lines.join('\n'))}">Report card <b>${c.letter}</b> (${c.score}/10): ${esc(c.verdict)}</span>` : ''}`; }).join('<br>');
     const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
@@ -3737,8 +3738,18 @@
     // background
     svg.append(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: C.surface }));
     if (!points.length && !anchors.length) {
-      const why = !chosen.length ? 'Select models in the sidebar to plot them.' : `None of the selected models have ${[S.x, S.y].filter((k) => chosen.every((m) => !scaleOk(k === S.x ? S.xScale : S.yScale, m[k]))).map((k) => METRICS[k].label).join(' or ') || `both ${X.label} and ${Y.label}`} data — add some that do.`;
-      svg.append(svgEl('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', fill: C.muted, 'font-size': 14 }, why));
+      const emptyCurrent = [S.x, S.y].filter((k) => !ALL.some((m) => !m.deprecated && Number.isFinite(m[k])));
+      const why = emptyCurrent.length ? `No current model has this measure in the data right now: ${emptyCurrent.map((k) => METRICS[k].label).join(' or ')}.` : !chosen.length ? 'Select models in the sidebar to plot them.' : `None of the selected models have ${[S.x, S.y].filter((k) => chosen.every((m) => !scaleOk(k === S.x ? S.xScale : S.yScale, m[k]))).map((k) => METRICS[k].label).join(' or ') || `both ${X.label} and ${Y.label}`} data — add some that do.`;
+      const lines = [''], maxWidth = Math.max(1, W - 32);
+      for (const word of why.split(' ')) {
+        const joined = lines.at(-1) ? lines.at(-1) + ' ' + word : word;
+        if (lines.at(-1) && textW(joined, 14) > maxWidth) lines.push(word);
+        else lines[lines.length - 1] = joined;
+      }
+      const message = svgEl('text', { x: W / 2, y: H / 2 - (lines.length - 1) * 10, 'text-anchor': 'middle', fill: C.muted, 'font-size': 14 });
+      lines.forEach((line, i) => message.append(svgEl('tspan', { x: W / 2, dy: i ? 20 : 0 }, line + (i < lines.length - 1 ? ' ' : ''))));
+      svg.append(message);
+      svg.setAttribute('aria-label', why);
       $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); syncHighlights(new Set(), narrow); return;
     }
 
@@ -5594,7 +5605,7 @@
     const relOf = (k) => [['Y', S.y, lastGeom.Y, p.yv], ['X', S.x, lastGeom.X, p.xv]].filter(([, key, metric]) => key === k && metric.ref)
       .map(([axis, , metric, value]) => `${axis}: ${metric.fmt(value)} of ${refWord(metric.ref)}`).join(' · ');
     // the rows the comparison already shows (in its "This" column) aren't repeated below it
-    const rows = [S.y, S.x, ...['intelligence', 'costPerTask', 'costToRun', 'priceBlended', 'tokensPerTask', 'outputSpeed', 'e2e'].filter((k) => k !== S.x && k !== S.y)]
+    const rows = [S.y, S.x, ...['intelligence', 'costPerTask', 'costToRun', 'priceBlended', 'tokensPerTask', 'outputSpeed', 'e2eMean'].filter((k) => k !== S.x && k !== S.y)]
       .filter((k) => m[k] != null && !cmp.keys.includes(k))
       .map((k) => {
         const relative = relOf(k);
@@ -5970,6 +5981,7 @@
         // a copy only replaces what's on show if it's newer (and a current shape beats an older one, as at startup)
         if (((currentShape(d) - currentShape(DATA)) || d.scrapedAt.localeCompare(DATA.scrapedAt)) <= 0) { showMeta(auto ? '' : `${why}, and the site's own copy has nothing newer`, !auto); return; }
       }
+      d.publication = d.publication || DATA.publication || window.AA_DATA?.publication;
       d = fillPartial(d, DATA);
       d.methodology ||= DATA.methodology; // only the deploy reads the methodology page
       // A fresh scrape always counts (it's newer by definition), but say so when nothing in it actually changed.

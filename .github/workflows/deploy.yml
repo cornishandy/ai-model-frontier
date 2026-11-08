@@ -2,7 +2,7 @@
 # refreshing the data first. The fresh data goes into the deployed site only (no commits).
 # GitHub's schedule is best effort: scheduled runs often start hours late, and some may be dropped under load.
 # If the scrape fails on a scheduled or manual run, the job fails and the previous deployment stays up (deploying the copy
-# committed in data/ would roll the site back). If it fails on a push, the job still deploys the committed copy with the new code.
+# committed in data/ would roll the site back). Catastrophic data failures also stop push deployments.
 name: Deploy site
 
 on:
@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -28,24 +29,33 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      SPEED_COMPARISON_PATH: ${{ runner.temp }}/aimf-speed-comparison.json
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Refresh data
+        id: refresh
         run: node scrape.mjs
-        continue-on-error: ${{ github.event_name == 'push' }}
         env:
           GITHUB_TOKEN: ${{ github.token }} # for the commit dates of benchmarks hosted on GitHub
       - name: Assemble site
+        if: steps.refresh.outputs.deploy == 'true'
         run: |
           mkdir -p _site/data
           cp index.html aa-data.js _site/
           cp data/models.js data/external.js _site/data/
       - uses: actions/configure-pages@v5
+        if: steps.refresh.outputs.deploy == 'true'
       - uses: actions/upload-pages-artifact@v4
+        if: steps.refresh.outputs.deploy == 'true'
         with:
           path: _site
       - id: deployment
+        if: steps.refresh.outputs.deploy == 'true'
         uses: actions/deploy-pages@v4
+      - name: Check speed field changes after deployment
+        if: steps.refresh.outputs.deploy == 'true'
+        run: node speed-health.mjs

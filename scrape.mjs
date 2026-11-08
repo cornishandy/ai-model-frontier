@@ -3,10 +3,23 @@
 import fs from 'node:fs';
 import './aa-data.js';
 import { scrapeExternal } from './external.mjs';
+import { readLive, readFailurePolicy, publicationState, knownState } from './publication-state.mjs';
+import { missingSpeedFields } from './speed-health.mjs';
+import os from 'node:os';
+import path from 'node:path';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36';
 const here = (p) => new URL(p, import.meta.url);
 
+const previous = await readLive('https://cornishandy.github.io/ai-model-frontier/data/models.js');
+const policy = previous ? 'deploy' : await readFailurePolicy(process.env.GITHUB_EVENT_NAME);
+if (policy === 'skip' || policy === 'fail') {
+  console.log('::notice::Live publication could not be read; keeping the existing deployment.');
+  if (policy === 'fail') throw Error('Live publication unreadable for at least six hours since the last successful deploy started');
+  if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, 'deploy=false\n');
+  process.exit(0);
+}
+if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, 'deploy=true\n');
 console.log('Fetching artificialanalysis.ai …');
 const fetchOpts = { headers: { 'user-agent': UA } };
 const out = await globalThis.AAData.scrape({ fetchOpts, log: (s) => console.log('  ' + s) });
@@ -30,16 +43,26 @@ try {
 // looks broken, so the run fails (GitHub emails the failure) and the previous deployment stays up.
 const scored = out.models.filter((m) => !m.deprecated && m.intelligence != null);
 const problems = [
+  !out.models.length && 'no models',
+  !out.index && 'no index',
   scored.length < 20 && `only ${scored.length} current models have an Intelligence Index score`,
   scored.filter((m) => m.costPerTask != null).length < scored.length / 2 && `cost per task is missing for ${scored.filter((m) => m.costPerTask == null).length} of ${scored.length} scored models`,
   !out.indexWeights && 'the index weights could not be worked out',
-  !out.models.some((m) => !m.deprecated && m.outputSpeed != null) && 'no current model has an output speed',
 ].filter(Boolean);
 const unmatched = (out.index?.evals || []).filter((e) => e.key === e.slug && !out.models.some((m) => m[e.key] != null));
 if (unmatched.length) console.log(`  warning: index evaluations with no matching benchmark field: ${unmatched.map((e) => e.slug).join(', ')}`);
 if (problems.length) { console.error(`Data check failed: ${problems.join('; ')}.`); process.exit(1); }
 if (out.index) console.log(`  index ${out.index.version || '(version unknown)'}: ${out.index.evals.map((e) => `${e.key} ${Math.round(e.weight * 100)}%`).join(', ')}`);
 
+if (!previous) console.log('::notice::Live publication could not be read; deploying this push with unknown comparison state.');
+const missing = missingSpeedFields(out.models);
+const previousMissing = knownState(previous?.publication) ? previous.publication.missingSpeedFields : null;
+out.publication = previous ? publicationState(out, previous, missing) : {
+  status:'unknown', date:new Date().toISOString(), reason:'Live publication could not be read before this push'
+};
+if (previous && !knownState(previous.publication)) console.log('Publication baseline reset: previous state absent or unknown.');
+// Ephemeral job input, not a second persistent history store; compare only AFTER deployment.
+fs.writeFileSync(process.env.SPEED_COMPARISON_PATH || path.join(os.tmpdir(), 'aimf-speed-comparison.json'), JSON.stringify({previous:previousMissing,current:missing}));
 fs.mkdirSync(here('./data/'), { recursive: true });
 fs.writeFileSync(here('./data/models.json'), JSON.stringify(out));
 fs.writeFileSync(here('./data/models.js'), `window.AA_DATA = ${JSON.stringify(out)};\n`);
