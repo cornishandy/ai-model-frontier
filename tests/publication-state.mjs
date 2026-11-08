@@ -25,3 +25,25 @@ const runs=[{url:'https://api.github.com/runs/new',conclusion:'failure',run_star
 assert.equal(await readFailurePolicy('schedule',{repo:'o/r',token:'test',now,fetcher:async url=>({ok:true,json:async()=>url.endsWith('/jobs')?
  {jobs:[{steps:[{name:'Run actions/deploy-pages@v4',conclusion:'success'}]}]}:
  {workflow_runs:new URL(url).searchParams.get('status')==='success'?runs.filter(r=>r.conclusion==='success'):runs}})}),'skip');
+await import('../aa-data.js');await import('../scoring.js');
+const board={v:1,identity:'a',scrapedAt:data.scrapedAt,keys:['x'],rows:[{slug:'a',score:70,model:{id:'a',name:'a'},raw:{x:.7},contributions:[]},{slug:'b',score:60,model:{id:'b',name:'b'},raw:{x:.6},contributions:[]}]};
+const external={sources:[{key:'x',rows:[{value:.2}]}]};
+const first=publicationState(data,null,[],undefined,external,board);
+assert.deepEqual(publicationState({...data,scrapedAt:'2026-11-09'}, {publication:first},[],undefined,external,{...board,scrapedAt:'2026-11-09'}),first,'unchanged meaningful data reuses frozen context');
+const extChanged={sources:[{key:'x',rows:[{value:.3}]}]};
+const next=publicationState(data,{publication:first},[],undefined,extChanged,{...board,identity:'b'});
+assert.deepEqual(next.priorBoard,board,'external-only change promotes frozen prior board');
+assert.notEqual(next.fingerprint,first.fingerprint);
+
+for (const rows of ['bad',[null,null],[{},{}]]) assert.equal(FrontierScoring.validBoard({...board,rows}),false,'malformed saved state is ignored without crashing');
+
+const pack=(t,extra={})=>({fetchedAt:t,sources:[{key:'x',fetchedAt:t,updated:'2026-10-01',rows:[{fam:'a',value:1}],...extra}]});
+const oldExt=pack('2026-11-08T00:00:00Z'),refreshedExt=pack('2026-11-08T00:30:00Z'),staleExt=pack(oldExt.fetchedAt,{stale:true});
+const baseline=publicationState(data,null,[],undefined,oldExt,board);
+for(const ext of [refreshedExt,staleExt]){
+ assert.equal(fingerprint(data,oldExt),fingerprint(data,ext));
+ assert.equal(FrontierScoring.identity(data,oldExt),FrontierScoring.identity(data,ext));
+ assert.equal(publicationState({...data,scrapedAt:'2026-11-09'}, {publication:baseline},[],undefined,ext,board),baseline);
+}
+assert.notEqual(fingerprint(data,oldExt),fingerprint(data,pack(oldExt.fetchedAt,{updated:'2026-10-02'})),'source update dates remain meaningful');
+console.log('PASS refresh timestamps and stale flags preserve publisher and visitor identity; real changes still advance');

@@ -1,9 +1,8 @@
 // The live site's data file is the only persistent publication history.
 import { createHash } from 'node:crypto';
-export function fingerprint(data) {
-  const clean = (v) => Array.isArray(v) ? v.map(clean) : v && typeof v === 'object'
-    ? Object.fromEntries(Object.keys(v).sort().filter(k => !['scrapedAt', 'publication'].includes(k)).map(k => [k, clean(v[k])])) : v;
-  return createHash('sha256').update(JSON.stringify(clean(data))).digest('hex');
+import './scoring.js';
+export function fingerprint(data, external) {
+  return createHash('sha256').update(JSON.stringify(globalThis.FrontierScoring.meaningful(external ? [data, external] : data))).digest('hex');
 }
 export function parseLive(text) {
   const match = text.match(/^\s*window\.AA_DATA\s*=\s*([\s\S]*?);?\s*$/);
@@ -24,11 +23,11 @@ export function knownState(state) {
   return state?.status === 'known' && typeof state.fingerprint === 'string' &&
     Array.isArray(state.missingSpeedFields) && state.missingSpeedFields.every(k => ['outputSpeed','ttft','e2eMean'].includes(k));
 }
-export function publicationState(data, previous, missing, now = new Date().toISOString()) {
-  const hash = fingerprint(data), old = previous?.publication;
-  if (knownState(old) && old.fingerprint === hash) return old;
+export function publicationState(data, previous, missing, now = new Date().toISOString(), external, board) {
+  const hash = fingerprint(data, external), old = previous?.publication;
+  if (knownState(old) && old.fingerprint === hash && (!board || globalThis.FrontierScoring.validBoard(old.currentBoard))) return old;
   return {status:'known', fingerprint:hash, date:data.scrapedAt || now,
-    missingSpeedFields:missing, currentBoard:null, priorBoard:knownState(old) ? old.currentBoard : null};
+    missingSpeedFields:missing, currentBoard:board || null, priorBoard:knownState(old) ? old.currentBoard : null};
 }
 export async function readFailurePolicy(event, {fetcher = fetch, repo = process.env.GITHUB_REPOSITORY, token = process.env.GITHUB_TOKEN, now = Date.now()} = {}) {
   if (event === 'push') return 'unknown';

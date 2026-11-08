@@ -6,8 +6,8 @@ const html = fs.readFileSync(require('node:path').join(__dirname, '../index.html
 const take = (a,b) => html.slice(html.indexOf('  function '+a+'('), html.indexOf('  function '+b+'('));
 const models = ['x','y'].map((s,i)=>({family:s,effort:'max',creatorSlug:s,creator:s,shortName:s,a:.8-i*.1}));
 const prior = {scrapedAt:'2026-10-20',keys:['a'],raws:Object.fromEntries(models.map(m=>[m.creatorSlug,{family:m.family,effort:m.effort,raw:{a:m.a}}]))};
-const sandbox = {ALL:models,COVER:.75,FILL:false,SHIFT_SEED:{},METRICS:{a:{label:'A'},b:{label:'B'}},shiftDetails:false,priorShift:()=>prior,keyed:n=>n.map(k=>[k,1]),keysFor:()=>[['a',1],['b',1]],norm:(_,v)=>v,fmtDay:s=>s,fmtScore:n=>n.toFixed(1),esc:String};
-vm.createContext(sandbox); vm.runInContext(take('scoreRaw','readSnap')+take('shiftStory','weightRows'),sandbox);
+const sandbox = {ALL:models,COVER:.75,FILL:false,SHIFT_SEED:{},METRICS:{a:{label:'A'},b:{label:'B'}},shiftDetails:false,currentFrozenBoard:()=>({rows:[]}),FrontierScoring:{validBoard:()=>false},priorShift:()=>prior,keyed:n=>n.map(k=>[k,1]),keysFor:()=>[['a',1],['b',1]],norm:(_,v)=>v,fmtDay:s=>s,fmtScore:n=>n.toFixed(1),esc:String};
+vm.createContext(sandbox); vm.runInContext(take('scoreRaw','readSnap')+take('legacyShiftStory','shiftStory')+take('shiftStory','weightRows'),sandbox);
 assert.doesNotThrow(()=>vm.runInContext('shiftStory()',sandbox));
 (async () => {
  const browser = await chromium.launch();

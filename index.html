@@ -1145,6 +1145,7 @@
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script src="aa-data.js"></script>
+<script src="scoring.js"></script>
 <script src="data/models.js"></script>
 <script src="data/external.js"></script>
 <script>
@@ -1165,6 +1166,7 @@
   const currentShape = (d) => (d.v || 1) >= (window.AAData?.VERSION || 1);
   let DATA = [window.AA_DATA, cachedData].filter((d) => d?.models?.length).sort((a, b) => (currentShape(b) - currentShape(a)) || b.scrapedAt.localeCompare(a.scrapedAt))[0];
   if (!DATA && !window.AAData) { document.body.innerHTML = '<p style="padding:40px;max-width:640px;line-height:1.6">No data loaded. This page reads <code>data/models.js</code> and <code>aa-data.js</code> from the folder next to it, so it only works when opened from the <code>aa-charts</code> folder.<br><br>Open <b>AI Model Frontier.html</b> instead — it has everything built in and works anywhere.</p>'; return; }
+  if (DATA && window.AA_DATA?.publication) DATA.publication = window.AA_DATA.publication;
   DATA ||= { scrapedAt: new Date(0).toISOString(), models: [] }; // nothing yet: the auto-update below fetches it
   let ALL, BY_ID;
 
@@ -1490,75 +1492,7 @@
   // papers, Artificial Analysis' own index changelogs; links in the README). The grade is computed, not copied:
   // privacy of the test set (0–2) + saturation in the current scores (0–3) + still run on the frontier (0–1)
   // + independence from the frontier labs (0–2) + currency (0–1), then ±1 for audit findings. A = 9–10 … F = 0–2.
-  const AUD = { hle: '~18–29% of bio/chem answers found wrong (FutureHouse; HLE team); physics re-grade lifts scores 47→79%', gpqa: 'paraphrased questions found in training data; dropped from the AA index (v4.2) as saturated', critpt: 'expert re-grading found reference and grader errors; Artificial Analysis marks it under review', scicode: 'SciCode-Verified found dataset defects; Artificial Analysis marks it under review', aime25: 'contest sets inflate 10–20% vs fresh problems (MathArena); dropped from the AA index (v4.0)', tau2: 'task and policy misalignments found (fixed in τ²-bench-verified, which AA doesn\'t run); replaced in the AA index (v4.1)', 'ext:lmarenaText': '"The Leaderboard Illusion" (NeurIPS 2025): private variant testing, data asymmetry, silent deprecations', gdpval: 'OpenAI\'s grader agrees with humans 66% of the time (humans with each other: 71%)', terminalBench40: 'harness-dependent: the official board, AA and Vals differ by ~5 points', gdpPdf: 'a PDF-parsing layer adds about 9 points; AA and Surge harnesses differ', apexAgents: '±5-point confidence intervals; Mercor\'s own leaderboard runs far higher', ifbench: 'dropped from the AA index (v4.1): no longer separates frontier models', livecodebench: 'dropped from the AA index (v4.0) as saturated on the window used', tauBanking: 'replaced in the AA index (v4.3) by AutomationBench', terminalBench21: 'superseded by Terminal-Bench 4.0 in the AA index (v4.3)', terminalbenchHard: 'legacy subset, replaced by Terminal-Bench 2.1 in the AA index (v4.1)' };
-  const BENCH_META = {
-    intelligence: { maker: 'Artificial Analysis', set: 'mixed', size: '9 evaluations', since: '2026-10', indep: 2, verdict: 'The best single composite, but an editorial mix; the top is often a tie.' }, // size, since and verdict follow the data (applyIndexMakeup)
-    hleDiamond: { maker: 'CAIS & Scale AI', set: 'public', size: '1,000 questions', since: '2026-10', indep: 2, verdict: 'The cleaned-up HLE; replaced HLE in the index with v5.0.' },
-    critptHard: { maker: '50+ academic physicists', set: 'private', size: '40 of 70 challenges', since: '2026-10', indep: 2, auditNote: 'small n, and the subset was chosen by what frontier models failed at launch', verdict: 'Replaced CritPt in the index with v5.0; small, so noisy.' },
-    critptV2: { maker: '50+ academic physicists', set: 'private', size: '70 challenges', since: '2026-10', indep: 2, verdict: 'The corrected CritPt; its hard subset is what the index uses.' },
-    healthbench: { maker: 'OpenAI', set: 'public', size: '5,000 conversations', since: '2025-05', indep: 1, verdict: 'Run on few models so far.' },
-    healthbenchPro: { maker: 'OpenAI', set: 'public', size: '525 conversations', since: '2026-04', indep: 1, verdict: 'Run on few models so far.' },
-    globalMmlu: { maker: 'Cohere Labs and collaborators', set: 'public', since: '2024-12', indep: 2, verdict: 'Multilingual knowledge; a breadth check, not a frontier separator.' },
-    mmluPro: { maker: 'TIGER-Lab (University of Waterloo)', set: 'public', size: '12,000 questions', since: '2024-06', indep: 2, verdict: 'Retired by Artificial Analysis; legacy results only.' },
-    math500: { maker: 'OpenAI (subset of Hendrycks\' MATH)', set: 'public', size: '500 problems', since: '2023-05', indep: 1, verdict: 'Retired: saturated.' },
-    frontierCode20: { maker: 'Cognition, with open-source maintainers', set: 'mixed', size: '132 tasks', since: '2026-10', indep: 2, auditNote: 'Artificial Analysis doesn\'t say how much of the task set is public; an LLM judge grades the rubric', verdict: 'New in the index (v5.0) at 15%; real repositories, maintainer-style grading.' },
-    code2video: { maker: 'HeyGen (briefs); Artificial Analysis harness', set: 'mixed', size: '114 briefs (75 private)', since: '2026-10', indep: 2, auditNote: 'judged by a Gemini model, head to head', verdict: 'New; a design-in-code test judged by a model.' },
-    aa3d: { maker: 'Artificial Analysis', set: 'live', since: '2026-10', indep: 2, verdict: 'New; human blind votes on 3D scenes built in code.' },
-    cweBench: { maker: 'Collinear; run by Artificial Analysis', set: 'mixed', since: '2026-07', indep: 2, verdict: 'Part of the Cyber Index; run on few models.' },
-    deepsecBench: { maker: 'Vercel; run by Artificial Analysis', set: 'mixed', since: '2026-07', indep: 2, verdict: 'Part of the Cyber Index; run on few models.' },
-    cybergym: { maker: 'UC Berkeley RDI; run by Artificial Analysis', set: 'public', since: '2026-07', indep: 2, verdict: 'Part of the Cyber Index; run on few models.' },
-    hle: { maker: 'CAIS & Scale AI', set: 'public', size: '2,158 text questions', since: '2025-01', indep: 2, audit: -1, verdict: 'Still separates models, but the ceiling is error-laden: treat 2-point gaps as noise.' },
-    gpqa: { maker: 'NYU and others (some authors at Anthropic, Cohere)', set: 'public', size: '198 questions', since: '2023-11', indep: 2, audit: -1, verdict: 'Saturated (top models at 96%, within a point): a sanity check, not a frontier comparison.' },
-    critpt: { maker: '50+ academic physicists', set: 'private', size: '71 challenges', since: '2025-11', indep: 2, audit: -1, verdict: 'Superseded by CritPt v2; its hard subset replaced CritPt in the index (v5.0).' },
-    omniscience: { maker: 'Artificial Analysis', set: 'private', size: '6,000 questions', since: '2025-11', indep: 2, auditNote: 'questions generated by one LLM family; the abstention reward can be gamed (the authors\' own caveats)', verdict: 'Meaningful and unsaturated; made by the index owner.' },
-    omniscienceAccuracy: { maker: 'Artificial Analysis', set: 'private', size: '6,000 questions', since: '2025-11', indep: 2, verdict: 'A part of AA-Omniscience: accuracy alone, without the penalty for wrong answers.' },
-    hallucination: { maker: 'Artificial Analysis', set: 'private', size: '6,000 questions', since: '2025-11', indep: 2, verdict: 'A part of AA-Omniscience: how often a model guesses instead of abstaining.' },
-    ifbench: { maker: 'Ai2', set: 'public', size: '58 constraint types', since: '2025-07', indep: 2, audit: -1, verdict: 'Saturated; retired from the index.' },
-    mmmuPro: { maker: 'MMMU team (academic)', set: 'public', size: '3,460 questions', since: '2024-09', indep: 2, verdict: 'Saturated at the frontier (top three within a point).' },
-    aime25: { maker: 'MAA', set: 'public', size: '30 problems', since: '2025-02', indep: 2, audit: -1, verdict: 'Dead: several models score 100%.' },
-    terminalBench40: { maker: 'Stanford & Laude Institute', set: 'public', size: '66 tasks (with a canary string)', since: '2026-01', indep: 2, auditNote: AUD.terminalBench40, verdict: 'Meaningful; compare scores within one harness only.' },
-    terminalBench21: { maker: 'Stanford & Laude Institute', set: 'public', size: '89 tasks', since: '2025-12', indep: 2, auditNote: AUD.terminalBench21, verdict: 'Saturated (top three within 2 points); superseded by 4.0.' },
-    terminalbenchHard: { maker: 'Artificial Analysis (subset of Terminal-Bench 2.0)', set: 'public', size: '44 tasks', since: '2025-10', indep: 2, auditNote: AUD.terminalbenchHard, verdict: 'Legacy; don\'t use for current models.' },
-    terminalBenchScience: { maker: 'Terminal-Bench team with domain scientists', set: 'public', size: '70 tasks', since: '2026-05', indep: 2, auditNote: 'single runs in a generic harness: high variance', verdict: 'Meaningful but noisy.' },
-    scicode: { maker: 'Academic consortium', set: 'public', size: '288 subproblems', since: '2024-07', indep: 2, audit: -1, verdict: 'Removed from the index in v5.0; wait for the corrected set.' },
-    livecodebench: { maker: 'UC Berkeley, MIT, Cornell', set: 'rolling', size: 'contest problems, continually added', since: '2024-03', indep: 2, audit: -1, verdict: 'Saturated on the window AA uses; sound design for newer windows.' },
-    tau2: { maker: 'Sierra', set: 'public', since: '2025-06', indep: 2, audit: -1, verdict: 'Dead at 99%.' },
-    tauBanking: { maker: 'Sierra, run privately by Artificial Analysis', set: 'private', size: '97 tasks', since: '2025-12', indep: 2, auditNote: AUD.tauBanking, verdict: 'Unsaturated but the top is bunched; no longer in the index.' },
-    automationBench: { maker: 'Zapier', set: 'private', size: '657 held-out tasks', since: '2026-04', indep: 2, verdict: 'Meaningful: an 8-point spread at the top.' },
-    enterpriseOps: { maker: 'ServiceNow', set: 'public', size: '1,150 tasks', since: '2026-02', indep: 2, verdict: 'Unsaturated, but the top is bunched within a point.' },
-    apexAgents: { maker: 'Mercor', set: 'public', size: '452 tasks', since: '2026-01', indep: 2, auditNote: AUD.apexAgents, verdict: 'Meaningful but harness-sensitive.' },
-    itBench: { maker: 'IBM', set: 'semi-private', size: '40 public + 19 held-out incidents', since: '2026-02', indep: 2, verdict: 'Meaningful, narrow (Kubernetes root cause only, small n).' },
-    analystAgent: { maker: 'Artificial Analysis', set: 'private', size: '80 questions, pass on all 5 attempts', since: '2026-03', indep: 2, verdict: 'Meaningful, small (wide confidence intervals).' },
-    gdpval: { maker: 'OpenAI (dataset); Artificial Analysis harness and LLM judge', set: 'public', size: '220 gold tasks', since: '2025-09', indep: 1, auditNote: AUD.gdpval, verdict: 'Meaningful, with lab-made data and LLM-judge caveats.' },
-    briefcase: { maker: 'Artificial Analysis', set: 'private', size: '91 tasks in 4 scenarios', since: '2026-06', indep: 2, auditNote: 'new in 2026 and not yet audited; LLM-judged; 15% of the index', verdict: 'Promising, unaudited.' },
-    gdpPdf: { maker: 'Surge AI', set: 'public', size: '100 tasks (4,592 pages)', since: '2026-03', indep: 2, auditNote: AUD.gdpPdf, verdict: 'Meaningful; judge- and parsing-sensitive.' },
-    lcr: { maker: 'Artificial Analysis', set: 'public', size: '100 questions', since: '2025-08', indep: 2, verdict: 'Nearing saturation: 69% to 89% in a year.' },
-    mlcr: { maker: 'Wisedocs', set: 'private', size: '60 questions, 3-judge panel', since: '2026-04', indep: 2, auditNote: 'regraded 21 Oct 2026 (prompt and three-judge panel; 15 of 60 references refined); synthetic cases; concision auto-fails', verdict: 'Meaningful, narrow. A pass needs both completeness and accuracy.' },
-    harvey: { maker: 'Harvey (legal; OpenAI-backed)', set: 'private', size: '120 tasks', since: '2026-05', indep: 2, auditNote: 'a single LLM rubric judge; the all-pass rate is tiny, so it\'s noisy', verdict: 'Meaningful for legal work; wide confidence intervals.' },
-    'ext:weirdml': { maker: 'Håvard Tveit Ihle (independent)', set: 'private', size: '11 hidden tasks', since: '2026-07', indep: 2, auditNote: 'small n, single author', verdict: 'Meaningful, low n; a wide spread at the top.' },
-    'ext:weirdml2': { maker: 'Håvard Tveit Ihle (independent)', set: 'semi-private', size: '17 tasks (6 public)', since: '2025-02', indep: 2, verdict: 'Saturated (a tie at 92.9); use v3.' },
-    'ext:llmChess': { maker: 'Maxim Saplin (independent)', set: 'public', since: '2024-11', indep: 2, auditNote: 'Elo is anchored by weak opponents (random, Komodo ≤1000), so the ceiling is low', verdict: 'Niche; weak discrimination at the frontier.' },
-    'ext:gameArena': { maker: 'Google DeepMind & Kaggle', set: 'live', since: '2025-08', indep: 0, auditNote: 'the owner\'s model tops its own board', verdict: 'Interesting, with a conflict-of-interest caveat; chess only.' },
-    'ext:dubesorChess': { maker: 'dubesor (hobbyist)', set: 'public', since: '2025-01', indep: 2, audit: -1, auditNote: 'no methodology page; tiny samples (a handful of games per pair)', verdict: 'Not for frontier comparison.' },
-    frontierCode: { maker: 'Cognition, with open-source maintainers', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Superseded by FrontierCode 2.0.' },
-    cyberIndex: { maker: 'Artificial Analysis', set: 'private', since: '2026-07', indep: 2, verdict: 'Composite cybersecurity index; separates frontier models well.' },
-    decisionIndex: { maker: 'Artificial Analysis', set: 'live', since: '2026-08', indep: 2, verdict: 'Composite strategic decision-making score across interactive environments.' },
-    capFinance: { maker: 'Artificial Analysis', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Domain composite for financial analysis work.' },
-    capStrategy: { maker: 'Artificial Analysis', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Domain composite for strategy and consulting work.' },
-    capLegal: { maker: 'Artificial Analysis', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Domain composite for legal reasoning and deliverables.' },
-    capMedical: { maker: 'Artificial Analysis', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Domain composite for clinical and medical reasoning.' },
-    capEngineering: { maker: 'Artificial Analysis', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Domain composite for software and engineering tasks.' },
-    capEconomics: { maker: 'Artificial Analysis', set: 'mixed', since: '2026-06', indep: 2, verdict: 'Domain composite for economic analysis.' },
-    'ext:arcAgi3': { maker: 'ARC Prize Foundation', set: 'semi-private', since: '2026-03', indep: 2, verdict: 'The live interactive visual reasoning frontier; wide spread at the top.' },
-    'ext:arcAgi2': { maker: 'ARC Prize Foundation', set: 'semi-private', since: '2025-03', indep: 2, verdict: 'Near-saturated (93–95% at the top); ARC-AGI-3 is the live one.' },
-    'ext:gameArenaWerewolf': { maker: 'Google DeepMind & Kaggle', set: 'live', since: '2026-02', indep: 0, verdict: 'Multi-agent social deduction in Game Arena; lab-hosted caveat.' },
-    'ext:simpleBench': { maker: 'Philip (AI Explained) & Hemang (independent)', set: 'private', size: '200+ questions (10 public)', since: '2024-10', indep: 2, aboveHuman: true, auditNote: 'the human baseline is 9 people, and models now beat it', verdict: 'Past its ceiling; low value now.' },
-    'ext:lmarenaText': { maker: 'Arena (company)', set: 'live', size: '8.6M votes', since: '2024-01', indep: 2, audit: -1, verdict: 'A preference signal only; the top cluster sits inside the confidence intervals.' },
-    'ext:lmarenaWebdev': { maker: 'Arena (company)', set: 'live', since: '2025-05', indep: 2, audit: -1, auditNote: AUD['ext:lmarenaText'], verdict: 'Human preference on interactive web builds; useful UI/frontend signal.' },
-    'ext:lmarenaVision': { maker: 'Arena (company)', set: 'live', since: '2024-06', indep: 2, audit: -1, auditNote: AUD['ext:lmarenaText'], verdict: 'Multimodal human preference signal with style control.' },
-    'ext:lmarenaSearch': { maker: 'Arena (company)', set: 'live', since: '2025-03', indep: 2, audit: -1, auditNote: AUD['ext:lmarenaText'], verdict: 'Web-grounded search preference signal with style control.' },
-  };
-  for (const k of ['hle', 'gpqa', 'critpt', 'scicode', 'aime25', 'tau2', 'gdpval', 'ifbench', 'livecodebench', 'terminalBench21', 'terminalbenchHard', 'tauBanking', 'ext:lmarenaText', 'gdpPdf', 'apexAgents']) if (BENCH_META[k] && AUD[k]) BENCH_META[k].auditNote = AUD[k];
+  const BENCH_META = FrontierScoring.metadata();
   const GRADE_ORDER = 'ABCDF', letterOf = (score) => score >= 9 ? 'A' : score >= 7 ? 'B' : score >= 5 ? 'C' : score >= 3 ? 'D' : 'F';
   const monthsAgo = (ym) => (Date.now() - new Date(ym + '-15T12:00:00')) / (30.44 * 864e5);
   function reportCard(k) {
@@ -1826,17 +1760,32 @@
     return [...best.values()].sort((a, b) => b.score - a.score);
   }
   function readSnap() { try { return JSON.parse(localStorage.getItem(SHIFT_SNAP)); } catch { return null; } }
+  let frozenCache = null, frozenData = null;
+  function currentFrozenBoard() {
+    if (frozenData === DATA && frozenCache) return frozenCache;
+    frozenData = DATA;
+    const identity = FrontierScoring.identity(DATA, window.EXT_DATA || {sources:[]});
+    const deployed = DATA.publication?.currentBoard;
+    frozenCache = FrontierScoring.validBoard(deployed) && deployed.identity === identity ? deployed
+      : FrontierScoring.buildSnapshot(DATA, window.EXT_DATA || {sources:[]});
+    return frozenCache;
+  }
+  function olderBoard(b, current) {
+    return FrontierScoring.validBoard(b) && b.identity !== current.identity && Date.parse(b.scrapedAt) < Date.parse(current.scrapedAt);
+  }
   function priorShift() {
-    const snap = readSnap();
-    if (snap?.previous?.scrapedAt && snap.previous.scrapedAt !== DATA.scrapedAt && snap.previous.raws) return snap.previous;
+    const current = currentFrozenBoard(), snap = readSnap();
+    if (olderBoard(snap?.previous, current)) return {...snap.previous, source:'visitor'};
+    if (olderBoard(DATA.publication?.priorBoard, current)) return {...DATA.publication.priorBoard, source:'publication'};
     if (DATA.scrapedAt !== SHIFT_SEED.scrapedAt) return SHIFT_SEED;
     return null;
   }
-  function rememberShift(boardB) {
+  function rememberShift() {
     try {
-      const snap = readSnap() || {};
-      if (snap.current?.scrapedAt === DATA.scrapedAt) return;
-      localStorage.setItem(SHIFT_SNAP, JSON.stringify({ previous: snap.current || null, current: { scrapedAt: DATA.scrapedAt, ...boardB } }));
+      const current = currentFrozenBoard(), snap = readSnap() || {};
+      if (snap.current?.identity === current.identity) return;
+      const previous = olderBoard(snap.current,current) ? snap.current : olderBoard(snap.previous,current) ? snap.previous : null;
+      localStorage.setItem(SHIFT_SNAP, JSON.stringify({previous,current}));
     } catch {}
   }
   function benchPct(k, v) {
@@ -1844,7 +1793,7 @@
     const M = METRICS[k];
     return M?.frac ? (v * 100).toFixed(1) + '%' : M ? M.fmt(v) : String(Math.round(v));
   }
-  function shiftStory() {
+  function legacyShiftStory() {
     const prior = priorShift();
     if (!prior?.raws || !prior.keys) return '';
     const keys = keyed(prior.keys);
@@ -1887,7 +1836,11 @@
     const who = (m, score) => item(`${esc(m.shortName)} ${nw(`<b class="ii-num">${fmtScore(score)}</b>`)}`);
     const rows = [], row = (label, content) => { if (content) rows.push(`<div class="ii-label">${label}</div><div class="shift-line">${content}</div>`); };
     const lead = (html) => `<span class="shift-lead">${html}</span>`;
-    row('Leads now', `${lead(`${esc(nowLead.m.creator)}${flipped ? '' : ' still'}, by ${fmtScore(Math.abs(gapNow))}; ${flipped ? `${esc(wasLead.m.creator)} led by ${fmtScore(gapThen)}` : `by ${fmtScore(gapThen)}`} then`)}${who(nowLead.m, nowLead.now.score)}${who(nowNext.m, nowNext.now.score)}`);
+    const canonical = currentFrozenBoard();
+    if (canonical.rows.length >= 2) {
+      const [first, second] = canonical.rows;
+      row('Leads now', `${lead(`${esc(first.lab)}, by ${fmtScore(first.score-second.score)}; ${esc(wasLead.m.creator)} led by ${fmtScore(gapThen)} then`)}${who({shortName:first.model.name},first.score)}${who({shortName:second.model.name},second.score)}`);
+    }
     const details = [];
     if (cause && Math.abs(cause.g) >= 0.2) {
       const regrade = String(prior.scrapedAt).startsWith('2026-10-18') && cause.k === 'mlcr';
@@ -1918,6 +1871,33 @@
     const html = `<div class="ii-heading"><b>What changed since ${esc(since)}</b><span>Your index (grade B or better), on the ${prior.keys.length} benchmarks it had then</span></div>` +
       `<div class="ii-rows">${rows.join('')}</div>`;
     return html;
+  }
+  const SHIFT_EVENTS = [{date:'2026-10-21', title:'MLCR-AA, regraded 21 Oct', detail:'Artificial Analysis regraded MLCR-AA on 21 Oct 2026: a medical-record prompt, a three-judge panel, and 15 of 60 reference answers refined. A pass needs both a complete answer and an accurate one (<a href="https://x.com/ArtificialAnlys/status/2112935427422527584" target="_blank" rel="noopener">their note</a>).'}];
+  function shiftStory() {
+    const prior = priorShift();
+    if (!FrontierScoring.validBoard(prior)) return legacyShiftStory();
+    const current = currentFrozenBoard(), [nowLead, nowNext] = current.rows, [wasLead, wasNext] = prior.rows;
+    if (!nowLead || !nowNext) return '';
+    const gapNow = nowLead.score-nowNext.score, gapThen = wasLead.score-wasNext.score;
+    const quiet = nowLead.slug===wasLead.slug && Math.abs(gapNow-gapThen)<0.3;
+    const when=fmtDay(prior.scrapedAt.slice(0,10),true);
+    const since=prior.source==='publication' ? `the previous data update (${when})` : `the data you last saw (${when})`;
+    const rows=[], row=(label,content)=>rows.push(`<div class="ii-label">${label}</div><div class="shift-line">${content}</div>`);
+    const who=r=>` <span class="shift-item sep">${esc(r.model.name)} <span class="nw"><b class="ii-num">${fmtScore(r.score)}</b></span></span>`;
+    if(!quiet) {
+      const wasIn=prior.rows.some(r=>r.slug===nowLead.slug);
+      row('Leads now',`<span class="shift-lead">${esc(nowLead.lab)}, by ${fmtScore(gapNow)}; ${esc(wasLead.lab)} led by ${fmtScore(gapThen)} then${wasIn?'':`; ${esc(nowLead.lab)} not in the top five then`}</span>${who(nowLead)}${who(nowNext)}`);
+      for(const event of SHIFT_EVENTS) if(prior.scrapedAt.slice(0,10)<event.date && current.scrapedAt.slice(0,10)>=event.date) row('The move',esc(event.title));
+    }
+    const events=SHIFT_EVENTS.filter(e=>e.date<=current.scrapedAt.slice(0,10));
+    const label='The regrade and how the list changed';
+    row('',`<button type="button" class="linkish" data-shift-details aria-expanded="${shiftDetails}">${shiftDetails?'Hide '+label.toLowerCase():label}</button>`);
+    if(shiftDetails){
+      for(const event of events)row('Regrade',event.detail);
+      const added=current.keys.filter(k=>!prior.keys.includes(k)),left=prior.keys.filter(k=>!current.keys.includes(k));
+      if(added.length||left.length)row('List',`${added.length} added, ${left.length} left, so ${prior.keys.length} became ${current.keys.length}: <span class="shift-added">${added.map(k=>`<span class="ii-chip">${esc(METRICS[k]?.label||k)}</span>`).join(' ')}</span>`);
+    }
+    return `<div class="ii-heading"><b>${quiet?`No change in the lead since (${esc(when)})`:`What changed since ${esc(since)}`}</b>${quiet?'':`<span>Your index (grade B or better), on the ${prior.keys.length} benchmarks it had then</span>`}</div><div class="ii-rows">${rows.join('')}</div>`;
   }
   function weightRows() {
     const keys = BASIS_KEYS.length ? BASIS_KEYS : keysFor(S.basis);
@@ -1976,7 +1956,7 @@
   }
   function renderExplain() {
     const fullKeys = keysFor('B'), full = board(fullKeys, FILL);
-    if (full.length) rememberShift({ basis: 'B', keys: fullKeys.map(([k]) => k), raws: Object.fromEntries(full.slice(0, 2).map((r) => [r.slug, { name: r.m.shortName, family: r.m.family, effort: r.m.effort, raw: rawOf(r.m, fullKeys) }])) });
+    if (full.length) rememberShift();
     const rows = weightRows().sort((a,b) => Number(b.aa) - Number(a.aa));
     const mini = $('weightMini');
     if (mini) mini.innerHTML = rows.map((r) => `<i style="width:${(r.share * 100).toFixed(2)}%"></i>`).join('');

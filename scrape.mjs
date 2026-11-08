@@ -2,6 +2,8 @@
 // aa-data.js, which the page also uses for its "Update data" button.
 import fs from 'node:fs';
 import './aa-data.js';
+import './scoring.js';
+import vm from 'node:vm';
 import { scrapeExternal } from './external.mjs';
 import { readLive, readFailurePolicy, publicationState, knownState } from './publication-state.mjs';
 import { missingSpeedFields } from './speed-health.mjs';
@@ -54,10 +56,17 @@ if (unmatched.length) console.log(`  warning: index evaluations with no matching
 if (problems.length) { console.error(`Data check failed: ${problems.join('; ')}.`); process.exit(1); }
 if (out.index) console.log(`  index ${out.index.version || '(version unknown)'}: ${out.index.evals.map((e) => `${e.key} ${Math.round(e.weight * 100)}%`).join(', ')}`);
 
+console.log('Fetching independent benchmarks …');
+await scrapeExternal(here('./data/external.js'), (s) => console.log('  ' + s));
+
+const externalContext = {window:{}};
+vm.runInNewContext(fs.readFileSync(here('./data/external.js'), 'utf8'), externalContext);
+const external = externalContext.window.EXT_DATA;
+const board = FrontierScoring.buildSnapshot(out, external);
 if (!previous) console.log('::notice::Live publication could not be read; deploying this push with unknown comparison state.');
 const missing = missingSpeedFields(out.models);
 const previousMissing = knownState(previous?.publication) ? previous.publication.missingSpeedFields : null;
-out.publication = previous ? publicationState(out, previous, missing) : {
+out.publication = previous ? publicationState(out, previous, missing, undefined, external, board) : {
   status:'unknown', date:new Date().toISOString(), reason:'Live publication could not be read before this push'
 };
 if (previous && !knownState(previous.publication)) console.log('Publication baseline reset: previous state absent or unknown.');
@@ -67,13 +76,11 @@ fs.mkdirSync(here('./data/'), { recursive: true });
 fs.writeFileSync(here('./data/models.json'), JSON.stringify(out));
 fs.writeFileSync(here('./data/models.js'), `window.AA_DATA = ${JSON.stringify(out)};\n`);
 
-console.log('Fetching independent benchmarks …');
-await scrapeExternal(here('./data/external.js'), (s) => console.log('  ' + s));
-
 // Self-contained copy: index.html with the scraper and data inlined, so the single file works anywhere
 // (opened on its own, moved, emailed, or in viewers that don't load sibling files).
 const inlineScript = (js) => `<script>${js.replace(/<\//g, '<\\/')}</script>`;
 const tags = {
+  '<script src="scoring.js"></script>': inlineScript(fs.readFileSync(here('./scoring.js'), 'utf8')),
   '<script src="aa-data.js"></script>': inlineScript(fs.readFileSync(here('./aa-data.js'), 'utf8')),
   '<script src="data/models.js"></script>': inlineScript(`window.AA_DATA = ${JSON.stringify(out)};`),
   '<script src="data/external.js"></script>': inlineScript(fs.readFileSync(here('./data/external.js'), 'utf8')),

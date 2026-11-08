@@ -44,7 +44,7 @@ jobs:
         if: steps.refresh.outputs.deploy == 'true'
         run: |
           mkdir -p _site/data
-          cp index.html aa-data.js _site/
+          cp index.html aa-data.js scoring.js _site/
           cp data/models.js data/external.js _site/data/
       - uses: actions/configure-pages@v5
         if: steps.refresh.outputs.deploy == 'true'
