@@ -29,8 +29,6 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    env:
-      SPEED_COMPARISON_PATH: ${{ runner.temp }}/aimf-speed-comparison.json
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -40,6 +38,7 @@ jobs:
         id: refresh
         run: node scrape.mjs
         env:
+          SPEED_COMPARISON_PATH: ${{ runner.temp }}/aimf-speed-comparison.json
           GITHUB_TOKEN: ${{ github.token }} # for the commit dates of benchmarks hosted on GitHub
       - name: Assemble site
         if: steps.refresh.outputs.deploy == 'true'
@@ -59,3 +58,5 @@ jobs:
       - name: Check speed field changes after deployment
         if: steps.refresh.outputs.deploy == 'true'
         run: node speed-health.mjs
+        env:
+          SPEED_COMPARISON_PATH: ${{ runner.temp }}/aimf-speed-comparison.json
