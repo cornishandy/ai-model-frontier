@@ -5951,7 +5951,8 @@
     try {
       let d, why = '';
       // Straight from artificialanalysis.ai; pages the browser may not read directly come through a reader service (see aa-data.js).
-      try { d = await window.AAData.scrape(); }
+      // AA no longer sends what the index weights were worked out from: keep the ones on show while the index's makeup is unchanged
+      try { d = await window.AAData.scrape({ indexWeights: { 'the copy on show': DATA.indexWeights } }); }
       catch (err) {
         // Neither worked (or an ad blocker, a VPN or the network got in the way): fall back to this site's own copy, which
         // the deploy refreshes on a 30-minute schedule (GitHub often runs it late).

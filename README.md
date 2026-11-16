@@ -37,10 +37,14 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   capability scores, plus auto-discovery of any new benchmark fields Artificial Analysis adds), the site's changelog and its
   Coding Agent Index. Models without an Intelligence Index score are kept when they have any benchmark result (a new
   index version is first run on the newest models only: v5.0 scored 78 of about 270 current models at launch).
-- **The index's makeup is read from the data, not written into the page.** Each index evaluation's weight comes from the
-  per-evaluation costs (`indexWeights`), its benchmark from matching its score against the model's own fields, and the
-  version from the site's changelog and its methodology page, which the deploy also reads for every evaluation's name,
-  status ("Included … at 15% weighting", "Removed … in v5.0") and description (`methodology` in the data). So when
+- **The index's makeup is read from the data, not written into the page.** The evaluations come from each model's
+  cost breakdown by evaluation, and each one's benchmark from matching its score against the model's own fields (or, as
+  the scores stopped coming in November 2026, its name). Each weight (`indexWeights`) came from weighted cost ÷ cost
+  until Artificial Analysis stopped sending each evaluation's own cost (13–14 Nov 2026); now the deploy takes the
+  weights the methodology page states, or the live copy's while the makeup is unchanged, and the Update data button
+  keeps the ones on show. Every evaluation's own cost is then weighted cost ÷ weight. The version comes from the site's
+  changelog and its methodology page, which the deploy also reads for every evaluation's name, status ("Included … at
+  15% weighting", "Removed … in v5.0") and description (`methodology` in the data). So when
   Artificial Analysis changes the index (v5.0 on 27 Oct 2026: 9 evaluations; FrontierCode 2.0, HLE-Diamond and
   CritPt v2's hard subset in, GDPval-AA, SciCode, AA-LCR, HLE and CritPt out), the page's index description, "AA's N index
   benchmarks", the weights in Your index and the in/out note on each benchmark follow on the next refresh.
@@ -204,8 +208,8 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   (its Active only filter and the benchmarks you included with Start from and Choose). The score is a weighted average on 0–100 (percentages as they are, GDPval and Briefcase
   Elo scaled the way AA scales GDPval, AA-Omniscience from −100…100, other Elo boards from lowest to highest; AA's weight
   where it has one, 10% otherwise), and a model needs results covering 3/4 of the weight. Artificial Analysis publishes
-  each index evaluation's own cost and tokens per task (kept in the data as `evals`, with the index weights as
-  `indexWeights`), so **Cost per task (…)** averages those over the picked benchmarks it has costs for. Most benchmarks
+  what each index evaluation costs per task (kept in the data as `evals`, with the index weights as `indexWeights`;
+  tokens per task were in `evals` too until AA stopped sending them in November 2026), so **Cost per task (…)** averages those over the picked benchmarks it has costs for. Most benchmarks
   outside the index are run at only one or two effort levels, so **fill gaps** (on by default) estimates a missing
   result from the same model at the nearest effort level, scaled by their Intelligence Index, and draws those dots faded.
   The metrics **Your index** and **Cost per task (…)** go on either axis; Tasks per dollar, Index points per dollar,

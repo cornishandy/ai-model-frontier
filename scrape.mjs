@@ -24,14 +24,25 @@ if (policy === 'skip' || policy === 'fail') {
 if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, 'deploy=true\n');
 console.log('Fetching artificialanalysis.ai …');
 const fetchOpts = { headers: { 'user-agent': UA } };
-const out = await globalThis.AAData.scrape({ fetchOpts, log: (s) => console.log('  ' + s) });
+// The methodology page, read once (for the weights and for the descriptions below).
+let methodologyRead;
+const readMethodology = (keys) => (methodologyRead ??= globalThis.AAData.scrapeMethodology({ fetchOpts, keys }));
+// Since November 2026 AA doesn't send what the index weights were worked out from (each evaluation's own cost), so they
+// come from the methodology page ("Included in … at 15% weighting"), or else from the live copy while the index's makeup
+// is unchanged.
+const indexWeights = async (keys) => {
+  let meth = null;
+  try { meth = await readMethodology(keys); } catch (err) { console.log(`  methodology page unreadable for the index weights (${err.message})`); }
+  return { 'the methodology page': globalThis.AAData.methodologyWeights(meth), 'the live copy': previous?.indexWeights };
+};
+const out = await globalThis.AAData.scrape({ fetchOpts, log: (s) => console.log('  ' + s), indexWeights });
 if (out.partial) console.log('  warning: an optional page could not be read; this copy lacks the benchmarks only it supplies');
 
 // Every evaluation's name, status in the index and description, from the methodology page. Not essential: without it
 // the page keeps its own descriptions.
 try {
   const keys = [...new Set(out.models.flatMap((m) => Object.keys(m)))];
-  const meth = await globalThis.AAData.scrapeMethodology({ fetchOpts, keys });
+  const meth = await readMethodology(keys);
   if (meth) {
     out.methodology = meth;
     if (out.index && meth.version) out.index.version = meth.version; // the page's own wording beats the feed's
@@ -39,6 +50,12 @@ try {
       `; not matched to a benchmark: ${meth.evals.filter((e) => !e.key).map((e) => e.anchor).join(', ') || 'none'}`);
   }
 } catch (err) { console.log(`  methodology skipped (${err.message})`); }
+// The weights in use should be the ones the methodology page states; flag it on the run when they aren't (the page
+// couldn't be read, or the weights came from the data or the live copy and differ).
+const stated = globalThis.AAData.methodologyWeights(out.methodology);
+if (out.indexWeights && !(stated && Object.keys({ ...stated, ...out.indexWeights }).every((k) => Math.abs((stated[k] ?? -1) - (out.indexWeights[k] ?? -1)) < 0.001))) {
+  console.log(`::warning::The index weights in use (${JSON.stringify(out.indexWeights)}) differ from the methodology page's (${JSON.stringify(stated)}).`);
+}
 
 // Health check. Artificial Analysis changes its data's shape from time to time (v5.0 of the index moved cost per task
 // and left most models without an index score). Stop here, before anything is written or deployed, when the result

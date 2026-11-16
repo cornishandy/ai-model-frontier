@@ -118,6 +118,9 @@
     // and specialized index arrays (cyberIndexModels, decisionIndexContestants).
     const modelById = new Map(), modelBySlug = new Map();
     const endpoints = [], cyber = [], decision = [];
+    // Each model's index cost broken down by evaluation ([{ slug, weightedCostPerTask }]). Kept apart because the merge
+    // below can swap the record that carries it for a flat cost total with more keys.
+    const weightedById = new Map();
     for (const m of manifests) {
       if (Array.isArray(m?.cyberIndexModels)) cyber.push(...m.cyberIndexModels);
       if (Array.isArray(m?.decisionIndexContestants)) decision.push(...m.decisionIndexContestants);
@@ -132,6 +135,8 @@
             for (const [k, v] of Object.entries(o)) if (prev[k] == null || (typeof v === 'object' && v && Object.keys(v).length > Object.keys(prev[k] || {}).length)) prev[k] = v;
             modelById.set(o.id, prev);
             if (prev.slug) modelBySlug.set(prev.slug, prev);
+            const weighted = o.intelligenceIndexCostPerTask?.evaluations;
+            if (Array.isArray(weighted) && weighted.length && !weightedById.has(o.id)) weightedById.set(o.id, weighted);
           } else if (o.modelId && o.host) endpoints.push(o);
         }
       }
@@ -160,7 +165,7 @@
     const dynamicBenchmarks = discoverNumericFields(rawModels);
     const dynamicKeys = dynamicBenchmarks.map((b) => b.key);
     const getters = [...BENCHMARKS, ...dynamicKeys.map((k) => [k, (m) => (k.startsWith('cap_') ? m.capabilities?.[k.slice(4)] : m[k])])];
-    const slugKey = indexKeysOf(rawModels, getters);
+    const slugKey = indexKeysOf(rawModels, getters, [...weightedById.values()]);
 
     const models = rawModels
       .map((m) => ({
@@ -201,7 +206,7 @@
       }))
       .filter((m) => m.intelligence != null || getters.some(([k]) => k !== 'openness' && m[k] != null))
       .sort((a, b) => (b.intelligence ?? -1) - (a.intelligence ?? -1));
-    return { models, dynamicBenchmarks, slugKey };
+    return { models, dynamicBenchmarks, slugKey, weightedById };
   }
   const CAP_KEYS = {
     financeAndAccounting: 'capFinance',
@@ -277,7 +282,10 @@
   // Each index evaluation's slug -> the benchmark key whose value equals the evaluation's score on (nearly) every model
   // that has both. Scores of 0 and 1 are too common to tell fields apart, so they don't count. The seed wins whenever its
   // key agrees; otherwise one clear winner is needed, and a tie or no agreeing key keeps the seed (or the slug's own name).
-  function indexKeysOf(rawModels, getters) {
+  // AA stopped sending the per-evaluation scores in November 2026, so a slug seen only in a model's cost breakdown
+  // (weightedLists) takes the seed, else the benchmark key with the same name once punctuation is ignored (as the
+  // methodology page's anchors are matched), else the slug itself.
+  function indexKeysOf(rawModels, getters, weightedLists = []) {
     const stats = new Map();
     for (const m of rawModels) for (const e of m.intelligenceIndexEvaluations || []) {
       const st = stats.get(e.slug) || stats.set(e.slug, new Map()).get(e.slug);
@@ -297,18 +305,35 @@
       out[slug] = seed && agree.some(([k]) => k === seed) ? seed
         : agree.length && (agree.length === 1 || agree[0][1].hit > agree[1][1].hit) ? agree[0][0] : seed || slug;
     }
+    const byNorm = new Map(getters.map(([k]) => [normKey(k), k]));
+    for (const list of weightedLists) for (const e of list) {
+      if (typeof e?.slug === 'string' && !(e.slug in out)) out[e.slug] = INDEX_EVALS[e.slug] || byNorm.get(normKey(e.slug)) || e.slug;
+    }
     return out;
   }
+  const keyOfSlug = (slugKey, slug) => slugKey[slug] || INDEX_EVALS[slug] || slug;
   const round = (v) => +v.toPrecision(4);
   function evalsOf(m, slugKey) {
     const out = {};
     for (const e of m.intelligenceIndexEvaluations || []) {
-      const k = slugKey[e.slug] || INDEX_EVALS[e.slug] || e.slug;
+      const k = keyOfSlug(slugKey, e.slug);
       if (Number.isFinite(e.costPerTask)) out[k] = [round(e.costPerTask), Number.isFinite(e.outputTokensPerTask) ? Math.round(e.outputTokensPerTask) : null];
     }
     return Object.keys(out).length ? out : null;
   }
-  // Each evaluation's weight in the index, read off a model with the full cost breakdown (weighted cost ÷ cost).
+  // The same { key: [usd, tokens] } from a model's weighted cost breakdown, once the weights are known: weighted cost ÷
+  // weight. That is exact (in the data AA sent before November 2026 the ratio was a whole percent every time), but the
+  // breakdown has no tokens per evaluation.
+  function weightedEvalsOf(weighted, slugKey, weights) {
+    const out = {};
+    for (const e of weighted || []) {
+      const k = keyOfSlug(slugKey, e?.slug), w = weights[k];
+      if (w > 0 && Number.isFinite(e.weightedCostPerTask)) out[k] = [round(e.weightedCostPerTask / w), null];
+    }
+    return Object.keys(out).length ? out : null;
+  }
+  // Each evaluation's weight in the index, read off a model with the full cost breakdown (weighted cost ÷ cost). Needs
+  // each evaluation's own cost (intelligenceIndexEvaluations), which AA stopped sending in November 2026: then null.
   function indexWeightsOf(manifests, slugKey) {
     for (const man of manifests) for (const arr of Array.isArray(man) ? [man] : Object.values(man).filter(Array.isArray)) for (const m of arr) {
       const weighted = m?.intelligenceIndexCostPerTask?.evaluations, evs = m?.intelligenceIndexEvaluations;
@@ -317,13 +342,49 @@
       for (const e of weighted) {
         const c = evs.find((x) => x.slug === e.slug)?.costPerTask;
         if (!(c > 0) || !Number.isFinite(e.weightedCostPerTask)) { w.bad = 1; break; }
-        w[slugKey[e.slug] || INDEX_EVALS[e.slug] || e.slug] = Math.round((e.weightedCostPerTask / c) * 1000) / 1000;
+        w[keyOfSlug(slugKey, e.slug)] = Math.round((e.weightedCostPerTask / c) * 1000) / 1000;
       }
       const sum = Object.values(w).reduce((a, b) => a + b, 0);
       if (!w.bad && Math.abs(sum - 1) < 0.01) return w;
     }
     return null;
   }
+  // What the index is made of right now, read off the models' cost breakdowns (the most common set of evaluations, in
+  // the order AA lists them): { key: slug }, or null.
+  function indexMakeupOf(weightedById, slugKey) {
+    const seen = new Map();
+    for (const list of weightedById.values()) {
+      const slugs = list.map((e) => e?.slug).filter((s) => typeof s === 'string');
+      if (slugs.length < 2) continue;
+      const id = [...new Set(slugs)].sort().join(' ');
+      const s = seen.get(id) || seen.set(id, { n: 0, slugs }).get(id);
+      s.n++;
+    }
+    const best = [...seen.values()].sort((a, b) => b.n - a.n)[0];
+    return best ? Object.fromEntries(best.slugs.map((s) => [keyOfSlug(slugKey, s), s])) : null;
+  }
+  // Weights from elsewhere ({ source: { key: weight } }, tried in order): the first that names exactly the evaluations
+  // in the index's makeup, each above 0, adding to 100%. Returned in the makeup's order.
+  function pickWeights(makeup, candidates, log) {
+    if (!makeup) { log('index weights: no model has a cost breakdown by evaluation'); return null; }
+    const want = Object.keys(makeup).sort().join(', ');
+    for (const [from, w] of Object.entries(candidates || {})) {
+      if (!w || typeof w !== 'object') { log(`index weights: none from ${from}`); continue; }
+      const vals = Object.values(w), sum = vals.reduce((a, b) => a + b, 0);
+      const keys = Object.keys(w).sort().join(', ');
+      if (keys === want && vals.every((x) => Number.isFinite(x) && x > 0) && Math.abs(sum - 1) < 0.01) {
+        log(`index weights from ${from}`);
+        return Object.fromEntries(Object.keys(makeup).map((k) => [k, w[k]]));
+      }
+      log(`index weights from ${from} don't fit the index (${keys === want ? `they add to ${Math.round(sum * 1000) / 10}%` : `they name ${keys || 'nothing'}; the index has ${want}`})`);
+    }
+    return null;
+  }
+  // { key: weight } for the evaluations the methodology page says are in the index, or null.
+  const methodologyWeights = (meth) => {
+    const inc = (meth?.evals || []).filter((e) => e.inIndex && e.key && Number.isFinite(e.weight));
+    return inc.length ? Object.fromEntries(inc.map((e) => [e.key, e.weight])) : null;
+  };
   // The index's version, from the newest "methodology updated" entry in the site's feed that names one.
   const indexVersionOf = (changelog) => {
     for (const c of changelog) { const v = /Intelligence Index (v\d+(?:\.\d+)*)/.exec(c.title)?.[1]; if (v && c.type === 'methodologyUpdated') return { version: v, since: c.date }; }
@@ -339,9 +400,34 @@
     aime: 'aime25', 'aa-lcr': 'lcr', healthbench: 'healthbench',
   };
   const normKey = (k) => k.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/v(?=\d)/g, '').replace(/^aa|aa$/g, '');
-  function parseMethodology(html, keys) {
+  // The payload's rows by id. Most are "id:json" lines, but a text row ("id:T<length in bytes, hex>,<text>") has no line
+  // break after it, so the row that follows it starts on the same line (GDP.pdf's section did, in November 2026). Rows
+  // read line by line come first; the length-aware pass only adds the ones that reading missed.
+  function rscRows(payload) {
     const rows = new Map();
-    for (const line of rscPayload(html).split('\n')) { const m = /^([0-9a-f]+):(.*)$/.exec(line); if (m) rows.set(m[1], m[2]); }
+    for (const line of payload.split('\n')) { const m = /^([0-9a-f]+):(.*)$/.exec(line); if (m) rows.set(m[1], m[2]); }
+    const bytes = new TextEncoder().encode(payload), dec = new TextDecoder(), at = (i, c) => bytes[i] === c.charCodeAt(0);
+    const until = (i, c) => { while (i < bytes.length && !at(i, c)) i++; return i; };
+    for (let i = 0; i < bytes.length;) {
+      let j = i;
+      while (j < bytes.length && /[0-9a-f]/.test(String.fromCharCode(bytes[j]))) j++;
+      if (j === i || !at(j, ':')) { i = until(i, '\n') + 1; continue; } // not the start of a row: go on from the next line
+      const id = dec.decode(bytes.subarray(i, j));
+      if (at(j + 1, 'T')) {
+        const comma = until(j + 2, ','), len = parseInt(dec.decode(bytes.subarray(j + 2, comma)), 16);
+        if (!(len >= 0) || comma >= bytes.length) { i = until(j, '\n') + 1; continue; }
+        if (!rows.has(id)) rows.set(id, dec.decode(bytes.subarray(comma + 1, comma + 1 + len)));
+        i = comma + 1 + len;
+      } else {
+        const end = until(j + 1, '\n');
+        if (!rows.has(id)) rows.set(id, dec.decode(bytes.subarray(j + 1, end)));
+        i = end + 1;
+      }
+    }
+    return rows;
+  }
+  function parseMethodology(html, keys) {
+    const rows = rscRows(rscPayload(html));
     const text = (n) => typeof n === 'string' ? n : Array.isArray(n) ? (n[0] === '$' ? text(n[3]?.children) : n.map(text).join('')) : '';
     const byNorm = new Map(keys.map((k) => [normKey(k), k]));
     const evals = [], seen = new Set();
@@ -391,7 +477,10 @@
   // -> { v, scrapedAt, source, models, dynamicBenchmarks, indexWeights, changelog, codingAgents }
   // extraPages: also read the optional pages. When one can't be read the result says `partial: true`, and the page keeps
   // what only that page supplied from the copy it already has (see fillPartial in index.html).
-  async function scrape({ fetchOpts = {}, log = () => {}, extraPages = true } = {}) {
+  // indexWeights: where to take the index's weights from when the data can't give them (AA stopped sending each
+  // evaluation's own cost in November 2026): { source: { key: weight } } in order of preference, or an async function
+  // (benchmark keys) => that. The first that fits the index's current makeup is used (pickWeights).
+  async function scrape({ fetchOpts = {}, log = () => {}, extraPages = true, indexWeights: known = null } = {}) {
     let manifests;
     try { manifests = await loadManifests(fetchOpts, log, extraPages); }
     catch (err) {
@@ -402,13 +491,24 @@
       await new Promise((resolve) => setTimeout(resolve, 3000));
       manifests = await loadManifests(fetchOpts, log, extraPages);
     }
-    const { models: built, dynamicBenchmarks, slugKey } = buildModels(manifests);
+    const { models: built, dynamicBenchmarks, slugKey, weightedById } = buildModels(manifests);
     // Most models have only some benchmarks: leave the missing ones out rather than storing nulls.
     const models = built.map((m) => Object.fromEntries(Object.entries(m).filter(([, v]) => v != null)));
     if (!models.length) throw new Error('Decoded the data but found no models — the format may have changed.');
-    const changelog = changelogOf(manifests), indexWeights = indexWeightsOf(manifests, slugKey);
+    const changelog = changelogOf(manifests), makeup = indexMakeupOf(weightedById, slugKey);
+    let indexWeights = indexWeightsOf(manifests, slugKey);
+    if (!indexWeights && known) {
+      let candidates = known;
+      if (typeof known === 'function') {
+        try { candidates = await known([...new Set(models.flatMap((m) => Object.keys(m)))]); }
+        catch (err) { log(`index weights: ${err.message}`); candidates = null; }
+      }
+      indexWeights = pickWeights(makeup, candidates, log);
+      // and each evaluation's own cost, which came with the per-evaluation results AA no longer sends
+      if (indexWeights) for (const m of models) if (!m.evals) { const e = weightedEvalsOf(weightedById.get(m.id), slugKey, indexWeights); if (e) m.evals = e; }
+    }
     // What the index is made of right now: its version and each evaluation's benchmark key and weight.
-    const index = indexWeights ? { ...indexVersionOf(changelog), evals: Object.entries(indexWeights).map(([key, weight]) => ({ key, weight, slug: Object.keys(slugKey).find((s) => slugKey[s] === key) || key })) } : null;
+    const index = indexWeights ? { ...indexVersionOf(changelog), evals: Object.entries(indexWeights).map(([key, weight]) => ({ key, weight, slug: makeup?.[key] || Object.keys(slugKey).find((s) => slugKey[s] === key) || key })) } : null;
     return { v: VERSION, scrapedAt: new Date().toISOString(), source: BASE, models, ...(dynamicBenchmarks.length ? { dynamicBenchmarks } : {}), indexWeights, index, changelog, codingAgents: codingAgentsOf(manifests), ...(manifests.partial ? { partial: true } : {}) };
   }
   // The methodology page through the same fetch (Node only: it's large, and the deploy refreshes it for everyone).
@@ -420,5 +520,5 @@
   // Bump when the saved shape changes, so the page ignores copies saved by an older version.
   const VERSION = 6; // 6: headline first-answer-token and mean single-request end-to-end speed fields
 
-  globalThis.AAData = { scrape, scrapeMethodology, parseMethodology, VERSION, discoverNumericFields, isNonBenchKey };
+  globalThis.AAData = { scrape, scrapeMethodology, parseMethodology, methodologyWeights, VERSION, discoverNumericFields, isNonBenchKey };
 })();
