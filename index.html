@@ -519,6 +519,29 @@
   .card .desc { color: var(--ink-2); font-size: 12px; margin: -4px 0 8px; max-width: 1000px; line-height: 1.45; }
   .card .desc:empty { display: none; }
   #chart { width: 100%; display: block; }
+  /* Tall shape: the plot is narrow and tall so the Y axis gets the room; the SVG keeps its own width, centred */
+  #chart.tall { width: auto; max-width: 100%; margin: 0; }
+  #opts:has(#shapeSeg [data-v="tall"][aria-pressed="false"]) #tallWrap { display: none; }
+  #tallWrap input { width: 92px; vertical-align: middle; }
+  #valueAsXLabel, #valueAsYLabel { display: none; }
+  #opts:has(#valueSeg :is([data-v="x"], [data-v="both"])[aria-pressed="true"]) #valueAsXLabel,
+  #opts:has(#valueSeg :is([data-v="y"], [data-v="both"])[aria-pressed="true"]) #valueAsYLabel,
+  #opts:has(#labelSeg [data-v="ladder"][aria-pressed="true"]) #valueAsYLabel { display: inline-flex; }
+  #valueAsWrap select { font: inherit; font-size: 12px; }
+  #opts:has(#labelSeg :is([data-v="all"], [data-v="none"], [data-v="ladder"])[aria-pressed="true"]) #nameAtLabel { display: none; }
+  #opts:has(#labelSeg [data-v="none"][aria-pressed="true"]) #smallCapsLabel { display: none; }
+  #valueVsX, #valueVsY { margin-left: 4px; }
+  .auto-inc { display: grid; gap: 4px; margin-top: 8px; }
+  #autoNote { margin: 4px 0 0; }
+  #autoNote .auto-acts { white-space: nowrap; }
+  #subPlansWrap > span { white-space: nowrap; }
+  #tooltip tr.plan-info td { text-align: left; padding-top: 0; line-height: 1.35; }
+  #autoNote .chip { font-size: 12px; padding: 1px 8px; }
+  #autoNote button[data-tick] { font: inherit; background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+  .auto-inc .inline { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .auto-inc input[type="number"] { width: 4.4em; font: inherit; padding: 1px 3px; }
+  .auto-inc .ref { color: var(--muted); }
+  #autoNote b { font-weight: 600; }
   #chart text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
   .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 4px 2px; color: var(--ink-2); font-size: 12px; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -921,6 +944,11 @@
       <button id="selTop" title="Select the 20 highest-scoring models in the list (after the filters below)">Top 20</button>
       <button id="selNone" title="Deselect every model">Clear</button>
     </div>
+    <div class="auto-inc" id="autoInc" role="group" aria-label="Also show any model-effort near the top">
+      <span class="note">Also show, even if not selected:</span>
+      <label class="inline" title="Any model-effort whose Y value is within this percentage of the best Y value in the list (after the filters below and the effort chips), selected or not"><input type="checkbox" id="autoBest" /> within <input type="number" id="autoBestPct" min="0" max="100" step="0.5" inputmode="decimal" aria-label="Percent of the best" /> % of the best Y</label>
+      <label class="inline" title="Any model-effort whose Y value is within this many points (the Y axis's own units) of the Y axis's 1.0, or of the best Y value when the Y axis has no 1.0"><input type="checkbox" id="autoBase" /> within <input type="number" id="autoBasePts" min="0" step="0.5" inputmode="decimal" aria-label="Points from the baseline" /> <span id="autoBaseUnit">points</span> of <span class="ref" id="autoBaseRef">the best</span></label>
+    </div>
     <div class="row" style="margin-top:6px">
       <label class="inline" title="Also list models Artificial Analysis marks as deprecated"><input type="checkbox" id="showDeprecated" /> Include deprecated</label>
       <label class="inline" title="List only models whose weights you can download and run yourself; also limits 'Who leads what' to them"><input type="checkbox" id="openOnly" /> Open weights only</label>
@@ -970,9 +998,12 @@
       <h3 class="sec-title"><button type="button" class="sec-btn">Labels</button></h3>
       <div class="sec-body">
         <div class="group" data-g="labels"><button type="button" class="glabel" title="Names and effort levels written next to the dots">Labels</button><div class="seg" id="labelSeg"><button data-v="auto" title="Model names, plus effort tags on dots where they fit">Auto</button><button data-v="autoplus" title="Like Auto, and each model's top dot also gets an effort tag beside it, like the other dots">Auto+</button><button data-v="ladder" title="Model names in a column beside the plot, each joined to its line by a thin leader, so names never sit on the data (like slopalytics.com); effort tags stay by the dots">Ladder</button><button data-v="series" title="One label per model, at its highest-effort dot">Models</button><button data-v="all" title="Label every dot with the model and effort, even where labels overlap">Every dot</button><button data-v="none" title="No labels; hover a dot for its name">None</button></div>
-          <label class="inline" id="shortEffortLabel" title="Abbreviate effort tags on the chart: L (low), M (medium), H (high), X (xhigh), MX (max)"><input type="checkbox" id="shortEffort" /> L, M, H, X, MX</label></div>
+          <label class="inline" id="shortEffortLabel" title="Abbreviate effort tags on the chart: L (low), M (medium), H (high), X (xhigh), MX (max)"><input type="checkbox" id="shortEffort" /> L, M, H, X, MX</label>
+          <label class="inline" id="nameAtLabel" title="Write each model's name, with its effort, in bold by the dot with the highest X value, instead of by its highest effort; the other dots keep their effort tags"><input type="checkbox" id="nameAtMaxX" /> bold full name at highest X</label><label class="inline" id="smallCapsLabel" title="Effort tags in small grey capitals (LOW, HIGH, XHIGH), as on Priors' charts. Styles the tags that are already shown; never adds any"><input type="checkbox" id="smallCaps" /> small-caps effort tags</label></div>
         <div class="group" data-g="values"><button type="button" class="glabel" title="Each dot's axis values written next to it">Values</button><div class="seg" id="valueSeg"><button data-v="off" title="No values by the dots; hover a dot for them">Off</button><button data-v="x" title="Each dot's horizontal-axis (X) value next to it">X</button><button data-v="y" title="Each dot's vertical-axis (Y) value next to it">Y</button><button data-v="both" title="Both values next to each dot, X then Y">Both</button></div>
-          <label class="inline" id="valueFrontLabel" title="Write values only on the Pareto frontier's dots (the frontier of the models shown, even with Pareto off)"><input type="checkbox" id="valueFront" /> frontier only</label></div>
+          <label class="inline" id="valueFrontLabel" title="Write values only on the Pareto frontier's dots (the frontier of the models shown, even with Pareto off)"><input type="checkbox" id="valueFront" /> frontier only</label>
+          <span id="valueAsWrap"><label class="inline" id="valueAsXLabel" title="How each dot's X value is written: in the axis's own units, as the value, as a multiple of the axis's 1.0 (the best shown when the axis has no 1.0), or as the difference from it">X as <select id="valueAsX"><option value="auto">axis units</option><option value="value">value</option><option value="rel">× of 1.0</option><option value="vr">value (×)</option><option value="rv">× (value)</option><option value="delta">± vs 1.0</option><option value="vd">value (±)</option></select><select id="valueVsX" title="What × and ± compare with: the X axis's 1.0, or the best value shown"><option value="axis">vs X's 1.0</option><option value="best">vs best shown</option></select></label>
+          <label class="inline" id="valueAsYLabel" title="How each dot's Y value is written: in the axis's own units, as the value, as a multiple of the axis's 1.0 (the best shown when the axis has no 1.0), or as the difference from it">Y as <select id="valueAsY"><option value="auto">axis units</option><option value="value">value</option><option value="rel">× of 1.0</option><option value="vr">value (×)</option><option value="rv">× (value)</option><option value="delta">± vs 1.0</option><option value="vd">value (±)</option></select><select id="valueVsY" title="What × and ± compare with: the Y axis's 1.0, or the best value shown"><option value="axis">vs Y's 1.0</option><option value="best">vs best shown</option></select></label></span></div>
         <div class="group" data-g="mark"><button type="button" class="glabel" title="Mark one effort level on every model's line, to compare like with like">Mark</button><select id="markSel" title="Which effort level gets the mark on every model's line"></select><div class="seg" id="markStyleSeg"><button data-v="none" title="No mark">None</button><button data-v="hash" title="A short tick across the line">Hash</button><button data-v="ring" title="A ring around the dot">Ring</button><button data-v="square" title="A square around the dot">Square</button></div></div>
         <div class="group" data-g="lines"><button type="button" class="glabel" title="The line through each model's effort levels, low to max">Lines</button><div class="seg" id="lineSeg"><button data-v="off" title="No lines: dots only">Off</button><button data-v="solid" title="Solid lines; older versions dashed">Solid</button><button data-v="dashed" title="Dashed lines; older versions dotted">Dashed</button><button data-v="dotted" title="Dotted lines; older versions thin dashes">Dotted</button></div></div>
       </div>
@@ -990,6 +1021,8 @@
     <section class="opt-sec" data-sec="look">
       <h3 class="sec-title"><button type="button" class="sec-btn">Look</button></h3>
       <div class="sec-body">
+        <div class="group" data-g="shape"><button type="button" class="glabel" title="Chart shape">Shape</button><div class="seg" id="shapeSeg"><button data-v="standard" title="Ordinary axes: Y up, X across">Standard</button><button data-v="tall" title="Tall: a narrow, tall plot that gives the Y axis most of the room. On a desk it fills the window's height and the aspect slider sets how narrow it is; on a phone the slider sets how tall">Tall</button><button data-v="diamond" title="Turned 45° so 'better on both' points straight up; left leans toward the X metric, right toward the Y metric (like dunksandthrees' EPM charts)">Diamond</button></div>
+          <label class="inline" id="tallWrap" title="How tall the plot is against its width. On a desk the chart fills the window's height, so a higher value makes it narrower; on a phone it makes it taller">aspect <input type="range" id="tallRatio" min="1.2" max="3" step="0.1" list="tallTicks" /><datalist id="tallTicks"><option value="1.5"></option><option value="2"></option><option value="2.5"></option><option value="3"></option></datalist> <span id="tallRatioOut"></span></label></div>
         <div class="group" data-g="color"><button type="button" class="glabel" title="What the dot colors mean">Color</button><div class="seg" id="colorSeg"><button data-v="lab" title="Color by the lab that made the model (additive with X value and Y value)">Lab</button><button data-v="effort" title="Color by reasoning effort, light (low) to dark (max) (additive with X value and Y value)">Effort</button><button data-v="x" title="Add X-axis value coloring on top of Lab or Effort (click both X value and Y value for both axes)">X value</button><button data-v="y" title="Add Y-axis value coloring on top of Lab or Effort (click both X value and Y value for both axes)">Y value</button><button data-v="both" title="Color each dot by how far it is toward the corner that's better on both axes, alongside Lab or Effort">Both</button></div>
           <select id="rampSel" title="Colors for coloring by value; the strongest color is always the better end. Viridis, magma and plasma are perceptually even; cividis is the safest for color-blind readers; One hue uses the theme's accent; Vs. median: blue on the better side of the median dot, red on the worse side, grey at it" hidden><option value="viridis">Viridis</option><option value="cividis">Cividis</option><option value="magma">Magma</option><option value="plasma">Plasma</option><option value="accent">One hue</option><option value="diverge">Vs. median</option></select>
           <span id="dualWrap" hidden><button type="button" class="glabel" id="dualLabel" title="How the Lab or Effort color is shown alongside the value color">Lab</button><div class="seg" id="dualSeg"><button data-v="off" title="Value colors only">Off</button><button data-v="lines" title="Lines and model names in lab colors; dots keep the value colors">Lines</button><button data-v="ring" title="Each dot gets a ring in its lab or effort color around the value-colored center">Ring</button><button data-v="field" title="Dots in lab or effort colors over a soft value-colored background">Field</button><button data-v="split" title="Left half of each dot in its lab or effort color, right half in its value color">Split</button></div></span></div>
@@ -1007,7 +1040,6 @@
       <h3 class="sec-title"><button type="button" class="sec-btn">Index</button></h3>
       <div class="sec-body">
         <div class="group" data-g="index"><span class="glabel" title="Recompute the score (and its cost per task) from only the benchmarks you trust: the metrics 'Your index' and 'Cost per task (…)', and the value-for-money ones, follow this">Your index</span><select class="basisSel" title="Which benchmarks 'Your index' and its cost per task are built from"></select><label class="inline" title="Most benchmarks outside AA's index are run at only one or two effort levels of a model. Estimate a missing result from the same model at the nearest effort level that has one, scaled by how their Intelligence Index scores compare (drawn faded). Off: a model needs real results covering 3/4 of the weight."><input type="checkbox" class="basisFill" /> fill gaps</label></div>
-        <div class="group" data-g="shape"><button type="button" class="glabel" title="Chart shape">Shape</button><div class="seg" id="shapeSeg"><button data-v="standard" title="Ordinary axes: Y up, X across">Standard</button><button data-v="diamond" title="Turned 45° so 'better on both' points straight up; left leans toward the X metric, right toward the Y metric (like dunksandthrees' EPM charts)">Diamond</button></div></div>
       </div>
     </section>
   </div>
@@ -1031,6 +1063,7 @@
       </div>
       <div class="panel" id="explainPanel" hidden></div>
     </div>
+    <div class="note relative-note" id="autoNote" aria-live="polite" hidden></div>
     <svg id="chart" role="img"></svg>
     <div class="legend" id="legend"></div>
     <div class="note" id="chartNote"></div>
@@ -1050,6 +1083,7 @@
   <details class="card" id="planCard">
     <summary title="Pick the plan you pay for: the table works out what the same money buys at API list prices, model by model">Subscription math <span class="note" style="font-weight:400">· what your plan's fee buys at API prices</span></summary>
     <div class="toolbar" style="margin:10px 0 6px">
+      <div class="group" id="subPlansWrap"><span title="For the metric 'Plan cost per task (estimated)' (Cost group, either axis): which plan's real token price each lab's models use. Median: the middle of that lab's plans with data">Plan per lab</span></div>
       <div class="group"><span title="The subscription you pay for">Your plan</span><select id="planSel" title="Pick your plan, or Custom and type the fee"></select><label class="inline" title="Monthly fee in US dollars (edit it if yours differs)">$<input type="number" id="planPrice" min="0" step="1" style="width:72px" /> / month</label></div>
       <div class="group"><span title="The score and cost per task the math uses: Artificial Analysis' index, or one rebuilt from only the benchmarks you trust (same setting as 'Your index' in the options)">Score from</span><select class="basisSel" title="Which benchmarks the score and cost per task come from"></select><label class="inline" title="Estimate missing results from the same model at the nearest effort level, scaled by their Intelligence Index (faded dots)"><input type="checkbox" class="basisFill" /> fill gaps</label></div>
       <div class="group"><span title="Which models the chart and table compare">Models</span><div class="seg" id="planScopeSeg"><button data-v="chart" title="The models on the chart above">On the chart</button><button data-v="all" title="Every current model with cost data (respecting Hide older versions and Open weights only)">All current</button></div></div>
@@ -1148,6 +1182,7 @@
 <script src="scoring.js"></script>
 <script src="data/models.js"></script>
 <script src="data/external.js"></script>
+<script src="data/plan-shares.js"></script>
 <script>
 (() => {
   // Data: the copy built into the page, or a newer one saved by the "Update data" button.
@@ -1179,6 +1214,22 @@
   const ratio = (v) => Number.isFinite(v) ? (v >= 10 ? String(Math.round(v)) : v >= 1 ? String(+v.toFixed(1)) : String(+v.toPrecision(2))) + '×' : '—';
   // Chart value labels use 2-digit (XX / xx/100) precision: 72% or 72 instead of 71.6%, 0.72× instead of 0.716×.
   const valFmt = (M, v) => M.ref ? (Number.isFinite(v) ? (v >= 10 ? String(Math.round(v)) : v.toFixed(2)) + '×' : '—') : M.frac ? Math.round(v * 100) + (M.fmt === pct ? '%' : '') : M.fmt === one ? String(Math.round(v)) : M.fmt(v);
+  // A dot's value as the labels write it (Values → X as / Y as): in the axis's own units ("axis units", as before), or as the
+  // value, its multiple of the axis's 1.0 (×) or its difference from it (±), alone or together. With no 1.0 on that axis,
+  // × and ± compare with the best value shown. p.rawX / p.rawY hold the value before any division by a 1.0.
+  let labelBase = { x: NaN, y: NaN };
+  const fmtTimes = (v) => Number.isFinite(v) ? (v >= 10 ? String(Math.round(v)) : v.toFixed(2)) + '×' : '—';
+  function fmtDiff(T, d) {
+    if (!Number.isFinite(d)) return '—';
+    const sign = d > 0 ? '+' : d < 0 ? '−' : '±', a = Math.abs(d);
+    return sign + (T.frac ? (a * 100 >= 10 ? (a * 100).toFixed(0) : (a * 100).toFixed(1)) + ' pts' : T.fmt === one ? (a >= 10 ? a.toFixed(0) : a.toFixed(1)) : T.fmt(a));
+  }
+  function axisValue(p, axis, T, form = S[axis === 'x' ? 'valueAsX' : 'valueAsY']) {
+    if (!form || form === 'auto') return valFmt(T, p[axis + 'v']);
+    const raw = T.raw || T, v = p[axis === 'x' ? 'rawX' : 'rawY'] ?? p[axis + 'v'], base = labelBase[axis];
+    const val = valFmt(raw, v), times = base > 0 ? fmtTimes(v / base) : '—', diff = Number.isFinite(base) ? fmtDiff(raw, v - base) : '—';
+    return { value: val, rel: times, vr: `${val} (${times})`, rv: `${times} (${val})`, delta: diff, vd: `${val} (${diff})` }[form] ?? val;
+  }
   // "Sep 27" this year, "Dec 2025" before it; full: "Sep 27, 2026"
   const fmtDay = (d, full) => new Date(d + 'T12:00:00').toLocaleDateString(undefined, full ? { year: 'numeric', month: 'short', day: 'numeric' }
     : d.startsWith(new Date().getFullYear() + '-') ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short' });
@@ -1252,6 +1303,7 @@
     priceOutput: { label: 'Output price', long: 'Output price, USD per 1M tokens', fmt: money, better: 'low', scale: 'log' },
     tasksPerDollar: { label: 'Tasks per dollar', long: 'Intelligence Index tasks per US dollar (1 ÷ cost per task)', fmt: (v) => v >= 100 ? Math.round(v).toLocaleString() : +v.toPrecision(3) + '', better: 'high', scale: 'log' },
     pointsPerDollar: { label: 'Index points per dollar', long: 'Intelligence Index points per US dollar of task cost (index ÷ cost per task): bang for the buck', fmt: (v) => v >= 100 ? Math.round(v).toLocaleString() : +v.toPrecision(3) + '', better: 'high', scale: 'log' },
+    planCost: { label: 'Plan cost per task (estimated)', long: 'Estimated cost per task on a plan, at full plan use (USD)', fmt: money, better: 'low', scale: 'log' },
     planTasks: { label: 'Tasks a month on your plan', long: 'Intelligence Index tasks a month your plan\'s fee would buy at API list prices (fee ÷ cost per task)', fmt: (v) => v >= 100 ? Math.round(v).toLocaleString() : +v.toPrecision(3) + '', better: 'high', scale: 'log' },
     // tokens & speed
     tokensPerTask: { label: 'Output tokens per task', long: 'Output tokens (reasoning + answer) per Intelligence Index task', fmt: compact, better: 'low', scale: 'log' },
@@ -1321,6 +1373,7 @@
     costPerTask: 'What one Intelligence Index task costs on average: each evaluation\'s cost per task (input, cached, reasoning and answer tokens at list prices), weighted like the index.',
     tasksPerDollar: 'How many Intelligence Index tasks one dollar buys at list prices: the reciprocal of cost per task, so cheap models stand out at the top.',
     pointsPerDollar: 'Index points per dollar of task cost: a rough bang-for-the-buck figure (a 50-point model at $1 a task scores 50; the same score at $0.10 scores 500). Favours cheap models heavily.',
+    planCost: 'The cost per task at API list prices, times what one plan\'s tokens really cost as a share of those prices (its fee ÷ the tokens it allows a month, measured by Real API Pricing at a standard mix of 97% cache reads, 2.5% fresh input and 0.5% output). Each lab uses the median of its plans with data unless you pick one under "Subscription math". The same share applies at every effort. Models with no plan data aren\'t drawn on this axis; the note above the chart names them.',
     planTasks: 'Your subscription fee divided by the model\'s cost per task: how many index tasks a month the same money buys at API list prices. Pick your plan in "Subscription math" under the chart.',
     costToRun: 'Total cost, at list prices, of running the whole Intelligence Index once.',
     priceBlended: 'List price per million tokens, blending input and output 3:1. Doesn\'t account for how many tokens a model uses; cost per task does.',
@@ -1357,7 +1410,7 @@
     'Agents & tool use': ['tau2', 'tauBanking', 'automationBench', 'enterpriseOps', 'apexAgents', 'itBench', 'analystAgent', 'cyberIndex', 'cweBench', 'deepsecBench', 'cybergym', 'decisionIndex'],
     'Work & documents': ['gdpval', 'briefcase', 'gdpPdf', 'lcr', 'mlcr', 'harvey', 'healthbench', 'healthbenchPro', 'capFinance', 'capStrategy', 'capLegal', 'capMedical', 'capEngineering', 'capEconomics', 'openness'],
     'Independent benchmarks': [], // filled from data/external.js
-    'Cost': ['costPerTask', 'myCost', 'tasksPerDollar', 'pointsPerDollar', 'planTasks', 'costToRun', 'priceBlended', 'priceInput', 'priceOutput'],
+    'Cost': ['costPerTask', 'planCost', 'myCost', 'tasksPerDollar', 'pointsPerDollar', 'planTasks', 'costToRun', 'priceBlended', 'priceInput', 'priceOutput'],
     'Tokens & speed': ['tokensPerTask', 'outputTokens', 'outputSpeed', 'ttft', 'e2eMean', 'timePerTask', 'parameters'],
   };
   // Independent benchmarks (data/external.js): each source becomes a metric, plus a cost metric where the source reports one.
@@ -1676,6 +1729,31 @@
   }
   // Measures worked out from the others: your index, value for money, and what your subscription fee buys at API prices.
   let PLAN_FEE = 20; // the chosen plan's monthly fee
+  // "Cost per task on a plan": a plan's share of API list price for a model family = what its tokens really cost ÷ the
+  // model's API list price at the same token mix (Real API Pricing's snapshot, data/plan-shares.js). A family missing from
+  // the snapshot's list prices gets one from Artificial Analysis' input and output prices, with cache reads at 10% of input.
+  const PSH = window.PLAN_SHARES || { plans: {}, rows: [] };
+  let SUB_PLANS = {}; // S.subPlans, kept here like PLAN_FEE because derive() first runs before S exists
+  const labOfSlug = (slug) => slug === 'spacexai' ? 'xai' : slug;
+  const PLAN_LAB_NAME = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google', xai: 'xAI' };
+  function planShareOf(m) {
+    const lab = labOfSlug(m.creatorSlug), mix = PSH.mix || { cache: 0.97, input: 0.025, output: 0.005 };
+    const rows = PSH.rows.filter((r) => r[1] === m.family && PSH.plans[r[0]]?.[1] === lab);
+    if (!rows.length) return null;
+    const listOf = (r) => r[3] ?? (m.priceInput > 0 && m.priceOutput > 0 ? mix.cache * 0.1 * m.priceInput + mix.input * m.priceInput + mix.output * m.priceOutput : null);
+    const shares = rows.map((r) => ({ r, list: listOf(r) })).filter((x) => x.list > 0).map((x) => ({ ...x, share: x.r[2] / x.list, est: x.r[3] == null }));
+    if (!shares.length) return null;
+    const pick = SUB_PLANS[lab], chosen = pick && pick !== 'median' ? shares.find((x) => x.r[0] === pick) : null;
+    const pct = (v) => (v * 100 >= 10 ? Math.round(v * 100) : +(v * 100).toPrecision(2)) + '%';
+    const when = (w) => String(w).split('~').map((d) => d.length === 7 ? new Date(d + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).join('–');
+    const tail = (x) => `${x.r[4]} confidence, measured ${when(x.r[5])}${x.est ? ', API list price estimated' : ''}`;
+    if (chosen) return { share: chosen.share, note: `On ${chosen.r[0]}: ${pct(chosen.share)} of API price (Real API Pricing, ${tail(chosen)})` };
+    const sorted = shares.slice().sort((a, b) => a.share - b.share), n = sorted.length, mid = n % 2 ? sorted[(n - 1) / 2] : null;
+    const share = mid ? mid.share : (sorted[n / 2 - 1].share + sorted[n / 2].share) / 2;
+    const missing = pick && pick !== 'median' ? pick : '', how = n === 1 ? `on ${sorted[0].r[0]}` : `the median of ${n} plans`;
+    const head = missing ? `No ${missing} data for this model, so ${how}` : how[0].toUpperCase() + how.slice(1);
+    return { share, sub: missing, thin: n === 1 && sorted[0].r[4] === 'low', note: `${head}: ${pct(share)} of API price${n > 1 ? '\n' + sorted.map((x) => `${x.r[0]} ${pct(x.share)} · ${x.r[4]} · ${when(x.r[5])}${x.est ? ' · list price estimated' : ''}`).join('\n') : ` · ${tail(sorted[0])}`}\n${n > 1 ? 'Each plan: share · confidence · when measured. ' : ''}Source: Real API Pricing` };
+  }
   function derive() {
     const fee = PLAN_FEE;
     ranges.clear(); variants.clear();
@@ -1698,6 +1776,8 @@
       }
       const cost = m.myCost > 0 ? m.myCost : null;
       put(m, 'tasksPerDollar', cost && 1 / cost); put(m, 'pointsPerDollar', cost && m.myIndex != null ? m.myIndex / cost : null); put(m, 'planTasks', cost && fee > 0 ? fee / cost : null);
+      const sh = cost ? planShareOf(m) : null;
+      put(m, 'planCost', cost && sh ? cost * sh.share : null); m.planInfo = cost ? (sh ? sh.note : 'No plan data for this model, so it isn\'t drawn on a plan-cost axis') : ''; m.planThin = !!sh?.thin; m.planSub = cost && sh?.sub ? sh.sub : '';
     }
   }
   // Grade B+ as it stood on 18 Oct 2026, before this page added the newer evaluations. Kept until a newer
@@ -1929,7 +2009,7 @@
     }
     return '';
   }
-  const usesYourIndex = () => [S.x, S.y].some((k) => ['myIndex','myCost','pointsPerDollar','tasksPerDollar','planTasks'].includes(k));
+  const usesYourIndex = () => [S.x, S.y].some((k) => ['myIndex','myCost','pointsPerDollar','tasksPerDollar','planTasks','planCost'].includes(k));
   function renderAAII() {
     const el = $('aaiiBlock'), members = iiMembers(), N = members.length, ver = DATA.index?.version || '';
     el.hidden = !N; if (!N) return;
@@ -2380,6 +2460,7 @@
     focus: 'off', halo: 'thin', rowMetric: 'costPerTask', rowScale: 'linear', minGrade: 'any', plan: 'Claude Pro', planPrice: 20,
     basis: 'aa', basisFill: true, planView: 'scatter', planScope: 'chart', planHideLabs: [], planHideEfforts: [], planMineOnly: false, planSort: { key: 'tasks', dir: -1 },
     lineStyle: 'solid', valueLabels: 'off', valueFront: false, shortEffort: false, shortEffortTouched: false, extWithFamily: 'auto', xRel: 'off', yRel: 'off', ramp: 'viridis', dual: 'ring', idColor: 'lab', wide: false,
+    subPlans: {}, autoPts: {}, nameAt: 'end', tallRatio: 2, smallCaps: false, smallCapsOff: false, smallCapsAuto: false, valueVsX: 'axis', valueVsY: 'axis', valueAsX: 'auto', valueAsY: 'auto', autoBest: false, autoBestPct: 5, autoBase: false, autoBasePts: 3,
     guideAxes: 'both', guideBox: 'tint', guideBoxColor: 'model', zoneColor: 'theme',
     usagePeriod: '30', usageMetric: 'cost', usageGroup: 'model', usageRel: 'off', usageAs: '', usagePlans: {}, usageSort: { key: 'cost', dir: -1 }, usageCols: 'basic', usageCum: false, usageHeat: 'requests', // "Your usage": personal, so not in saved sets
   };
@@ -2417,6 +2498,7 @@
   }
   // "No mark" used to be markEffort 'none' (older saved views, sets and links); it's now the mark style, and the effort stays
   // a real one. ?lineStyle=off turns the lines off. Anything unknown falls back to the default.
+  const VALUE_FORMS = ['auto', 'value', 'rel', 'vr', 'rv', 'delta', 'vd'];
   function fixMarks() {
     if (!['top', 'low', 'medium', 'high', 'xhigh', 'max'].includes(S.ladderAt)) S.ladderAt = 'top';
     if (S.colorBy === 'open' || !['lab', 'effort', 'x', 'y', 'both'].includes(S.colorBy)) S.colorBy = 'lab';
@@ -2435,8 +2517,19 @@
     if (!['none', 'tint', 'hatch', 'outline', 'gradient'].includes(S.zoneStyle)) S.zoneStyle = DEFAULT_STATE.zoneStyle;
     if (!['theme', 'grey', 'model'].includes(S.zoneColor)) S.zoneColor = DEFAULT_STATE.zoneColor;
     if (!['off', 'lines', 'ring', 'field', 'split'].includes(S.dual)) S.dual = 'off';
+    if (!['standard', 'tall', 'diamond'].includes(S.shape)) S.shape = DEFAULT_STATE.shape;
+    if (!['end', 'maxX'].includes(S.nameAt)) S.nameAt = 'end';
+    const num = (v, d, lo, hi) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+    S.tallRatio = num(S.tallRatio, DEFAULT_STATE.tallRatio, 1.2, 3);
+    S.subPlans = Object.fromEntries(Object.entries(S.subPlans && typeof S.subPlans === 'object' ? S.subPlans : {}).filter(([lab, v]) => ['openai', 'anthropic', 'google', 'xai'].includes(lab) && typeof v === 'string' && (v === 'median' || (window.PLAN_SHARES?.plans?.[v]?.[1] === lab))));
+    S.autoBestPct = num(S.autoBestPct, DEFAULT_STATE.autoBestPct, 0, 100); S.autoBasePts = num(S.autoBasePts, DEFAULT_STATE.autoBasePts, 0, 1e9);
+    S.autoPts = Object.fromEntries(Object.entries(S.autoPts && typeof S.autoPts === 'object' ? S.autoPts : {}).filter(([k, v]) => typeof k === 'string' && Number.isFinite(v) && v >= 0 && v <= 1e9));
+    S.autoBest = S.autoBest === true; S.autoBase = S.autoBase === true;
+    for (const k of ['valueAsX', 'valueAsY']) if (!VALUE_FORMS.includes(S[k])) S[k] = 'auto';
+    for (const k of ['valueVsX', 'valueVsY']) if (!['axis', 'best'].includes(S[k])) S[k] = 'axis';
+    S.smallCaps = !!S.smallCaps; S.smallCapsOff = !!S.smallCapsOff; S.smallCapsAuto = !!S.smallCapsAuto;
   }
-  fixAxes(); PLAN_FEE = +S.planPrice || 0; applyBasis();
+  fixAxes(); PLAN_FEE = +S.planPrice || 0; SUB_PLANS = S.subPlans; applyBasis();
   S.selected = new Set(S.selected.filter((id) => BY_ID.has(id)));
   S.pinned = new Set(S.pinned.filter((id) => BY_ID.has(id)));
   S.efforts = new Set(S.efforts);
@@ -2628,7 +2721,7 @@
     const raw = span / count, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
     return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
   }
-  function makeScale(values, type, range, relative = false) {
+  function makeScale(values, type, range, relative = false, count = 7) {
     const [r0, r1] = range;
     if (relative && type === 'log') {
       // Centre reciprocal ratios only when the data straddles 1×; otherwise use the whole plot.
@@ -2681,7 +2774,7 @@
     if (lo === hi) { lo -= 1; hi += 1; }
     const span = hi - lo; lo -= span * 0.06; hi += span * 0.06;
     if (Math.min(...values) >= 0 && lo < 0) lo = 0;
-    const step = niceStep(hi - lo, 7);
+    const step = niceStep(hi - lo, count);
     lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
     const ticks = []; for (let t = lo; t <= hi + step / 1e6; t += step) ticks.push(+t.toPrecision(12));
     return { f: (v) => r0 + ((v - lo) / (hi - lo)) * (r1 - r0), ticks, lo, hi, ok: Number.isFinite };
@@ -2718,10 +2811,10 @@
   }
   const sweetSpotFailure = (front) => front.length < 3 ? 'Sweet spot needs at least 3 models on the frontier.' : 'No sweet spot on this scale: the frontier does not bend toward better on both.';
   const medianOf = (values) => { const vs = values.slice().sort((a, b) => a - b), n = vs.length; return n % 2 ? vs[(n - 1) / 2] : (vs[n / 2 - 1] + vs[n / 2]) / 2; };
-  function relativeMetric(metric, points, axis, ctx) {
+  function relativeMetric(metric, points, axis, ctx, refPoints = points) {
     const key = refKeyOf(S[axis + 'Rel']), def = REF_DEFS[key];
     if (key === 'off' || !def) return metric;
-    const ref = def.pick(points, axis, ctx);
+    const ref = def.pick(refPoints, axis, ctx);
     const why = ref?.note || (!Number.isFinite(ref?.value) ? 'This reference is missing or not finite, so there is nothing to divide by.' : ref.value <= 0 ? `This reference is ${metric.fmt(ref.value)}, so ${ref.value === 0 ? 'there is nothing to divide by' : 'a positive value is needed'}.` : points.some((p) => !Number.isFinite(p[axis + 'v'] / ref.value)) ? 'The reference is too small to form finite ratios.' : '');
     if (why) { ctx.notes.push(`${axis.toUpperCase()}: ${why} Original units shown.`); return metric; }
     const name = ref.model ? refName(ref.model) : ref.point ? ref.point.m.label : `${metric.fmt(ref.value)} (${def.label.toLowerCase()})`;
@@ -2964,7 +3057,7 @@
     const left = q || S.allLabs ? 0 : new Set(ALL.filter((m) => (S.showDeprecated || !m.deprecated) && !superseded(m) && !labs.has(m.creatorSlug)).map((m) => m.creatorSlug)).size;
     if (left) html += `<div class="note" style="margin-top:10px">${left} more lab${left > 1 ? 's' : ''} ranked below DeepSeek or not on Artificial Analysis' chart · <a href="#" id="showAllLabs">show all labs</a></div>`;
     $('modelList').innerHTML = html || '<div class="note">No models match.</div>';
-    $('showAllLabs')?.addEventListener('click', (e) => { e.preventDefault(); S.allLabs = true; $('allLabs').checked = true; save(); renderList(); });
+    $('showAllLabs')?.addEventListener('click', (e) => { e.preventDefault(); S.allLabs = true; $('allLabs').checked = true; save(); renderList(); render(); });
     $('selCount').textContent = `${S.selected.size} selected · ${cat.length} in list`;
     sideSummary('models', `${S.selected.size} selected`);
     renderEffortChips();
@@ -3047,15 +3140,17 @@
 
   // ---------- saved sets ----------
   function snapshot() {
-    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, ladderAt: S.ladderAt, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor };
+    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, ladderAt: S.ladderAt, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor, nameAt: S.nameAt, tallRatio: S.tallRatio, valueAsX: S.valueAsX, valueAsY: S.valueAsY, valueVsX: S.valueVsX, valueVsY: S.valueVsY, smallCaps: S.smallCaps, smallCapsOff: S.smallCapsOff, smallCapsAuto: S.smallCapsAuto, subPlans: S.subPlans, autoPts: S.autoPts, autoBest: S.autoBest, autoBestPct: S.autoBestPct, autoBase: S.autoBase, autoBasePts: S.autoBasePts };
   }
   function applySet(snap) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
-    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (snap[k] != null) S[k] = snap[k];
+    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor', 'nameAt', 'tallRatio', 'valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'smallCaps', 'smallCapsOff', 'smallCapsAuto', 'subPlans', 'autoPts', 'autoBest', 'autoBestPct', 'autoBase', 'autoBasePts']) if (snap[k] != null) S[k] = snap[k];
     if (snap.shortEffort != null && snap.shortEffortTouched == null) S.shortEffortTouched = true;
-    fixAxes(); fixMarks(); syncControls(); save(); renderList(); render();
+    fixAxes(); fixMarks(); syncControls();
+    SUB_PLANS = S.subPlans; derive(); $('subPlansWrap').querySelectorAll('select').forEach((sel) => { sel.value = S.subPlans[sel.dataset.lab] || 'median'; });
+    save(); renderList(); render();
   }
   let dirty = false;
   function markDirty() { if (S.activeSet && !dirty) { dirty = true; renderSetSelect(); } }
@@ -3156,6 +3251,7 @@
     fixAxes();
     applyShortEffortAuto();
     renderMetricMenus(); $('activeOnly').checked = S.activeOnly; $('markSel').value = S.markEffort; $('fullFrontier').checked = S.fullFrontier; $('valueFront').checked = !!S.valueFront; $('shortEffort').checked = !!S.shortEffort;
+    $('nameAtMaxX').checked = S.nameAt === 'maxX'; $('smallCaps').checked = S.smallCaps; $('valueVsX').value = S.valueVsX; $('valueVsY').value = S.valueVsY; $('valueAsX').value = S.valueAsX; $('valueAsY').value = S.valueAsY; $('tallRatio').value = S.tallRatio; $('tallRatioOut').textContent = (+S.tallRatio).toFixed(1) + '×'; syncAuto();
     $('extFamSeg')?.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === (S.extWithFamily || 'auto'))));
     $('showDeprecated').checked = S.showDeprecated; $('openOnly').checked = S.openOnly; $('hideOlder').checked = S.hideOlder; $('allLabs').checked = S.allLabs; $('addEffort').value = S.addEffort; $('themeSel').value = S.theme;
     const seedEl = $('benchSeed'); if (seedEl) seedEl.value = pickState().seed;
@@ -3465,6 +3561,21 @@
   $('zoneSeg').addEventListener('click', zoneColorSync); syncs.push(zoneColorSync);
   $('rampSel').addEventListener('change', (e) => { S.ramp = e.target.value; markDirty(); save(); render(); });
   $('valueFront').addEventListener('change', (e) => { S.valueFront = e.target.checked; markDirty(); save(); render(); });
+  for (const k of ['valueAsX', 'valueAsY', 'valueVsX', 'valueVsY']) $(k).addEventListener('change', (e) => { S[k] = e.target.value; markDirty(); save(); render(); });
+  $('nameAtMaxX').addEventListener('change', (e) => { S.nameAt = e.target.checked ? 'maxX' : 'end'; if (e.target.checked && !S.smallCapsOff && !S.smallCaps) { S.smallCaps = S.smallCapsAuto = true; } else if (!e.target.checked && S.smallCapsAuto) { S.smallCaps = S.smallCapsAuto = false; } $('smallCaps').checked = S.smallCaps; markDirty(); save(); render(); });
+  $('smallCaps').addEventListener('change', (e) => { S.smallCaps = e.target.checked; S.smallCapsOff = !e.target.checked; S.smallCapsAuto = false; markDirty(); save(); render(); });
+  let tallFrame = 0;
+  $('tallRatio').addEventListener('input', (e) => { S.tallRatio = +e.target.value; $('tallRatioOut').textContent = S.tallRatio.toFixed(1) + '×'; cancelAnimationFrame(tallFrame); tallFrame = requestAnimationFrame(render); });
+  $('tallRatio').addEventListener('change', () => { markDirty(); save(); });
+  for (const k of ['autoBest', 'autoBase']) $(k).addEventListener('change', (e) => { S[k] = e.target.checked; markDirty(); save(); render(); });
+  for (const k of ['autoBestPct', 'autoBasePts']) $(k).addEventListener('change', (e) => { const n = Number(e.target.value); if (Number.isFinite(n) && n >= 0) { S[k] = n; if (k === 'autoBestPct') S.autoBest = true; else { S.autoBase = true; S.autoPts = { ...S.autoPts, [S.y]: n }; } } fixMarks(); syncAuto(); markDirty(); save(); render(); });
+  $('autoNote').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.tick) { S.selected.add(b.dataset.tick); markDirty(); save(); renderList(); render(); }
+    else if (b.dataset.auto === 'select') { for (const id of lastAutoIds) S.selected.add(id); markDirty(); save(); renderList(); render(); }
+    else if (b.dataset.auto === 'off') { S.autoBest = S.autoBase = false; syncAuto(); markDirty(); save(); render(); }
+  });
+  function syncAuto() { $('autoBest').checked = S.autoBest; $('autoBase').checked = S.autoBase; $('autoBestPct').value = S.autoBestPct; $('autoBasePts').value = S.autoBasePts; }
   $('shortEffort').addEventListener('change', (e) => { S.shortEffort = e.target.checked; S.shortEffortTouched = true; markDirty(); save(); render(); });
   $('extFamSeg').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
@@ -3486,10 +3597,10 @@
     $('aaiiBlock').querySelectorAll('[data-weights]').forEach((b) => b.setAttribute('aria-expanded', String(open)));
   });
   $('fullFrontier').addEventListener('change', (e) => { S.fullFrontier = e.target.checked; if (S.fullFrontier && S.pareto === 'off') { S.pareto = 'step'; syncControls(); } markDirty(); save(); render(); });
-  $('showDeprecated').addEventListener('change', (e) => { S.showDeprecated = e.target.checked; save(); renderList(); });
-  $('openOnly').addEventListener('change', (e) => { S.openOnly = e.target.checked; save(); renderList(); });
+  $('showDeprecated').addEventListener('change', (e) => { S.showDeprecated = e.target.checked; save(); renderList(); render(); });
+  $('openOnly').addEventListener('change', (e) => { S.openOnly = e.target.checked; save(); renderList(); render(); });
   $('hideOlder').addEventListener('change', (e) => { S.hideOlder = e.target.checked; markDirty(); save(); renderList(); render(); });
-  $('allLabs').addEventListener('change', (e) => { S.allLabs = e.target.checked; save(); renderList(); });
+  $('allLabs').addEventListener('change', (e) => { S.allLabs = e.target.checked; save(); renderList(); render(); });
   $('addEffort').addEventListener('change', (e) => { S.addEffort = e.target.value; save(); });
   $('themeSel').addEventListener('change', (e) => { S.theme = e.target.value; applyTheme(); save(); render(); });
   $('search').addEventListener('input', (e) => { search = e.target.value; renderList(); });
@@ -3611,21 +3722,93 @@
   const highlight = new Set();
   let colorKey = null; // coloring by value: the legend's key, which the SVG/PNG export draws under the chart
 
+  // ---------- auto-include ----------
+  // "Also show any model-effort on its own" (Models): any model-effort whose Y value is within autoBestPct % of the best Y in the
+  // list, or within autoBasePts of the Y axis's 1.0 (the best when Y has no 1.0), joins the chart without being selected.
+  // Each effort is judged on its own; the list filters and the effort chips still apply. It isn't saved as a selection: every
+  // render works it out again, so a data update adds or drops models by itself.
+  // Its 1.0 is the one the chart uses (yBase, worked out by render on the selected models), so the two never disagree.
+  const AUTO_MEMO_KEY = 'aa-charts:also-show-last';
+  let lastAutoIds = [];
+  function autoIncluded(chosen, yBase) {
+    const T = METRICS[S.y], k = S.y, low = T.better === 'low';
+    const unitWord = T.fmt === money ? 'dollars' : T.fmt === elo ? 'Elo' : T.fmt === secs ? 'seconds' : T.frac ? 'percentage points' : k === 'outputSpeed' ? 'tokens/s' : 'points';
+    const out = { extra: [], ids: new Set(), note: '', baseLabel: 'the best', unitWord };
+    const pool = ALL.filter((m) => passes(m) && labListed(m.creatorSlug) && S.efforts.has(m.effort) && scaleOk(S.yScale, m[k]) && scaleOk(S.xScale, m[S.x]));
+    const vals = pool.map((m) => m[k]), best = vals.length ? (low ? Math.min(...vals) : Math.max(...vals)) : NaN;
+    const base = yBase || { value: best, label: 'the best' };
+    out.baseLabel = base.label;
+    // "within N": this Y metric's own number, else 5% of the baseline to one significant figure (3 on a 0–100 index)
+    const fallbackPts = Number.isFinite(base.value) && base.value !== 0 ? +(Math.abs(base.value) * 0.05 * (T.frac ? 100 : 1)).toPrecision(1) : DEFAULT_STATE.autoBasePts;
+    S.autoBasePts = S.autoPts[k] ?? fallbackPts;
+    if ((!S.autoBest && !S.autoBase) || !pool.length) return out;
+    // (the status line below always says how many are ticked and added while a rule is on)
+    const keep = new Set(), why = [];
+    if (S.autoBest) {
+      if (!(best > 0)) why.push(`% rule skipped: the best ${T.label} is ${T.fmt(best)}, so a percentage of it is nothing`);
+      else {
+        const f = S.autoBestPct / 100, cut = low ? best * (1 + f) : best * (1 - f);
+        for (const m of pool) if (low ? m[k] <= cut : m[k] >= cut) keep.add(m);
+        why.push(`within ${S.autoBestPct}% of the best ${T.label} (${T.fmt(best)}, so ${low ? 'at most' : 'at least'} ${T.fmt(cut)})`);
+      }
+    }
+    const needsTicks = S.autoBase && !yBase && refKeyOf(S.yRel) !== 'off';
+    const refKey = refKeyOf(S.yRel);
+    if (needsTicks) out.baseLabel = "Y's 1.0 (paused)";
+    if (needsTicks) why.push(refKey === 'pinned' && !S.pinned.size ? `points rule paused: Y's 1.0 is the pinned model, and none is pinned`
+      : refKey === 'model' ? `points rule paused: Y's 1.0 model isn't shown` : !chosen.length ? `points rule paused: Y's 1.0 is worked out on the models you select, and none are selected`
+      : `points rule paused: Y's 1.0 can't be worked out from the selected models`);
+    if (S.autoBase && !needsTicks && Number.isFinite(base.value)) {
+      const d = S.autoBasePts / (T.frac ? 100 : 1);
+      for (const m of pool) if (Math.abs(m[k] - base.value) <= d + 1e-9) keep.add(m);
+      const atBest = base.value === best, range = atBest ? `${low ? 'at most' : 'at least'} ${T.fmt(low ? base.value + d : base.value - d)}` : `${T.fmt(base.value - d)} to ${T.fmt(base.value + d)}`;
+      why.push(`within ${S.autoBasePts} ${out.unitWord} of ${base.label} (${T.fmt(base.value)}, so ${range})`);
+    }
+    const sel = new Set(chosen.map((m) => m.id));
+    out.extra = [...keep].filter((m) => !sel.has(m.id));
+    out.ids = new Set(out.extra.map((m) => m.id));
+    // after a data update, say which model-efforts joined and which left under the same rules
+    const sig = [k, S.autoBest && S.autoBestPct, S.autoBase && S.autoBasePts, S.yRel, [...S.efforts].sort().join('.')].join('|'), when = DATA?.scrapedAt || ''; // the data on show (Update data replaces DATA), not the copy loaded with the page
+    const memo = load(AUTO_MEMO_KEY, null), labelOf = (id) => BY_ID.get(id)?.label || id;
+    let moved = '';
+    if (memo?.sig === sig && memo.when !== when) {
+      const before = new Set(memo.ids), joined = out.extra.filter((m) => !before.has(m.id)).map((m) => m.label), left = memo.ids.filter((id) => !out.ids.has(id)).map(labelOf);
+      if (joined.length || left.length) { moved = [...joined.map((n) => '+ ' + n), ...left.map((n) => '− ' + n)].join(', '); try { localStorage.setItem(AUTO_MEMO_KEY, JSON.stringify({ sig, when, ids: [...out.ids], moved, movedWhen: when })); } catch {} }
+    } else if (memo?.sig === sig && memo.moved && memo.movedWhen === when) moved = memo.moved;
+    if (memo?.sig !== sig || memo.when !== when) { try { if (!moved) localStorage.setItem(AUTO_MEMO_KEY, JSON.stringify({ sig, when, ids: [...out.ids] })); } catch {} }
+    out.moved = moved;
+    const rel = refKeyOf(S.xRel) !== 'off' || refKeyOf(S.yRel) !== 'off';
+    const n = out.extra.length, names = n && n <= 4 ? out.extra.map((m) => `<button type="button" class="linkish" data-tick="${esc(m.id)}" title="Select ${esc(m.label)} in the list">${esc(m.label)}</button>`).join(', ') : `${n} model-effort${n === 1 ? '' : 's'}`;
+    out.note = `<b>Also show:</b> ${chosen.length} selected + ${n} added${n ? `, not selected: ${names}` : ''} — ${esc(why.join('; or '))}.${n && rel && chosen.length ? ' The 1.0 is worked out on the models you selected, so these don’t move it.' : ''}${out.moved ? ` Since the data update: ${esc(out.moved)}.` : ''} <span class="auto-acts">${n ? '<button type="button" class="chip" data-auto="select">Select these</button> ' : ''}<button type="button" class="chip" data-auto="off">Turn off</button></span>`;
+    return out;
+  }
+
   function render() {
     // the ramp picker and Lab/Effort dual control show only when coloring by value (synced first, so an empty chart doesn't leave them stale)
     const byVal = VALUE_BY.has(S.colorBy);
     $('rampSel').hidden = !byVal; $('rampSel').value = RAMP_NAMES.includes(S.ramp) ? S.ramp : 'viridis';
     $('dualWrap').hidden = !byVal; $('dualLabel').textContent = S.idColor === 'effort' ? 'Effort' : 'Lab';
     const card = $('chartCard'), cs = getComputedStyle(card);
-    const W = Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
+    const availW = Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
+    let W = availW;
     // Narrow (phone): a taller-than-wide plot that fits the screen, tighter margins, horizontal y title.
-    const narrow = W < 560, diamond = S.shape === 'diamond';
-    const H = narrow ? Math.round(Math.max(340, Math.min(W * (diamond ? 1.15 : 1.35), innerHeight * 0.66))) : Math.round(Math.min(diamond ? (S.wide ? 900 : 820) : (S.wide ? 880 : 760), Math.max(diamond ? 500 : 440, W * (diamond ? 0.66 : 0.6))));
+    const narrow = W < 560, diamond = S.shape === 'diamond', tall = S.shape === 'tall';
+    // Tall: a narrow plot (about 46% of the card on a desk, the whole width on a phone) as tall as that width times the
+    // slider's ratio, so the Y axis gets the room. On a desk the SVG is only as wide as it needs, centred.
+    // Tall on a desk fills the window's visible height (below the sticky axis bar), and the slider sets how narrow the
+    // plot is (width = height ÷ ratio); at 220 px wide it stops narrowing and grows taller instead.
+    const visH = (() => { const main = document.querySelector('main'), bar = document.querySelector('.toolbar.axes');
+      const view = main && main.clientHeight > 0 && main.clientHeight < innerHeight ? main.clientHeight : innerHeight;
+      const note = $('autoNote'); return view - (bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0) - (note && !note.hidden ? note.offsetHeight + 4 : 0) - 12; })();
+    const tallPH = tall && !narrow ? Math.max(480, Math.min(1040, visH)) - 74 : 0;
+    const tallPW = tall && !narrow ? Math.min(Math.max(220, Math.round(tallPH / S.tallRatio)), Math.max(220, availW - 70 - 150)) : 0;
+    let H = tall ? Math.round((narrow ? W - 58 : tallPW) * S.tallRatio) + (narrow ? 70 : 74) : narrow ? Math.round(Math.max(340, Math.min(W * (diamond ? 1.15 : 1.35), innerHeight * 0.66))) : Math.round(Math.min(diamond ? (S.wide ? 900 : 820) : (S.wide ? 880 : 760), Math.max(diamond ? 500 : 440, W * (diamond ? 0.66 : 0.6))));
     // Diamond: tick labels and axis titles sit outside the rhombus, in the corners of the plot rectangle, so margins are small.
     const M = diamond ? (narrow ? { top: 22, right: 6, bottom: 40, left: 6 } : { top: 30, right: 24, bottom: 40, left: 24 })
       : narrow ? { top: 26, right: 12, bottom: 44, left: 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
+    if (tall && !narrow) { M.right = 150; W = Math.min(availW, M.left + tallPW + M.right); } // the right margin takes labels
     let PW = W - M.left - M.right;
-    const PH = H - M.top - M.bottom;
+    let PH = H - M.top - M.bottom;
     let X = METRICS[S.x], Y = METRICS[S.y];
     const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
 
@@ -3638,12 +3821,22 @@
     const ladder = S.labels === 'ladder' && !diamond;
     $('ladderAtWrap').hidden = !ladder; $('ladderAtSel').value = S.ladderAt;
     const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort) && !superseded(m));
+    // the Y axis's 1.0, worked out on the selected models only, so Also show's dots can't move it (and "within N points
+    // of Y's 1.0" uses exactly the 1.0 the chart divides by)
+    const manualPts = chosen.filter((m) => scaleOk(S.xScale, m[S.x]) && scaleOk(S.yScale, m[S.y])).map((m) => ({ m, xv: m[S.x], yv: m[S.y] }));
+    const manualFront = paretoFront(manualPts), yKey = refKeyOf(S.yRel);
+    const yPick = yKey !== 'off' && REF_DEFS[yKey] ? REF_DEFS[yKey].pick(manualPts, 'y', { front: manualFront, knee: kneeOf(manualFront), notes: [], ghosts: [] }) : null;
+    const yBase = Number.isFinite(yPick?.value) && yPick.value > 0 ? { value: yPick.value, label: `${yPick.model ? refName(yPick.model) : yPick.point ? yPick.point.m.label : REF_DEFS[yKey].label.toLowerCase()}, Y's 1.0` } : null;
+    const auto = autoIncluded(chosen, yBase); lastAutoIds = [...auto.ids];
+    chosen.push(...auto.extra);
+    $('autoBaseRef').textContent = auto.baseLabel; $('autoBaseUnit').textContent = auto.unitWord;
+    if (document.activeElement !== $('autoBasePts')) $('autoBasePts').value = S.autoBasePts;
     const missing = [];
     let points = [];
     for (const m of chosen) {
       const xv = m[S.x], yv = m[S.y];
       const okX = scaleOk(S.xScale, xv), okY = scaleOk(S.yScale, yv);
-      if (okX && okY) points.push({ m, xv, yv }); else missing.push(m);
+      if (okX && okY) points.push({ m, xv, yv, auto: auto.ids.has(m.id) }); else missing.push(m);
     }
     const anchors = [];
     // Ladder at an effort the effort filter hides: a selected model's result at that effort is drawn hollow, so its
@@ -3671,11 +3864,44 @@
       } else front = paretoFront(points);
     }
     refCtx.ghosts = inScale; // the faint frontier dots that get drawn (a model reference may be one of them)
-    X = relativeMetric(X, points, 'x', refCtx); Y = relativeMetric(Y, points, 'y', refCtx);
+    // 1.0 comes from the models you selected: dots added by Also show never move it
+    const manual = auto.ids.size ? points.filter((p) => !p.auto) : points, manualF = manual === points ? null : paretoFront(manual);
+    const relCtx = manualF ? { ...refCtx, front: manualF, knee: kneeOf(manualF) } : refCtx;
+    X = relativeMetric(X, points, 'x', relCtx, manual); Y = relativeMetric(Y, points, 'y', relCtx, manual);
     if (X.ref?.key === 'sweet' && Y.ref?.key === 'sweet' && X.ref.point === Y.ref.point) refCtx.notes = [refCtx.notes[0].replace(/^X: 1.0 =/, '1.0 on both axes =')];
     for (const p of points.concat(ghosts, anchors)) { p.rawX = p.xv; p.rawY = p.yv; if (X.ref) p.xv /= X.ref.value; if (Y.ref) p.yv /= Y.ref.value; }
-    $('relativeNote').hidden = !refCtx.notes.length;
-    $('relativeNote').textContent = refCtx.notes.join(' ');
+    const bestRaw = (axis) => { const low = METRICS[S[axis]].better === 'low', vs = points.map((p) => p[axis === 'x' ? 'rawX' : 'rawY']).filter(Number.isFinite); return vs.length ? (low ? Math.min(...vs) : Math.max(...vs)) : NaN; };
+    labelBase = { x: X.ref && S.valueVsX === 'axis' ? X.ref.value : bestRaw('x'), y: Y.ref && S.valueVsY === 'axis' ? Y.ref.value : bestRaw('y') };
+    // each "as" list shows what its forms look like on a real dot: the best shown one that isn't the reference itself
+    const FORM_NAME = { auto: 'match axis', value: 'value', rel: '×', vr: 'value (×)', rv: '× (value)', delta: '±', vd: 'value (±)' };
+    const exYLow = METRICS[S.y].better === 'low', bothOf = (all) => points.filter((p) => (all || !p.auto) && Number.isFinite(p.rawX) && Number.isFinite(p.rawY) && p.rawX !== labelBase.x && p.rawY !== labelBase.y)
+      .sort((p, q) => exYLow ? p.rawY - q.rawY : q.rawY - p.rawY)[0], exBoth = bothOf(false) || bothOf(true);
+    for (const a of ['x', 'y']) {
+      const T = a === 'x' ? X : Y, raw = a === 'x' ? 'rawX' : 'rawY', low = METRICS[S[a]].better === 'low', base = labelBase[a];
+      const exOf = (all) => points.filter((p) => (all || !p.auto) && Number.isFinite(p[raw]) && p[raw] !== base).sort((p, q) => low ? p[raw] - q[raw] : q[raw] - p[raw])[0];
+      const ex = exBoth || exOf(false) || exOf(true);
+      const sel = $(a === 'x' ? 'valueAsX' : 'valueAsY'), vs = $(a === 'x' ? 'valueVsX' : 'valueVsY'), hasRef = !!T.ref;
+      let og = sel.querySelector('optgroup'); if (!og) { og = document.createElement('optgroup'); og.append(...sel.querySelectorAll('option')); sel.append(og); }
+      og.label = ex ? `Examples: ${ex.m.label}` : 'Write each value as'; sel.value = S[a === 'x' ? 'valueAsX' : 'valueAsY'] || 'auto';
+      for (const o of sel.options) o.textContent = ex ? `${axisValue(ex, a, T, o.value)} · ${FORM_NAME[o.value]}` : FORM_NAME[o.value];
+      sel.title = ex ? `How each dot's ${a.toUpperCase()} value is written. The examples are ${ex.m.label}.` : sel.title;
+      vs.options[0].disabled = !hasRef; vs.value = hasRef ? S[a === 'x' ? 'valueVsX' : 'valueVsY'] : 'best';
+      vs.hidden = ['auto', 'value'].includes(S[a === 'x' ? 'valueAsX' : 'valueAsY']);
+    }
+    let baseNotes = ['x', 'y'].filter((a) => (S.valueLabels === 'both' || S.valueLabels === a || (a === 'y' && ladder)) && !['auto', 'value'].includes(S[a === 'x' ? 'valueAsX' : 'valueAsY']) && !(a === 'x' ? X : Y).ref)
+      .map((a) => `${a.toUpperCase()} values by the dots: × and ± compare with the best shown, ${METRICS[S[a]].fmt(labelBase[a])}.`);
+    if ([S.x, S.y].includes('planCost')) {
+      const api = [...new Set(chosen.filter((m) => m.planInfo?.startsWith('No plan data')).map((m) => m.familyName))];
+      const thin = [...new Set(points.filter((p) => p.m.planThin).map((p) => p.m.familyName))];
+      const subs = new Map(); for (const p of points) if (p.m.planSub) subs.set(p.m.planSub, (subs.get(p.m.planSub) || new Set()).add(p.m.familyName));
+      const subText = [...subs].map(([plan, fams]) => ` ${plan} has no data for ${[...fams].join(', ')}, so ${fams.size === 1 ? 'it uses' : 'they use'} the median of that lab's other plans.`).join('');
+      baseNotes.push(`Plan cost per task (estimated, at full plan use): plans' real token prices from Real API Pricing (MIT, snapshot ${PSH.snapshot || ''}); each lab at the median of its plans with data, unless you pick one under Subscription math.${subText}${thin.length ? ` Thin estimate (one plan, low confidence): ${thin.join(', ')}.` : ''}${api.length ? ` No plan data, so not drawn: ${api.join(', ')}.` : ''}`);
+    }
+    $('relativeNote').hidden = !refCtx.notes.length && !baseNotes.length;
+    $('relativeNote').textContent = refCtx.notes.concat(baseNotes).join(' ');
+    const noteEl = $('autoNote'), noteHBefore = noteEl.hidden ? 0 : noteEl.offsetHeight;
+    noteEl.hidden = !auto.note; noteEl.innerHTML = auto.note;
+    if (tall && !narrow && !render.refit && (noteEl.hidden ? 0 : noteEl.offsetHeight) !== noteHBefore) { render.refit = true; queueMicrotask(() => { try { render(); } finally { render.refit = false; } }); }
     const basisTag = ` (${BASIS_SHORT[BASIS]})`, sharedBasis = usesYourIndex() && Y.label.includes(basisTag) && X.label.includes(basisTag);
     $('chartTitle').textContent = sharedBasis ? `${Y.label.replace(basisTag, '')} vs. ${X.label.replace(basisTag, '')}, ${BASIS_PHRASE[BASIS]}` : `${Y.label} vs. ${X.label}`;
     const subtitleText = (k, T, lower) => {
@@ -3691,7 +3917,7 @@
     renderExplain();
     svg.setAttribute('aria-label', $('chartTitle').textContent);
     // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
-    if (!narrow && !diamond) { const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700))); if (yw + 44 > M.left) { M.left = Math.ceil(yw + 44); PW = W - M.left - M.right; } }
+    if (!narrow && !diamond) { const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700))); if (yw + 44 > M.left) { M.left = Math.ceil(yw + 44); if (tall) W = Math.min(availW, M.left + tallPW + M.right); PW = W - M.left - M.right; } }
     // "Ladder" labels: model names in a column to the right of the plot, so they never sit on the data
     if (ladder) {
       const names = [...new Set(points.concat(anchors).map((p) => p.m.familyName))];
@@ -3703,12 +3929,21 @@
         return S.ladderAt === 'top' ? ps.at(-1) : ps.find((p) => p.m.effort === S.ladderAt) || (line.endsWith(':nr') ? null : anchors.find((p) => p.m.family === fam)) || ps.slice().sort((a,b) => Math.abs(a.m.effortLevel-EFFORT_LEVEL[S.ladderAt])-Math.abs(b.m.effortLevel-EFFORT_LEVEL[S.ladderAt]) || a.m.effortLevel-b.m.effortLevel)[0];
       }).filter(Boolean).concat(anchors.filter((p) => !points.some((q) => q.m.family === p.m.family && q.m.effort !== 'non-reasoning')));
       const maxValue = Math.max(0, ...valuePoints.map((p) => textW(ladderValue(p, Y).text, narrow ? 11 : 12, 500)));
-      M.right = Math.min(Math.ceil(maxName + 10 + maxValue + 24), Math.round(W * (narrow ? 0.45 : 0.32))); PW = W - M.left - M.right;
+      const need = Math.ceil(maxName + 10 + maxValue + 24);
+      if (tall && !narrow) { M.right = Math.max(28, Math.min(need, availW - M.left - tallPW)); W = Math.min(availW, M.left + tallPW + M.right); }
+      else M.right = Math.min(need, Math.round(W * (narrow ? 0.45 : 0.32)));
+      PW = W - M.left - M.right;
     }
+    if (tall && !narrow) { H = Math.round(PW * S.tallRatio) + M.top + M.bottom; PH = H - M.top - M.bottom; }
+    if (tall) $('tallRatioOut').textContent = (+S.tallRatio).toFixed(1) + '×' + (narrow ? ` · ${H} px tall` : H > Math.max(480, Math.min(1040, visH)) + 2 ? ' · taller than the window' : '');
+    if (tall) { svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H); }
+    svg.classList.toggle('tall', tall && !narrow);
     const shownIds = new Set(chosen.concat(anchors.map((p) => p.m)).map((m) => m.id));
     const hiddenByEffort = [...S.selected].filter((id) => !shownIds.has(id)).length;
     let note = [];
-    if (missing.length) note.push(`${missing.length} selected model-effort variant${missing.length > 1 ? 's have' : ' has'} no ${!missing.every((m) => m[S.x] != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missing.slice(0, 6).map((m) => m.label).join(', ')}${missing.length > 6 ? '…' : ''}`);
+    const planNamed = (m) => [S.x, S.y].includes('planCost') && m.planInfo?.startsWith('No plan data') && m[S.x === 'planCost' ? S.y : S.x] != null;
+    const missNote = missing.filter((m) => !planNamed(m));
+    if (missNote.length) note.push(`${missNote.length} selected model-effort variant${missNote.length > 1 ? 's have' : ' has'} no ${!missNote.every((m) => m[S.x] != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missNote.slice(0, 6).map((m) => m.label).join(', ')}${missNote.length > 6 ? '…' : ''}`);
     if (hiddenByEffort) note.push(`${hiddenByEffort} hidden by the effort filter.`);
     $('chartNote').textContent = note.join(' · ');
     const olderShown = S.connect && points.some((p) => FAMILY.get(p.m.family)?.older);
@@ -3733,8 +3968,8 @@
       $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); syncHighlights(new Set(), narrow); return;
     }
 
-    const sx = makeScale(points.concat(inScale, anchors).map((p) => p.xv), S.xScale, [M.left, M.left + PW], !!X.ref);
-    const sy = makeScale(points.concat(inScale, anchors).map((p) => p.yv), S.yScale, [M.top + PH, M.top], !!Y.ref);
+    const sx = makeScale(points.concat(inScale, anchors).map((p) => p.xv), S.xScale, [M.left, M.left + PW], !!X.ref, tall ? Math.max(4, Math.round(PW / 95)) : 7);
+    const sy = makeScale(points.concat(inScale, anchors).map((p) => p.yv), S.yScale, [M.top + PH, M.top], !!Y.ref, tall ? Math.max(7, Math.round(PH / 85)) : 7);
     // a model that isn't on the chart can be 1.0 outside what's shown: the scales aren't stretched to reach it, the note says so
     const offScale = [['X', X, sx, M.left, M.left + PW], ['Y', Y, sy, M.top, M.top + PH]].filter(([, metric, sc, a, b]) => metric.ref?.offChart && !(sc.f(1) >= a - 0.5 && sc.f(1) <= b + 0.5)).map(([axis]) => axis);
     if (offScale.length) { $('relativeNote').hidden = false; $('relativeNote').textContent += ` ${offScale.join(' and ')}: 1.0 is beyond the edge of the chart.`; }
@@ -3907,7 +4142,10 @@
     }
     for (const ps of series.values()) {
       ps.sort((a, b) => a.m.effortLevel - b.m.effortLevel || a.xv - b.xv);
-      ps.forEach((p, i) => { p.series = ps; p.isEnd = i === ps.length - 1; });
+      // the dot that carries the model's name (and the bigger dot): its highest effort, or with "bold full name at highest X" its highest X value
+      const atMaxX = S.nameAt === 'maxX' && !['all', 'none', 'ladder'].includes(S.labels);
+      const nameDot = atMaxX ? ps.reduce((a, b) => (b.xv >= a.xv ? b : a)) : ps.at(-1);
+      ps.forEach((p) => { p.series = ps; p.isEnd = p === nameDot; });
       if (!S.connect || ps.length < 2) continue;
       for (let i = 1; i < ps.length; i++) segs.push([ps[i - 1].px, ps[i - 1].py, ps[i].px, ps[i].py]);
       const fam = ps[0].m.family, look = lineLook(FAMILY.get(fam)?.older), dash = LINE_DASH[look], byLab = S.colorBy === 'lab' || (dual !== 'off' && S.idColor === 'lab'), byEffortLine = dual === 'lines' && S.idColor === 'effort', lCol = byLab ? familyColor(ps[0].m) : C.muted;
@@ -3967,6 +4205,7 @@
       const layer = dimmed(p) ? fadeLayer : dotLayer;
       if (onFront && S.frontStyle === 'rings') layer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r: ro + 3.5, fill: 'none', stroke: C.ink, 'stroke-width': 1, 'stroke-opacity': 0.45 }));
       layer.append(dotMark(p, r, C.surface, { 'data-id': p.m.id, 'data-fam': p.m.family }, dual));
+      if (p.auto) layer.append(svgEl('circle', { class: 'auto-halo', 'data-fam': p.m.family, cx: p.px, cy: p.py, r: ro + 3 + (onFront && S.frontStyle === 'rings' ? 3.5 : 0), fill: 'none', stroke: p.color, 'stroke-width': 1, 'stroke-dasharray': '2 2', 'pointer-events': 'none' }));
     }
     for (const p of anchors) dotLayer.append(svgEl('circle', { class: 'ladder-anchor', 'data-id': p.m.id, 'data-fam': p.m.family, cx: p.px, cy: p.py, r: 4.5, stroke: S.colorBy === 'lab' || (dual !== 'off' && S.idColor === 'lab') ? familyColor(p.m) : dual === 'lines' && S.idColor === 'effort' ? p.lab : C.muted, 'stroke-width': 1.5, fill: C.surface }));
     const references = new Map();
@@ -4126,7 +4365,7 @@
   function ladderValue(p, Y, short = false) {
     const fallback = S.ladderAt !== 'top' && p.m.effort !== S.ladderAt;
     const prefix = S.ladderAt === 'top' || fallback ? (S.shortEffort || short ? EFFORT_SHORT[p.m.effort] || p.m.effort.toUpperCase() : (EFFORT_LABEL[p.m.effort] || p.m.effort).toLowerCase()) : '';
-    const value = valFmt(Y, p.yv); return { prefix, value, fallback, text: [prefix, value].filter(Boolean).join(' ') };
+    const value = axisValue(p, 'y', Y); return { prefix, value, fallback, text: [prefix, value].filter(Boolean).join(' ') };
   }
   function placeLabels(points, frontSet, layer, { M, PW, PH, C, X, Y, segs, ghosts = [], dimmed = () => false, ladder = false, narrow = false, anchors = [], rings = new Set(), valueIds = null }) {
     const H = 14, pad = 3, ladderPts = anchors.filter((p) => !points.some((q) => q.m.family === p.m.family && q.m.effort !== 'non-reasoning')); // a hollow dot whose reasoning line shows no dot gets its own row
@@ -4156,8 +4395,8 @@
     // ("high · $1.20"); a dot with a name gets its value on the side away from the name. Values were asked for, so they
     // also try further out, then with a leader, before being left off.
     const named = S.labels !== 'none', autoMode = S.labels === 'auto' || S.labels === 'autoplus' || S.labels === 'ladder', seriesMode = S.labels === 'series' || autoMode;
-    const valueOf = { x: (p) => valFmt(X, p.xv), y: (p) => valFmt(Y, p.yv), both: (p) => `${valFmt(X, p.xv)} · ${valFmt(Y, p.yv)}` }[S.valueLabels];
-    const effortWord = (p) => p.m.effort === 'default' || p.m.effort === 'non-reasoning' ? '' : S.shortEffort ? (EFFORT_SHORT[p.m.effort] || p.m.effort.toUpperCase()) : EFFORT_LABEL[p.m.effort].toLowerCase();
+    const valueOf = { x: (p) => axisValue(p, 'x', X), y: (p) => axisValue(p, 'y', Y), both: (p) => `${axisValue(p, 'x', X)} · ${axisValue(p, 'y', Y)}` }[S.valueLabels];
+    const effortWord = (p, inName = false) => { const w = p.m.effort === 'default' || p.m.effort === 'non-reasoning' ? '' : S.shortEffort && !inName ? (EFFORT_SHORT[p.m.effort] || p.m.effort.toUpperCase()) : EFFORT_LABEL[p.m.effort].toLowerCase(); return S.smallCaps && !inName ? w.toUpperCase() : w; };
     // what to write, in order: names and pinned labels (rank 0), the top dots' tags and values (1), then the faint frontier
     // names and the other tags and values (2); within a rank, pinned and frontier dots first
     const jobs = [];
@@ -4185,9 +4424,10 @@
       const asSeries = kind === 'name', pinned = S.pinned.has(p.m.id), small = kind === 'tag' || kind === 'value';
       if (asSeries && ladder) { const ps = p.series || [p]; const anchor = S.ladderAt === 'top' ? p : ps.find((q) => q.m.effort === S.ladderAt) || (ps[0].m.effort !== 'non-reasoning' ? anchors.find((q) => q.m.family === p.m.family) : null) || ps.slice().sort((a,b) => Math.abs(a.m.effortLevel-EFFORT_LEVEL[S.ladderAt])-Math.abs(b.m.effortLevel-EFFORT_LEVEL[S.ladderAt]) || a.m.effortLevel-b.m.effortLevel)[0]; ladderPts.push(anchor); continue; } // named in the ladder instead
       const dotLabel = S.shortEffort && p.m.effort !== 'default' && p.m.effort !== 'non-reasoning' ? `${p.m.familyName} (${EFFORT_SHORT[p.m.effort] || p.m.effort.toUpperCase()})` : p.m.label;
-      const t = asSeries ? (p.m.effort === 'non-reasoning' && p.series.length === 1 && points.some((o) => o.m.family === p.m.family && o !== p) ? dotLabel : p.m.familyName)
+      const fullName = asSeries && S.nameAt === 'maxX' && !ladder, eff = fullName ? effortWord(p, true) : '';
+      const t = asSeries ? (p.m.effort === 'non-reasoning' && p.series.length === 1 && points.some((o) => o.m.family === p.m.family && o !== p) ? dotLabel : fullName && eff ? `${p.m.familyName} ${eff}` : p.m.familyName)
         : kind === 'label' ? dotLabel : [tag, value].filter(Boolean).join(' · ');
-      const size = asSeries ? 12.5 : small ? (value && narrow ? 9 : 10) : 11, weight = !small && (asSeries || pinned) ? (isDark() ? 500 : 600) : 400;
+      const size = asSeries ? 12.5 : small ? (value && narrow ? 9 : S.smallCaps && kind === 'tag' ? 9.5 : 10) : 11, weight = asSeries && p.auto ? 400 : fullName ? (isDark() ? 650 : 700) : !small && (asSeries || pinned) ? (isDark() ? 500 : 600) : 400;
       const w = textW(t, size, weight);
       const fits = (dx, dy, leader, ww = w) => {
         const b = { x0: p.px + dx - pad, y0: p.py + dy - 1, x1: p.px + dx + ww + pad, y1: p.py + dy + H };
@@ -4456,6 +4696,11 @@
     ['xAI', [['SuperGrok', 30, 'xai'], ['SuperGrok Heavy', 300, 'xai'], ['X Premium+', 40, 'xai']]],
     ['Coding tools (any lab)', [['GitHub Copilot Pro', 10, ''], ['GitHub Copilot Pro+', 39, ''], ['Cursor Pro', 20, ''], ['Cursor Pro+', 60, ''], ['Cursor Ultra', 200, ''], ['T3 Chat Pro', 8, ''], ['Perplexity Pro', 20, ''], ['Perplexity Max', 200, '']]],
   ];
+  $('subPlansWrap').insertAdjacentHTML('beforeend', ['openai', 'anthropic', 'google', 'xai'].map((lab) => `<label class="inline" title="${esc(PLAN_LAB_NAME[lab])} models' plan for Plan cost per task (estimated)">${esc(PLAN_LAB_NAME[lab])} <select data-lab="${lab}"><option value="median">median of its plans</option>${Object.entries(PSH.plans).filter(([, v]) => v[1] === lab).map(([n, v]) => `<option value="${esc(n)}">${esc(n)} — $${v[0]}</option>`).join('')}</select></label>`).join(''));
+  $('subPlansWrap').querySelectorAll('select').forEach((sel) => {
+    sel.value = S.subPlans[sel.dataset.lab] || 'median';
+    sel.addEventListener('change', () => { S.subPlans = { ...S.subPlans, [sel.dataset.lab]: sel.value }; SUB_PLANS = S.subPlans; derive(); save(); render(); });
+  });
   const PLAN_LAB = new Map(PLANS.flatMap(([, ps]) => ps.map(([n, , lab]) => [n, lab])));
   $('planSel').innerHTML = PLANS.map(([g, ps]) => `<optgroup label="${esc(g)}">${ps.map(([n, p]) => `<option value="${esc(n)}">${esc(n)} — $${p}</option>`).join('')}</optgroup>`).join('') + '<option value="custom">Custom fee…</option>';
   const count = (n) => n >= 100 ? Math.round(n).toLocaleString() : String(+n.toPrecision(3));
@@ -5589,12 +5834,12 @@
       .filter((k) => m[k] != null && !cmp.keys.includes(k))
       .map((k) => {
         const relative = relOf(k);
-        return `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${esc(METRICS[k].label)}</td><td>${METRICS[k].fmt(m[k])}${relative ? `<br><span class="note">${esc(relative)}</span>` : ''}</td></tr>`;
+        return `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${esc(METRICS[k].label)}</td><td>${METRICS[k].fmt(m[k])}${relative ? `<br><span class="note">${esc(relative)}</span>` : ''}</td></tr>${k === 'planCost' && m.planInfo ? `<tr class="plan-info"><td colspan="2" class="note">${esc(m.planInfo).replace(/\n/g, '<br>')}</td></tr>` : ''}`;
       }).join('');
     const cmpRel = cmp.keys.map(relOf).filter(Boolean).join(' · ');
     const sw = dualMode() !== 'off' ? `background:${p.val};box-shadow:0 0 0 2px ${p.lab}` : `background:${p.color}`;
     tip.innerHTML = `<div class="t-name"><i style="${sw}"></i>${esc(m.label)}</div>
-      <div class="t-sub">${esc(m.creator)} · ${EFFORT_LABEL[m.effort]} effort${p.anchorOnly ? ` (shown for the ladder; your effort filter hides ${EFFORT_LABEL[m.effort]})` : ''} · ${m.openWeights ? 'open weights' : 'proprietary'}${m.releaseDate ? ' · ' + m.releaseDate : ''}${m.estimated ? ' · Intelligence Index estimated by Artificial Analysis' : ''}${m.myEst && [S.x, S.y].some((k) => MY_SCORED.has(k)) ? ` · ${Math.round(m.myEst * 100)}% of Your index filled from another effort` : ''}${S.pinned.has(m.id) ? ' · pinned' : ''}</div>
+      <div class="t-sub">${esc(m.creator)} · ${EFFORT_LABEL[m.effort]} effort${p.anchorOnly ? ` (shown for the ladder; your effort filter hides ${EFFORT_LABEL[m.effort]})` : ''}${p.auto ? ' · shown by Also show, not selected' : ''} · ${m.openWeights ? 'open weights' : 'proprietary'}${m.releaseDate ? ' · ' + m.releaseDate : ''}${m.estimated ? ' · Intelligence Index estimated by Artificial Analysis' : ''}${m.myEst && [S.x, S.y].some((k) => MY_SCORED.has(k)) ? ` · ${Math.round(m.myEst * 100)}% of Your index filled from another effort` : ''}${S.pinned.has(m.id) ? ' · pinned' : ''}</div>
       ${cmp.html}${cmpRel ? `<div class="note" style="margin:-2px 0 6px">${esc(cmpRel)}</div>` : ''}${rows ? `<table>${rows}</table>` : ''}${[...new Set([S.y, S.x].map((k) => METRICS[k].ext).filter(Boolean))].map((e) => { const r = m.ext?.[e.key]; return r ? `<div class="t-foot">${esc(e.label)} lists it as “${esc(r.name)}”${r.guessed ? ' (effort not stated)' : ''}</div>` : ''; }).join('')}<div class="t-foot">${p.ghost ? `On the frontier but not selected · ${touch ? 'tap again' : 'click'} to add it` : `${touch ? 'Tap again' : 'Click'} to ${S.pinned.has(m.id) ? 'unpin' : 'pin'}`}</div>`;
     tip.classList.toggle('docked', touch); tip.classList.toggle('cmp', !!cmp.html);
     tip.style.display = 'block';
@@ -6017,6 +6262,11 @@
   if (qp.get('shortEffort')) { S.shortEffort = qp.get('shortEffort') === '1'; S.shortEffortTouched = true; }
   if (['auto', 'on', 'off'].includes(qp.get('extWithFamily'))) S.extWithFamily = qp.get('extWithFamily');
   if (qp.get('wide')) S.wide = qp.get('wide') === '1';
+  for (const k of ['valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'nameAt']) if (qp.get(k)) S[k] = qp.get(k);
+  if (qp.get('smallCaps')) S.smallCaps = qp.get('smallCaps') === '1';
+  for (const k of ['tallRatio', 'autoBestPct', 'autoBasePts']) if (qp.get(k)) S[k] = Number(qp.get(k));
+  if (qp.get('autoBasePts') && Number.isFinite(S.autoBasePts)) S.autoPts = { ...S.autoPts, [qp.get('y') || S.y]: S.autoBasePts };
+  for (const k of ['autoBest', 'autoBase']) if (qp.get(k)) S[k] = qp.get(k) === '1';
   if (qp.get('lineStyle')) S.connect = qp.get('lineStyle') !== 'off'; // ?lineStyle=off|solid|dashed|dotted
   if (qp.get('pin')) S.pinned = new Set(qp.get('pin').split(',').map((t) => { const [fam, eff] = t.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff)?.id; }).filter(Boolean));
   fixAxes(); fixMarks(); syncControls(); applyWide(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
@@ -6027,6 +6277,8 @@
   if ((!DATA.models.length || Date.now() - new Date(DATA.scrapedAt) > 2 * 3600e3) && !qp.has('noAutoUpdate')) updateData(true);
   let lastW = 0;
   new ResizeObserver(() => { const w = $('chartCard').clientWidth; if (w !== lastW) { lastW = w; render(); } }).observe($('chartCard'));
+  let lastH = innerHeight; // Tall on a desk fills the window's height
+  addEventListener('resize', () => { if (innerHeight !== lastH) { lastH = innerHeight; if (S.shape === 'tall' && $('chartCard').clientWidth >= 560) render(); } });
   // the phone header is sticky; the axis toolbar sticks just under it
   const headEl = document.querySelector('header');
   const axesEl = document.querySelector('.toolbar.axes');
