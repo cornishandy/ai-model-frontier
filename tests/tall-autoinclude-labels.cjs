@@ -123,6 +123,14 @@ const choose = (page, sel, v) => page.evaluate(([sel, v]) => { const s = documen
     assert.deepEqual(vx, { hidden: false, v: 'best', axisOff: true, text: "vs X's 1.0" });
   });
 
+  await scenario(browser, 'negative-times-values-take-a-true-minus', desk, 'y=omniscience&yRel=median&valueLabels=y&valueAsY=rel', async (p) => {
+    const texts = await p.locator('#chart text').allTextContents();
+    assert.deepEqual(texts.filter((t) => /-\d[\d.]*×/.test(t)), [], 'No × value or tick prints a hyphen for minus');
+    const neg = await p.evaluate(() => window.__tall.points.some((q) => q.yv < 0));
+    if (neg) assert.ok(texts.some((t) => /−\d[\d.]*×/.test(t)), 'Negative × values print a true minus');
+    assert.doesNotMatch(await p.getAttribute('#smallCapsLabel', 'title'), /Priors/, 'The small-caps hover text says only what it does');
+  });
+
   await scenario(browser, 'bold-name-sits-at-highest-x', desk, 'nameAt=maxX&x=outputSpeed', async (p) => {
     const { bold, expected } = await p.evaluate(() => {
       const byFam = new Map();
