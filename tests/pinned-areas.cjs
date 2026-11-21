@@ -21,7 +21,7 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
     const page = await context.newPage(), errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-    await page.goto(origin + query);
+    await page.goto(origin + query + (query.includes('?') ? '&' : '?') + 'noAutoUpdate');
     await page.waitForFunction(() => window.__t?.geom);
     await run(page);
     assert.deepEqual(errors, [], `${name}: no page or console errors`);
@@ -123,7 +123,7 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
   await scenario('Good zone None draws no area; Beats pinned keeps its lines; Model colour per pin', '?theme=light&zone=beats&pin=claude-opus-5-5:xhigh', async (page) => {
     // the second pin is a model from another lab, picked from the current data, and still set through the URL
     const [, fam, eff] = await otherDot(page);
-    await page.goto(origin + `?theme=light&zone=beats&pin=claude-opus-5-5:xhigh,${fam}:${eff}`); await page.waitForFunction(() => window.__t?.geom);
+    await page.goto(origin + `?noAutoUpdate&theme=light&zone=beats&pin=claude-opus-5-5:xhigh,${fam}:${eff}`); await page.waitForFunction(() => window.__t?.geom);
     assert.equal(await ev(page, () => __t.S.pinned.size), 2, 'both pins from the URL');
     const set = (k, v) => ev(page, ([k, v]) => { __t.S[k] = v; __t.render(); }, [k, v]);
     await set('zoneStyle', 'none');

@@ -25,7 +25,7 @@ async function scenario(browser, name, options, query, state, run) {
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`${name}: ${m.text()}`); });
-  await page.goto(origin + query);
+  await page.goto(origin + query + (query.includes('?') ? '&' : '?') + 'noAutoUpdate');
   await page.waitForFunction(() => window.__bundleC?.geom || document.querySelector('#chart').textContent.includes('Select models'));
   await run(page);
   assert.deepEqual(errors, [], 'No page or console errors');

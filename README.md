@@ -169,13 +169,14 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   stay when you change the start (**Reset to start** in the summary removes them), and None opens Choose. Charting a
   benchmark doesn't add it to the list. A new Artificial Analysis benchmark has no report card, so every start except
   None takes it; with None it stays out until you tick it.
-- **Report cards**: every benchmark gets a letter grade (A–F) in the pickers, the hover card and under the chart title,
-  computed from: whether the test set is private (0–2), saturation in the current scores (0–3: top three current models
-  bunched within 2 points, or a top score over 95%, scores 0; a spread over 5 points with the top under 80% scores 3),
-  whether it's still run on the frontier (0–1), independence from the frontier labs (0–2), currency of the dataset (0–1),
-  and ±1 for audit findings. A = 9–10, B = 7–8, C = 5–6, D = 3–4, F = 0–2. The hover card lists each line of the score
-  and a one-line verdict. The facts behind it (who made it, test-set privacy, audits) are in `BENCH_META` in
-  `index.html`, drawn from these meta-evaluations of benchmarks:
+- **Benchmark Grading v2** (under the effort chart) shows the raw score, caps and cited penalties, final grade, preset
+  eligibility, and evidence for each benchmark. Expand a grade for its six pillars: headroom and spread (25),
+  exposure resistance (20), grading objectivity (20), lab independence (15), frontier and efforts (10),
+  and sample size and currency (10). Grades use the data's scrape date. A starts at 80, B at 65, C at 50,
+  and D at 35. An em dash marks unaudited benchmarks or boards with fewer than three measured model families.
+  Grade presets use eligible active atomic benchmarks. CritPt v2 can qualify. Its hard subset stays in AA v5's
+  published mix and is excluded from the Grade presets. The underlying benchmark and audit facts are in `scoring.js`.
+  The reference material includes
   [BetterBench](https://betterbench.stanford.edu/) (Stanford; 46 quality criteria on 24 benchmarks),
   [Epoch AI's Benchmarking Hub](https://epoch.ai/benchmarks) (independent re-runs; retires saturated benchmarks),
   [When AI Benchmarks Plateau](https://arxiv.org/abs/2602.16763) (EvalEval; a saturation index for 60 benchmarks),
@@ -199,12 +200,19 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   Outline, Gradient. The legend says how many models are in the zone.
 - **Shape: Diamond** turns the chart 45° (like dunksandthrees' EPM charts): better on both is straight up, the left
   corner is best on X, the right corner best on Y. Ticks and axis titles run along the two lower edges.
-- **By effort level** (under the chart): one row per selected model, a dot per reasoning effort, on cost per task, total
-  cost, tokens per task, total tokens, time per task or whatever is on an axis, linear or log, sorted best first, with
-  the values under the dots (like the dot rows on slopalytics.com). Letters in the dots are the effort levels.
+- **By effort level** (under the chart) ranks the selected models by Your index, cost, tokens, time, or a chart axis.
+  **Grouped** shows the spread across each model family's efforts. **Each effort** gives each variant its own row.
+  Linear bars start at zero, signed metrics retain a visible zero line, and log position marks distinguish missing
+  data from non-positive values.
+- **Your mix** lets you load a preset and adjust benchmark weights, or fit weights to a ranked lineup of model variants.
+  The fitter previews requested pair matches and overall ranks. Apply uses the same scoring as Preview, including
+  the measured-weight floor (75% by default) and optional estimates for missing efforts. Estimates never count
+  toward the floor. Weights use integer hundredths for scoring, saved sets, and mix links.
+  The slider mapping and ranking-fit approach are adapted from [adamholter/priors](https://github.com/adamholter/priors)
+  (MIT License).
 - **Your index** (in the options, and "Score from" under Subscription math): rebuilds the score and its cost per task
   from only the benchmarks you trust: AA's index benchmarks as published (the default; 9 in v5.0), Grade A only, Grade B or
-  better, Grade C or better (graded benchmarks still run on the frontier), or everything the axis picker lists
+  better, Grade C or better, Your mix, or everything the axis picker lists
   (its Active only filter and the benchmarks you included with Start from and Choose). The score is a weighted average on 0–100 (percentages as they are, GDPval and Briefcase
   Elo scaled the way AA scales GDPval, AA-Omniscience from −100…100, other Elo boards from lowest to highest; AA's weight
   where it has one, 10% otherwise), and a model needs results covering 3/4 of the weight. Artificial Analysis publishes

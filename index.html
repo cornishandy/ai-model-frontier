@@ -282,7 +282,7 @@
     :root { --pill: light-dark(var(--surface), color-mix(in srgb, var(--ink) 17%, var(--surface))); --pill-edge: light-dark(rgba(0, 0, 0, .1), rgba(255, 255, 255, .07)); --pill-shade: light-dark(rgba(0, 0, 0, .14), rgba(0, 0, 0, .5)); }
   }
   .seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--track); }
-  .seg button { display: inline-flex; flex-direction: column; align-items: center; border: 0; border-radius: 6px; padding: 2px 8px; background: transparent; color: var(--ink-2); }
+  .seg button { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; border: 0; border-radius: 6px; padding: 2px 8px; background: transparent; color: var(--ink-2); }
   .seg button:hover { background: var(--hover); color: var(--ink); }
   .seg button[aria-pressed="true"] { background: var(--pill); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px var(--pill-shade), 0 0 0 .5px var(--pill-edge); }
   .seg button:disabled { background: transparent; color: var(--muted); }
@@ -633,6 +633,63 @@
   /* benchmark report cards: a letter grade beside each benchmark */
   .grade { display: inline-block; min-width: 17px; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; color: #fff; background: var(--muted); vertical-align: 1px; }
   .grade.gA, .grade.gB { background: var(--s3); } .grade.gC { background: var(--s4); } .grade.gD, .grade.gF { background: var(--s8); }
+  .effort-toolbar { margin: 8px 0; }
+  #rowsCard #rows { display: block; max-width: 100%; }
+  #rowsCard .gfill { fill-opacity: .24; }
+  #rowsCard .effort-bar { fill-opacity: .8; }
+  #rowsCard .effort-bar[data-estimated="true"] { fill-opacity: .46; }
+  #groupedLegend:not([hidden]) { display: flex; gap: 4px 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  #groupedLegend span { color: var(--ink-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--bg); }
+  #mixCard, #gradeCard, #rowsCard { scroll-margin-top: var(--section-scroll-top, 100px); min-width: 0; }
+  #rowsCard button, #mixCard button, #mixCard select, .pdetail summary { min-height: 44px; }
+  #mixCard button, .pdetail summary { min-width: 44px; }
+  .mix-actions { gap: 6px 10px; margin: 8px 0; flex-wrap: wrap; }
+  .mix-actions select { max-width: 100%; min-width: 0; text-overflow: ellipsis; }
+  .mix-actions label { min-width: 0; max-width: 100%; }
+  #mixAdd, #fitModel { max-width: min(100%, 350px); }
+  .mix-slider { padding: 8px 0 10px; border-top: 1px solid var(--border); }
+  .mix-slider-head { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
+  .mix-slider-track { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; column-gap: 8px; }
+  .mix-slider input[type="range"] { width: 100%; height: 44px; margin: 0; accent-color: var(--accent); }
+  .mix-ticks { display: flex; justify-content: space-between; }
+  .mix-values { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+  .fit-panel { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 10px; }
+  .fit-panel h3 { margin: 2px 0 8px; font-size: 15px; }
+  .fit-panel ol { margin: 8px 0; padding-inline-start: 24px; }
+  .fit-panel li { padding: 4px 0; }
+  .fit-row { display: flex; align-items: center; justify-content: space-between; gap: 4px 10px; flex-wrap: wrap; }
+  .fit-row strong { overflow-wrap: anywhere; }
+  .fit-reorder { display: flex; align-items: center; gap: 4px; }
+  .fit-grip { cursor: grab; color: var(--muted); touch-action: none; }
+  li.fit-drop { outline: 1px solid var(--accent); outline-offset: 2px; }
+  .fit-fill { min-height: 44px; }
+  .fit-swap { border: 1px solid var(--border); color: var(--ink-2); border-radius: 4px; padding: 1px 5px; }
+  .gtable { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .gtable th, .gtable td { vertical-align: top; text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+  .gtable th { color: var(--muted); font-size: 12px; }
+  .gtable th:first-child { width: 24%; }
+  .gtable th:nth-child(2) { width: 20%; }
+  .gtable .ii-tag { display: inline-block; margin-left: 4px; }
+  .pdetail { max-width: 100%; }
+  .pdetail summary { display: inline-flex; box-sizing: border-box; align-items: center; padding: 0 6px; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .pdetail summary .grade { margin: 0 5px 0 0; }
+  .pdetail summary::after { margin-left: 6px; content: '▾'; color: var(--muted); }
+  .pdetail[open] summary::after { content: '▴'; }
+  .pmeta, .preason { color: var(--ink-2); font-size: 12px; }
+  .pmeta { padding: 3px 0; }
+  .pbar { display: flex; height: 8px; gap: 2px; margin: 3px 0 5px; width: 100%; max-width: 360px; }
+  .pbar span { background: var(--bg); position: relative; overflow: hidden; border-radius: 2px; }
+  .pbar i { position: absolute; inset: 0 auto 0 0; background: var(--pillar); }
+  .pbreakdown { font-variant-numeric: tabular-nums; }
+  @media (max-width: 560px) {
+    .gtable, .gtable tbody, .gtable tr, .gtable td { display: block; width: 100%; }
+    .gtable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .gtable tr { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+    .gtable td { border: 0; padding: 2px 0; }
+    .gtable td.col-head { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .gtable .ii-tag { margin-left: 0; }
+    #mixCard select { font-size: 16px; }
+  }
   #mtip ul.rc { margin: 4px 0 0; padding-left: 16px; color: var(--ink-2); line-height: 1.35; } #mtip ul.rc li { margin: 1px 0; }
   #mtip .verdict { margin: 6px 0 0; color: var(--ink); }
   .mi-more:hover u { color: var(--ink); }
@@ -1071,13 +1128,70 @@
   </div>
 
   <details class="card" id="rowsCard" open>
-    <summary title="One row per model, a dot per reasoning effort, on the metric you pick: the spread of cost, tokens or time across effort levels at a glance">By effort level <span class="note" style="font-weight:400">· one row per model, a dot per effort (low → max)</span></summary>
-    <div class="toolbar" style="margin:10px 0 2px">
-      <div class="group"><span title="What the dots measure">Metric</span><div class="seg" id="rowMetricSeg"></div></div>
-      <div class="group"><span title="Scale of the rows">Scale</span><div class="seg" id="rowScaleSeg"><button data-v="linear" title="Linear: equal distances are equal amounts">Linear</button><button data-v="log" title="Log: equal distances are equal ratios">Log</button></div></div>
+    <summary id="rankingHeading">By effort level</summary>
+    <p class="note" id="rowSubtitle"></p>
+    <div class="toolbar effort-toolbar">
+      <div class="seg" id="rowLayoutSeg" aria-label="Effort layout"><button type="button" data-v="grouped">Grouped</button><button type="button" data-v="bars">Each effort</button></div>
+      <button type="button" id="editMix" aria-controls="mixCard" aria-expanded="false">Edit mix ▾</button>
+    </div>
+    <div class="toolbar effort-toolbar">
+      <div class="group"><span>Metric</span><div class="seg" id="rowMetricSeg" aria-label="Effort chart metric"></div></div>
+      <div class="group"><span>Scale</span><div class="seg" id="rowScaleSeg" aria-label="Effort chart scale"><button type="button" data-v="linear" title="Linear: equal distances are equal amounts">Linear</button><button type="button" data-v="log" title="Log: equal distances are equal ratios">Log</button></div></div>
     </div>
     <svg id="rows" role="img"></svg>
+    <div class="note" id="groupedLegend">Close efforts share a marker <span>M</span> Medium <span>H/X</span> High / XHigh <span>MX</span> Max</div>
     <div class="note" id="rowsNote"></div>
+  </details>
+
+  <details class="card" id="mixCard">
+    <summary>Your mix</summary>
+    <div class="toolbar mix-actions">
+      <label><select id="mixPreset" aria-label="Load preset"></select></label>
+      <button type="button" id="mixUndo" disabled>Undo</button>
+      <button type="button" id="mixReturn">↑ Return to ranking</button>
+      <button type="button" id="mixShare">Copy mix link</button>
+      <span class="note" id="mixLinkStatus" role="status"></span>
+    </div>
+    <div id="mixSliders"></div>
+    <div class="toolbar mix-actions">
+      <label class="inline">Browse <select id="mixGrade" aria-label="Browse benchmarks by grade"><option value="B">B or better</option><option value="A">A only</option><option value="C">C or better</option><option value="any">Any grade</option></select></label>
+      <select id="mixAdd" aria-label="Benchmark to add"></select>
+      <button type="button" id="mixAddBtn">Add benchmark</button>
+    </div>
+    <section class="fit-panel" aria-labelledby="fitTitle">
+      <h3 id="fitTitle">Fit weights from your model ranking</h3>
+      <div class="toolbar mix-actions">
+        <select id="fitModel" aria-label="Model to add to lineup"></select>
+        <button type="button" id="fitAdd">Add model</button>
+      </div>
+      <ol id="fitLineup"></ol>
+      <div class="toolbar mix-actions fit-settings">
+        <label>Fitter min grade <select id="fitGrade" aria-label="Fitter min grade"><option value="A">A only</option><option value="B">B or better</option><option value="C">C or better</option><option value="any">Any</option></select></label>
+        <label>Measured floor <select id="fitCover" aria-label="Measured floor"><option value="1">100%</option><option value="0.9">90%</option><option value="0.75">75%</option><option value="0.6">60%</option><option value="0.5">50%</option></select></label>
+        <label class="inline fit-fill"><input id="fitFill" type="checkbox"> Effort gap-fill</label>
+        <label>Max benchmarks <select id="fitMax" aria-label="Max benchmarks"></select></label>
+      </div>
+      <div class="toolbar mix-actions">
+        <button type="button" id="fitRun">Fit weights</button>
+        <button type="button" id="fitRelaxC">Try C or better</button>
+        <button type="button" id="fitRelaxAny">Try any grade</button>
+      </div>
+      <div id="fitPreview" hidden>
+        <strong>Preview</strong>
+        <p class="note" id="fitStatus" role="status"></p>
+        <ol id="fitResults"></ol>
+        <button type="button" id="fitApply" disabled>Apply to Your mix</button>
+      </div>
+    </section>
+  </details>
+
+  <details class="card" id="gradeCard">
+    <summary>Benchmark Grading v2</summary>
+    <p class="note" id="gradeSummary"></p>
+    <table class="gtable">
+      <thead><tr><th scope="col">Benchmark</th><th scope="col">Grade</th><th scope="col">Raw → Cap/Penalty → Final → Eligibility &amp; Live Facts</th></tr></thead>
+      <tbody id="gradeRows"></tbody>
+    </table>
   </details>
 
   <details class="card" id="planCard">
@@ -1180,6 +1294,7 @@
 
 <script src="aa-data.js"></script>
 <script src="scoring.js"></script>
+<script src="priors-fit.js"></script>
 <script src="data/models.js"></script>
 <script src="data/external.js"></script>
 <script src="data/plan-shares.js"></script>
@@ -1421,7 +1536,7 @@
   const EXT_FMT = { pct, elo, score: (v) => (v * 100).toFixed(1) };
   for (const [k, d] of Object.entries(DESC)) if (METRICS[k]) METRICS[k].desc = d;
   for (const src of EXT) {
-    METRICS['ext:' + src.key] = { label: src.label, long: src.long, fmt: EXT_FMT[src.fmt] || one, better: 'high', frac: !!src.frac, ext: src, desc: EXT_DESC[src.key] || '' };
+    METRICS['ext:' + src.key] = { label: FrontierScoring.canonicalBenchLabel('ext:' + src.key, src.label), long: src.long, fmt: EXT_FMT[src.fmt] || one, better: 'high', frac: !!src.frac, ext: src, desc: EXT_DESC[src.key] || '' };
     GROUPS['Independent benchmarks'].push('ext:' + src.key);
     if (src.cost) {
       METRICS['ext:' + src.cost.key] = { label: src.cost.label, long: src.cost.long, fmt: money, better: 'low', scale: 'log', ext: src, costOf: src.key, desc: EXT_DESC[src.cost.key] || '' };
@@ -1430,63 +1545,6 @@
   }
   const BENCH_GROUPS = Object.keys(GROUPS).filter((g) => g !== 'Cost' && g !== 'Tokens & speed');
   const isBench = (k) => k !== 'openness' && k !== 'myIndex' && BENCH_GROUPS.some((g) => GROUPS[g].includes(k));
-  // Each source names models its own way ("gemini-3.8-flash-high", "Gemini 3.8 Flash (High)", "openai/gpt-6-astra", "qwen3-8-max-0902").
-  // Reduce family names to a common key: separators unified, dates dropped, words before version numbers.
-  function famKey(s) {
-    const t = String(s).toLowerCase().replace(/^.*\//, '').replace(/[@:].*$/, '').replace(/\(.*?\)/g, '').replace(/[\s._]+/g, '-')
-      .replace(/-(20\d\d-\d\d-\d\d|20\d{6}|\d{4}|\d\d-\d\d)(?=-|$)/g, '').replace(/([a-z])(\d)/g, '$1-$2');
-    const parts = t.split('-').filter(Boolean);
-    return [...parts.filter((p) => /[a-z]/.test(p)), ...parts.filter((p) => !/[a-z]/.test(p))].join('-');
-  }
-  const DEFAULT_PICK = ['default', 'high', 'medium', 'xhigh', 'max', 'low', 'minimal', 'non-reasoning'];
-  function joinExternal() {
-    const famFor = new Map(), variants = new Map();
-    for (const m of ALL) {
-      ensureEffort(m.effort);
-      (variants.get(m.family) || variants.set(m.family, []).get(m.family)).push(m);
-      const k = famKey(m.family), cur = famFor.get(k) && variants.get(famFor.get(k))[0];
-      if (!cur || (cur.deprecated && !m.deprecated) || (cur.deprecated === m.deprecated && (m.releaseDate || '') > (cur.releaseDate || ''))) famFor.set(k, m.family);
-    }
-    for (const src of EXT) {
-      const got = new Map(), famsHit = new Set();
-      const rows = src.rows.map((r) => ({ r, fam: famFor.get(famKey(r.fam)) })).filter((x) => x.fam);
-      // A stated effort matches that variant; if AA only published other effort levels of an effort-tiered family
-      // (e.g. Gemini 4 Argon has High on AA while ARC-AGI also tested Low and Medium), synthesize the missing effort variant.
-      for (const { r, fam } of rows) if (r.effort) {
-        ensureEffort(r.effort);
-        const vs = variants.get(fam), reasoning = vs.filter((v) => v.effort !== 'non-reasoning');
-        let m = vs.find((v) => v.effort === r.effort);
-        if (!m && r.effort !== 'non-reasoning' && r.effort !== 'default' && reasoning.length > 0) {
-          const base = reasoning.find((v) => !v.deprecated) || reasoning[0] || vs[0];
-          const elab = EFFORT_LABEL[r.effort] || r.effort;
-          m = {
-            id: `${base.id}:${r.effort}`, slug: `${base.slug}-${r.effort}`,
-            name: `${base.familyName} (${elab})`, shortName: `${base.familyName} (${elab})`, label: `${base.familyName} (${elab})`,
-            creator: base.creator, creatorSlug: base.creatorSlug, creatorColor: base.creatorColor,
-            family: base.family, familyName: base.familyName, releaseDate: base.releaseDate,
-            effort: r.effort, effortLevel: EFFORT_LEVEL[r.effort] ?? 35, isReasoning: true,
-            openWeights: base.openWeights, deprecated: base.deprecated, defaultSelected: false,
-            estimated: true, extOnly: true, intelligence: null,
-            priceInput: base.priceInput, priceOutput: base.priceOutput, priceBlended: base.priceBlended,
-          };
-          ALL.push(m); BY_ID.set(m.id, m); vs.push(m);
-        } else if (!m && r.effort !== 'non-reasoning' && reasoning.length === 1) m = reasoning[0];
-        if (m && !got.has(m.id)) { got.set(m.id, r); famsHit.add(fam); }
-      }
-      // No effort stated (the source ran its default): the family's default variant, unless the family already has a match.
-      for (const { r, fam } of rows) if (!r.effort && !famsHit.has(fam)) {
-        const vs = variants.get(fam).filter((v) => !got.has(v.id));
-        const m = DEFAULT_PICK.map((e) => vs.find((v) => v.effort === e && !v.deprecated) || vs.find((v) => v.effort === e)).find(Boolean);
-        if (m) { got.set(m.id, { ...r, guessed: true }); famsHit.add(fam); }
-      }
-      for (const [id, r] of got) {
-        const m = BY_ID.get(id);
-        m['ext:' + src.key] = r.value; (m.ext ||= {})[src.key] = r;
-        if (src.cost && r.cost != null) m['ext:' + src.cost.key] = r.cost;
-      }
-    }
-  }
-
   // When each metric last got a new result. Artificial Analysis doesn't date its evaluations, so it's the newest model
   // with a value: the day AA added it (from its changelog, which covers the latest additions), or else its release date.
   // Independent benchmarks carry their source's own date.
@@ -1507,33 +1565,29 @@
       if (best) UPDATED.set(k, best);
     }
   }
-  // "Active" benchmarks still get run on the current frontier: they have a result for today's top model on the
-  // Intelligence Index and for at least 3 of the top 5 (by family, any effort; estimated scores don't pick the top).
-  // Retired ones, like AIME 2025, stop getting new models. A family released in the 14 days before the data is too new
-  // to have been run on most benchmarks yet (Gemini 4 Carbon topped the index on its first day), so it doesn't count as
-  // missing one.
-  let FRONTIER = [], FRESH = []; // best model of each of the top 5 families, best first; the ones too new to count
-  const MISSING = new Map(); // benchmark key -> the frontier families it has no result for
+  // Active coverage follows the same measured and grace counts as Grading v2.
+  let FRONTIER = [];
+  const COVERAGE = new Map();
   function frontierOf() {
-    const best = new Map();
-    for (const m of ALL) if (!m.deprecated && !m.estimated && m.intelligence != null && !(best.get(m.family)?.intelligence >= m.intelligence)) best.set(m.family, m);
-    FRONTIER = [...best.values()].sort((a, b) => b.intelligence - a.intelligence).slice(0, 5);
-    const newest = (f) => ALL.filter((m) => m.family === f.family).reduce((d, m) => (m.releaseDate || '') > d ? m.releaseDate : d, '');
-    FRESH = FRONTIER.filter((f) => newest(f) && new Date(DATA.scrapedAt) - new Date(newest(f) + 'T00:00:00Z') < 14 * 864e5);
-    MISSING.clear();
-    for (const k of Object.keys(METRICS)) {
-      if (!isBench(k) && !METRICS[k].costOf) continue;
-      const key = METRICS[k].costOf ? 'ext:' + METRICS[k].costOf : k; // a cost follows its benchmark
-      MISSING.set(k, FRONTIER.filter((f) => !FRESH.includes(f) && !ALL.some((m) => m.family === f.family && m[key] != null)));
+    const { frontier, fresh } = FrontierScoring.frontierFor(ALL, DATA.scrapedAt);
+    FRONTIER = frontier;
+    COVERAGE.clear();
+    const live = ALL.filter(m => !m.deprecated);
+    for (const [key, metric] of Object.entries(METRICS)) {
+      if (!isBench(key) && !metric.costOf) continue;
+      const bench = metric.costOf ? 'ext:' + metric.costOf : key;
+      const measured = new Set(live.filter(m => Number.isFinite(m[bench])).map(m => m.family));
+      COVERAGE.set(key, FrontierScoring.frontierCoverage(frontier, fresh, measured));
     }
   }
-  const isActive = (k) => { const miss = MISSING.get(k); return !miss || !FRONTIER.length || (!miss.includes(FRONTIER[0]) && FRONTIER.length - miss.length >= Math.min(3, FRONTIER.length)); };
-  function activeNote(k) {
-    const miss = MISSING.get(k); if (!miss || !FRONTIER.length) return '';
-    const has = `has ${FRONTIER.length - miss.length} of today's top ${FRONTIER.length}`, names = miss.map((m) => m.familyName).join(', ');
-    const fresh = FRESH.filter((f) => !ALL.some((m) => m.family === f.family && m[k] != null)).map((m) => m.familyName);
-    const grace = fresh.length ? ` (${fresh.join(', ')}, out less than 2 weeks, counted as having it)` : '';
-    return isActive(k) ? `Active: ${has}${miss.length ? ` (not ${names})` : ''}${grace}` : `Inactive: ${has}; missing ${names}${grace}`;
+  const isActive = key => !FRONTIER.length || (COVERAGE.get(key)?.active ?? true);
+  function activeNote(key) {
+    const info = COVERAGE.get(key);
+    if (!info || !FRONTIER.length) return '';
+    const names = list => list.map(m => m.familyName).join(', ');
+    const missing = info.missing.length ? ` · missing ${names(info.missing)}` : '';
+    const grace = info.grace.length ? ` · release grace for ${names(info.grace)}` : '';
+    return `${info.active ? 'Active' : 'Inactive'}: measured on ${info.measured.length} of the top ${FRONTIER.length} families${missing}${grace}`;
   }
   const updatedDay = (k) => UPDATED.has(k) ? fmtDay(UPDATED.get(k).date) : '';
   function updatedNote(k) {
@@ -1543,46 +1597,22 @@
   }
 
   // ---------- benchmark report cards ----------
-  // What's known about each benchmark beyond its numbers: who made it, whether the test set is public, and what audits and
-  // meta-evaluations found (BetterBench, Epoch AI's Benchmarking Hub, the EvalEval saturation study, expert re-grading
-  // papers, Artificial Analysis' own index changelogs; links in the README). The grade is computed, not copied:
-  // privacy of the test set (0–2) + saturation in the current scores (0–3) + still run on the frontier (0–1)
-  // + independence from the frontier labs (0–2) + currency (0–1), then ±1 for audit findings. A = 9–10 … F = 0–2.
   const BENCH_META = FrontierScoring.metadata();
-  const GRADE_ORDER = 'ABCDF', letterOf = (score) => score >= 9 ? 'A' : score >= 7 ? 'B' : score >= 5 ? 'C' : score >= 3 ? 'D' : 'F';
-  const monthsAgo = (ym) => (Date.now() - new Date(ym + '-15T12:00:00')) / (30.44 * 864e5);
-  function reportCard(k) {
-    const B = BENCH_META[k], M = METRICS[k];
-    if (!B || !M || !isBench(k)) return null;
-    const top = topModels(k, 3), low = M.better === 'low', lines = [];
-    let score = 0;
-    const add = (pts, max, text) => { score += pts; lines.push(`${pts}/${max} · ${text}`); };
-    add({ private: 2, 'semi-private': 1, rolling: 1, live: 1, mixed: 1, public: 0 }[B.set] ?? 0, 2, `test set ${B.set}${B.size ? ` (${B.size})` : ''}`);
-    let sat = 1, satText = 'too few current models to judge saturation';
-    if (top.length >= 2) {
-      const v = top.map((m) => m[k]), spread = Math.abs(v[0] - v[v.length - 1]), rel = spread / Math.abs(v[0] || 1), pts = spread * 100;
-      const ceiling = M.frac && !low && v[0] > 0.95;
-      sat = ceiling || (M.frac ? pts < 2 : rel < 0.02) ? 0 : (M.frac ? pts >= 5 && v[0] < 0.8 : rel >= 0.05) ? 3 : 2;
-      satText = `${sat === 0 ? 'saturated: ' : sat === 3 ? 'wide open: ' : ''}top ${top.length} current models within ${M.frac ? pts.toFixed(1) + ' points' : (rel * 100).toFixed(1) + '%'}${ceiling ? `, top score ${M.fmt(v[0])}` : ''}`;
-      if (B.aboveHuman && sat > 0) { sat--; satText += '; models beat the human baseline'; }
-    }
-    add(sat, 3, satText);
-    add(isActive(k) ? 1 : 0, 1, isActive(k) ? 'still run on the current frontier' : 'not run on the current frontier');
-    add(B.indep ?? 2, 2, B.indep === 0 ? 'made and run by a frontier lab' : B.indep === 1 ? 'made by a frontier lab, run independently' : 'independent of the frontier labs');
-    const live = B.set === 'rolling' || B.set === 'live', fresh = live || (B.since && monthsAgo(B.since) <= 18);
-    add(fresh ? 1 : 0, 1, live ? 'refreshed continually' : `${fresh ? 'current' : 'dated'}: from ${B.since}`);
-    if (B.audit) { score += B.audit; lines.push(`${B.audit > 0 ? '+1' : '−1'} · ${B.auditNote}`); } else if (B.auditNote) lines.push(`±0 · ${B.auditNote}`);
-    score = Math.max(0, Math.min(10, score));
-    return { score, letter: letterOf(score), lines, verdict: B.verdict, maker: B.maker };
-  }
-  const gradeChip = (k) => { const c = reportCard(k); return c ? `<span class="grade g${c.letter}" title="Report card: ${c.letter} (${c.score}/10) — ${esc(c.verdict)}">${c.letter}</span>` : ''; };
+  const GRADE_ORDER = 'ABCDF';
+  let gradeRows = [], gradeByKey = new Map();
+  const reportCard = k => gradeByKey.get(k) ?? null;
+  const gradeText = card => card.score == null ? '—' : `${card.letter} · ${card.score}/100`;
+  const gradeChip = k => {
+    const card = reportCard(k);
+    return card ? `<span class="grade g${card.letter}" title="${esc(card.reason)}">${card.letter}</span>` : '';
+  };
   // A starting grade. "any" is every benchmark; "none" is an empty list you fill by ticking.
   // A benchmark with no report card stays in a grade start (same as the old Grade filter).
   const gradeMeets = (k, seed) => {
     if (seed === 'none') return false;
     if (!seed || seed === 'any') return true;
     const c = reportCard(k);
-    return !c || GRADE_ORDER.indexOf(c.letter) <= GRADE_ORDER.indexOf(seed);
+    return !c || c.letter === '—' || GRADE_ORDER.indexOf(c.letter) <= GRADE_ORDER.indexOf(seed);
   };
   // The axis lists use this. Cost, speed and the other non-benchmarks always stay.
   // Ticks (on) and unticks (off) are by name, so a benchmark Artificial Analysis adds later
@@ -1666,9 +1696,9 @@
   // to the highest score on them. AA's weight where it has one, 10% (its usual weight) otherwise. A model needs results
   // covering 3/4 of the weight. "Cost per task, your benchmarks" averages AA's per-evaluation costs the same way, over the
   // picked benchmarks AA publishes a cost for (its index evaluations). The value-for-money measures use both.
-  const BASES = { aa: 'AA\'s index benchmarks (as published)', A: 'Grade A benchmarks only', B: 'Grade B or better', C: 'Grade C or better', listed: 'Everything the axis picker lists' };
-  const BASIS_PHRASE = { listed: 'from your picker list', A: 'from grade A benchmarks', B: 'from grade B or better benchmarks', C: 'from grade C or better benchmarks', aa: "from AA's index" };
-  const BASIS_SHORT = { aa: 'AA\'s index', A: 'grade A', B: 'grade B or better', C: 'grade C or better', listed: 'picker list' };
+  const BASES = { custom: 'Your mix', aa: 'AA\'s index benchmarks (as published)', A: 'Grade A benchmarks only', B: 'Grade B or better', C: 'Grade C or better', listed: 'Everything the axis picker lists' };
+  const BASIS_PHRASE = { custom: 'from your mix', listed: 'from your picker list', A: 'from grade A benchmarks', B: 'from grade B or better benchmarks', C: 'from grade C or better benchmarks', aa: "from AA's index" };
+  const BASIS_SHORT = { custom: 'your mix', aa: 'AA\'s index', A: 'grade A', B: 'grade B or better', C: 'grade C or better', listed: 'picker list' };
   const INDEX_W = { briefcase: 0.15, automationBench: 0.05, terminalBench40: 0.1, frontierCode20: 0.15, omniscience: 0.15, gdpPdf: 0.05, hleDiamond: 0.1, critptHard: 0.1, terminalBenchScience: 0.15 }; // as of v5.0, if the data lacks them
   const PARTS = new Set(['intelligence', 'omniscienceAccuracy', 'hallucination']); // the index itself, and two parts of AA-Omniscience
   const PART_WHY = { intelligence: 'it combines other benchmarks', omniscienceAccuracy: 'part of AA-Omniscience Index', hallucination: 'part of AA-Omniscience Index' };
@@ -1688,9 +1718,19 @@
   function basisKeys() {
     const W = indexW();
     if (BASIS === 'aa') return Object.entries(W).filter(([k]) => METRICS[k]);
-    const ok = BASIS === 'listed' ? (k) => pickerLists(k)
-      : (k) => { const c = reportCard(k); return c && isActive(k) && GRADE_ORDER.indexOf(c.letter) <= GRADE_ORDER.indexOf(BASIS); };
-    return BENCH_GROUPS.flatMap((g) => GROUPS[g]).filter((k) => isBench(k) && !PARTS.has(k) && ok(k)).map((k) => [k, W[k] ?? 0.1]);
+    if (BASIS === 'custom') return Object.entries(knownMixWeights(S.customWeights));
+    if (BASIS !== 'listed') return eligibleGrades(BASIS).map(card => [card.k, W[card.k] ?? 0.1]);
+    return BENCH_GROUPS.flatMap(g => GROUPS[g]).filter(k => isBench(k) && !PARTS.has(k) && pickerLists(k)).map(k => [k, W[k] ?? 0.1]);
+  }
+  function eligibleGrades(minimum) {
+    return gradeRows.filter(card => card.eligible && METRICS[card.k] && GRADE_ORDER.indexOf(card.letter) <= GRADE_ORDER.indexOf(minimum));
+  }
+  function mixKeys() {
+    return gradeRows.filter(card => METRICS[card.k]).map(card => card.k);
+  }
+  function knownMixWeights(weights) {
+    const keys = new Set(mixKeys());
+    return Object.fromEntries(Object.entries(PriorsFit.normalizeWeights(weights)).filter(([key]) => keys.has(key)));
   }
   const ranges = new Map();
   function norm(k, v) {
@@ -1708,7 +1748,7 @@
   const put = (m, k, v) => { if (v == null || !Number.isFinite(v)) delete m[k]; else m[k] = v; };
   // The two "your" metrics are labelled and described by the choice; the value-for-money ones say they follow it.
   function applyBasis() {
-    BASIS = BASES[S.basis] ? S.basis : 'aa'; FILL = S.basisFill !== false;
+    BASIS = Object.hasOwn(BASES, S.basis) ? S.basis : 'aa'; FILL = S.basisFill !== false;
     derive();
     const total = BASIS_KEYS.reduce((a, [, w]) => a + w, 0), short = BASIS_SHORT[BASIS], W = indexW();
     const list = BASIS_KEYS.map(([k, w]) => `${METRICS[k].label} ${Math.round((100 * w) / total)}%`).join(', ');
@@ -1719,6 +1759,7 @@
     Object.assign(METRICS.myIndex, {
       label: `Your index (${short})`, long: `Your index (${short}): ${BASIS_KEYS.length} benchmark${BASIS_KEYS.length === 1 ? '' : 's'} averaged, 0–100`,
       desc: BASIS === 'aa' ? 'Artificial Analysis\' Intelligence Index, unchanged. Pick a different "Your index" in the options (or under Subscription math) to recompute it from only the benchmarks you trust.'
+        : BASIS === 'custom' ? (BASIS_KEYS.length ? `Your mix: ${list}. Models need measured results covering ${Math.round(S.customCover * 100)}% of the weight.` : 'Add benchmarks in Your mix to calculate an index.')
         : !BASIS_KEYS.length ? `No benchmark qualifies as "${BASES[BASIS]}" right now.${skipNote}`
         : `${BASES[BASIS]}${BASIS === 'listed' ? ' (the benchmarks the axis picker includes, including ones you ticked and excluding ones you unticked)' : ', still run on the frontier'}, weighted: ${list}.${skipNote} Percentages count as they are; Elo and other scales are rescaled to 0–100. A model needs results covering 3/4 of the weight${FILL ? '; gaps are filled from the same model at the nearest effort level, scaled by their Intelligence Index (faded dots)' : ''}.`,
     });
@@ -1757,24 +1798,32 @@
     const head = missing ? `No ${missing} data for this model, so ${how}` : how[0].toUpperCase() + how.slice(1);
     return { share, sub: missing, thin: n === 1 && sorted[0].r[4] === 'low', note: `${head}: ${pct(share)} of API price${n > 1 ? '\n' + sorted.map((x) => `${x.r[0]} ${pct(x.share)} · ${x.r[4]} · ${when(x.r[5])}${x.est ? ' · list price estimated' : ''}`).join('\n') : ` · ${tail(sorted[0])}`}\n${n > 1 ? 'Each plan: share · confidence · when measured. ' : ''}Source: Real API Pricing` };
   }
+  let deriveMix;
   function derive() {
     const fee = PLAN_FEE;
     ranges.clear(); variants.clear();
     for (const m of ALL) (variants.get(m.family) || variants.set(m.family, []).get(m.family)).push(m);
     BASIS_KEYS = basisKeys();
     const total = BASIS_KEYS.reduce((a, [, w]) => a + w, 0);
+    const custom = BASIS === 'custom';
+    const mixed = custom ? new Map(deriveMix(Object.fromEntries(BASIS_KEYS), {
+      cover: S.customCover, fill: FILL,
+    }).map(row => [row.id, row])) : null;
     for (const m of ALL) {
       if (BASIS === 'aa') { put(m, 'myIndex', m.intelligence); put(m, 'myCost', m.costPerTask); delete m.myEst; }
       else {
         let sw = 0, sv = 0, ew = 0, cw = 0, cv = 0;
         for (const [k, w] of BASIS_KEYS) {
-          let v = m[k] != null ? norm(k, m[k]) : null;
-          if (v == null && FILL && (v = fillGap(m, k)) != null) ew += w;
-          if (v != null) { sw += w; sv += w * v; }
+          if (!custom) {
+            let v = m[k] != null ? norm(k, m[k]) : null;
+            if (v == null && FILL && (v = fillGap(m, k)) != null) ew += w;
+            if (v != null) { sw += w; sv += w * v; }
+          }
           const c = m.evals?.[k]?.[0]; if (c != null) { cw += w; cv += w * c; }
         }
-        const ok = total && sw / total >= COVER;
-        put(m, 'myIndex', ok ? (100 * sv) / sw : null); put(m, 'myEst', ok && ew ? ew / sw : null);
+        const row = mixed?.get(m.id), ok = total && sw / total >= COVER;
+        put(m, 'myIndex', custom ? row?.score : ok ? (100 * sv) / sw : null);
+        put(m, 'myEst', custom ? row?.estShare || null : ok && ew ? ew / sw : null);
         put(m, 'myCost', cw ? cv / cw : null);
       }
       const cost = m.myCost > 0 ? m.myCost : null;
@@ -1798,7 +1847,7 @@
   const fmtScore = (n) => n.toFixed(1);
   function keysFor(basis) {
     const prev = BASIS;
-    BASIS = BASES[basis] ? basis : 'aa';
+    BASIS = Object.hasOwn(BASES, basis) ? basis : 'aa';
     const keys = basisKeys();
     BASIS = prev;
     return keys;
@@ -1849,7 +1898,7 @@
     frozenData = DATA;
     const identity = FrontierScoring.identity(DATA, window.EXT_DATA || {sources:[]});
     const deployed = DATA.publication?.currentBoard;
-    frozenCache = FrontierScoring.validBoard(deployed) && deployed.identity === identity ? deployed
+    frozenCache = deployed?.rubric === FrontierScoring.GRADING_VERSION && FrontierScoring.validBoard(deployed) && deployed.identity === identity ? deployed
       : FrontierScoring.buildSnapshot(DATA, window.EXT_DATA || {sources:[]});
     return frozenCache;
   }
@@ -1866,7 +1915,7 @@
   function rememberShift() {
     try {
       const current = currentFrozenBoard(), snap = readSnap() || {};
-      if (snap.current?.identity === current.identity) return;
+      if (snap.current?.identity === current.identity && snap.current.rubric === current.rubric) return;
       const previous = olderBoard(snap.current,current) ? snap.current : olderBoard(snap.previous,current) ? snap.previous : null;
       localStorage.setItem(SHIFT_SNAP, JSON.stringify({previous,current}));
     } catch {}
@@ -2059,13 +2108,13 @@
   }
   function registerDynamicBenchmarks(d) {
     for (const b of d.dynamicBenchmarks || []) {
-      if (AAData.isNonBenchKey(b.key) || AAData.isNonBenchKey(b.rawKey)) continue;
+      if (Object.hasOwn(Object.prototype, b.key) || AAData.isNonBenchKey(b.key) || AAData.isNonBenchKey(b.rawKey)) continue;
       if (METRICS[b.key] && !METRICS[b.key].dynamic) continue;
       METRICS[b.key] = {
-        label: b.label, long: b.long || b.label,
+        label: FrontierScoring.canonicalBenchLabel(b.key, b.label), long: FrontierScoring.canonicalBenchLabel(b.key, b.long || b.label),
         fmt: b.fmt === 'pct' ? pct : b.fmt === 'elo' ? elo : one,
         better: b.better || 'high', frac: !!b.frac, dynamic: true,
-        desc: `Auto-discovered Artificial Analysis evaluation (${b.rawKey || b.key}).`,
+        desc: 'Auto-discovered Artificial Analysis evaluation.',
       };
       const grp = GROUPS[b.group] ? b.group : 'Work & documents';
       for (const g of Object.keys(GROUPS)) if (g !== grp) {
@@ -2090,7 +2139,7 @@
       if (W[k] != null) desc += ` In the Intelligence Index${ver ? ' ' + ver : ''} at ${Math.round(W[k] * 100)}%.`;
       else if (e?.status && /^(Removed|Replaced|Superseded|Retired)/.test(e.status)) desc += ' ' + e.status.split(/(?<=\.)\s/)[0].replace(/Artificial Analysis /g, '').replace(/\bour\b/g, 'AA\'s').replace(/\.?$/, '.');
       M.desc = desc.trim();
-      if (M.dynamic && e?.name) { M.label = e.name; M.long = e.name; }
+      if (M.dynamic && e?.name) { M.label = FrontierScoring.canonicalBenchLabel(k, e.name); M.long = M.label; }
     }
     const keys = Object.keys(W).filter((k) => METRICS[k]).sort((a, b) => W[b] - W[a]);
     const aaMade = Math.round(100 * keys.filter((k) => BENCH_META[k]?.maker === 'Artificial Analysis').reduce((a, k) => a + W[k], 0));
@@ -2107,7 +2156,13 @@
     applyIndexMakeup(d);
     ALL = d.models.map((m) => ({ ...m, label: m.shortName.replace(/ with fallback\)/, ')') }));
     BY_ID = new Map(ALL.map((m) => [m.id, m]));
-    joinExternal(); datesOf(); frontierOf(); derive();
+    FrontierScoring.joinExternal(ALL, EXT, { effortLevels: EFFORT_LEVEL, effortLabels: EFFORT_LABEL, ensureEffort });
+    gradeRows = FrontierScoring.gradeCatalog(d, { sources: EXT });
+    gradeByKey = new Map(gradeRows.map(card => [card.k, card]));
+    deriveMix = FrontierScoring.createMixDeriver(ALL, norm, fillGap);
+    datesOf(); frontierOf();
+    if (BASIS === 'aa') derive();
+    else applyBasis();
     FAMILY.clear();
     AA_CHART_LABS = new Set(ALL.filter((m) => m.defaultSelected && !m.deprecated).map((m) => m.creatorSlug));
     const labBest = new Map();
@@ -2449,6 +2504,7 @@
   const refWord = (ref) => ref.key === 'model' ? refName(ref.model) : REF_DEFS[ref.key].label.toLowerCase();
 
   // ---------- state ----------
+  const DEFAULT_FITTER = { minGrade: 'B', cover: 0.75, fill: true, maxBenches: 6 };
   const STATE_KEY = 'aa-charts:state:v2', SETS_KEY = 'aa-charts:sets';
   const defaultSelection = () => ALL.filter((m) => m.defaultSelected && !m.deprecated).map((m) => m.id);
   const THEO_FAMILIES = ['claude-opus-5-5', 'claude-fable-5-1', 'gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5-6-sol'];
@@ -2460,8 +2516,8 @@
     efforts: EFFORTS.slice(), selected: theoSelection(), pinned: [],
     showDeprecated: false, openOnly: false, hideOlder: false, allLabs: false, addEffort: 'all', theme: 'system', glow: 'off', activeSet: '',
     zone: 'off', zoneStyle: 'tint', shape: 'standard', leadBy: 'model', menuSort: 'date', activeOnly: true,
-    focus: 'off', halo: 'thin', rowMetric: 'costPerTask', rowScale: 'linear', minGrade: 'any', plan: 'Claude Pro', planPrice: 20,
-    basis: 'aa', basisFill: true, planView: 'scatter', planScope: 'chart', planHideLabs: [], planHideEfforts: [], planMineOnly: false, planSort: { key: 'tasks', dir: -1 },
+    focus: 'off', halo: 'thin', rowMetric: 'myIndex', rowScale: 'linear', rowLayout: 'grouped', minGrade: 'any', plan: 'Claude Pro', planPrice: 20,
+    basis: 'aa', basisFill: true, customWeights: {}, customCover: 0.75, fitterOpts: DEFAULT_FITTER, planView: 'scatter', planScope: 'chart', planHideLabs: [], planHideEfforts: [], planMineOnly: false, planSort: { key: 'tasks', dir: -1 },
     lineStyle: 'solid', valueLabels: 'off', valueFront: false, shortEffort: false, shortEffortTouched: false, extWithFamily: 'auto', xRel: 'off', yRel: 'off', ramp: 'viridis', dual: 'ring', idColor: 'lab', wide: false,
     subPlans: {}, autoPts: {}, nameAt: 'end', tallRatio: 2, smallCaps: false, smallCapsOff: false, smallCapsAuto: false, valueVsX: 'axis', valueVsY: 'axis', valueAsX: 'auto', valueAsY: 'auto', autoBest: false, autoBestPct: 5, autoBase: false, autoBasePts: 3,
     guideAxes: 'both', guideBox: 'tint', guideBoxColor: 'model', zoneColor: 'theme',
@@ -2470,6 +2526,25 @@
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const savedState = load(STATE_KEY, {});
   const S = { ...DEFAULT_STATE, ...savedState };
+  function mixCover(value) {
+    return value != null && Number.isFinite(+value) && +value >= 0 && +value <= 1 ? Math.round(value * 100) / 100 : DEFAULT_FITTER.cover;
+  }
+  function fixMixState() {
+    if (!Object.hasOwn(BASES, S.basis)) S.basis = DEFAULT_STATE.basis;
+    if (!['grouped', 'bars'].includes(S.rowLayout)) S.rowLayout = DEFAULT_STATE.rowLayout;
+    if (S.rowScale !== 'log') S.rowScale = 'linear';
+    if (!Object.hasOwn(METRICS, S.rowMetric) && !['x', 'y'].includes(S.rowMetric)) S.rowMetric = DEFAULT_STATE.rowMetric;
+    S.customWeights = knownMixWeights(S.customWeights);
+    S.customCover = mixCover(S.customCover);
+    const fit = S.fitterOpts;
+    S.fitterOpts = {
+      minGrade: ['A', 'B', 'C', 'any'].includes(fit?.minGrade) ? fit.minGrade : DEFAULT_FITTER.minGrade,
+      cover: mixCover(fit?.cover),
+      fill: fit?.fill !== false,
+      maxBenches: Number.isInteger(+fit?.maxBenches) && +fit.maxBenches >= 1 && +fit.maxBenches <= 12 ? +fit.maxBenches : DEFAULT_FITTER.maxBenches,
+    };
+  }
+  fixMixState();
   // Old saves only had a minimum grade. That becomes the start; ticks are empty until you choose some.
   // Ticks are kept even when the current start already agrees, so switching the start back and forth loses none.
   S.benchPick = (() => {
@@ -3143,17 +3218,19 @@
 
   // ---------- saved sets ----------
   function snapshot() {
-    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, ladderAt: S.ladderAt, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor, nameAt: S.nameAt, tallRatio: S.tallRatio, valueAsX: S.valueAsX, valueAsY: S.valueAsY, valueVsX: S.valueVsX, valueVsY: S.valueVsY, smallCaps: S.smallCaps, smallCapsOff: S.smallCapsOff, smallCapsAuto: S.smallCapsAuto, subPlans: S.subPlans, autoPts: S.autoPts, autoBest: S.autoBest, autoBestPct: S.autoBestPct, autoBase: S.autoBase, autoBasePts: S.autoBasePts };
+    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, ladderAt: S.ladderAt, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, basis: S.basis, basisFill: S.basisFill, customWeights: knownMixWeights(S.customWeights), customCover: S.customCover, rowLayout: S.rowLayout, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor, nameAt: S.nameAt, tallRatio: S.tallRatio, valueAsX: S.valueAsX, valueAsY: S.valueAsY, valueVsX: S.valueVsX, valueVsY: S.valueVsY, smallCaps: S.smallCaps, smallCapsOff: S.smallCapsOff, smallCapsAuto: S.smallCapsAuto, subPlans: S.subPlans, autoPts: S.autoPts, autoBest: S.autoBest, autoBestPct: S.autoBestPct, autoBase: S.autoBase, autoBasePts: S.autoBasePts };
   }
   function applySet(snap) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
-    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor', 'nameAt', 'tallRatio', 'valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'smallCaps', 'smallCapsOff', 'smallCapsAuto', 'subPlans', 'autoPts', 'autoBest', 'autoBestPct', 'autoBase', 'autoBasePts']) if (snap[k] != null) S[k] = snap[k];
+    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor', 'nameAt', 'tallRatio', 'valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'smallCaps', 'smallCapsOff', 'smallCapsAuto', 'subPlans', 'autoPts', 'autoBest', 'autoBestPct', 'autoBase', 'autoBasePts']) if (snap[k] != null) S[k] = snap[k];
     if (snap.shortEffort != null && snap.shortEffortTouched == null) S.shortEffortTouched = true;
-    fixAxes(); fixMarks(); syncControls();
-    SUB_PLANS = S.subPlans; derive(); $('subPlansWrap').querySelectorAll('select').forEach((sel) => { sel.value = S.subPlans[sel.dataset.lab] || 'median'; });
-    save(); renderList(); render();
+    for (const key of ['basis', 'basisFill', 'customWeights', 'customCover', 'rowLayout', 'rowMetric', 'rowScale']) S[key] = snap[key] ?? DEFAULT_STATE[key];
+    fixMixState(); fixAxes(); fixMarks();
+    mixUndo = null; mixDrag = null; zeroWeights.clear();
+    SUB_PLANS = S.subPlans; applyBasis(); syncControls(); $('subPlansWrap').querySelectorAll('select').forEach((sel) => { sel.value = S.subPlans[sel.dataset.lab] || 'median'; });
+    updateMixUrl(); save(); renderList(); render(); renderMix(); renderUsage();
   }
   let dirty = false;
   function markDirty() { if (S.activeSet && !dirty) { dirty = true; renderSetSelect(); } }
@@ -3492,7 +3569,7 @@
     const card = reportCard(k);
     mtip.innerHTML = `<h4>${esc(M.long)}${card ? `<span class="grade g${card.letter}">${card.letter}</span>` : ''}</h4>${descOf(k) ? `<p>${esc(descOf(k))}</p>` : ''}` +
       `<div class="note">${liveCount(k)} current models · ${M.better === 'low' ? 'lower' : 'higher'} is better${M.ext ? ` · by ${esc(M.ext.by)}` : card ? ` · by ${esc(card.maker)}` : ''}</div>` +
-      (card ? `<p class="verdict"><b>Report card ${card.letter} (${card.score}/10):</b> ${esc(card.verdict)}</p><ul class="rc">${card.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : '') +
+      (card ? `<p class="verdict"><b>Grading v2 · ${gradeText(card)}</b> · ${esc(card.reason)}</p>` : '') +
       (UPDATED.has(k) ? `<div class="note">${esc(updatedNote(k))}</div>` : '') +
       (activeNote(k) ? `<div class="note">${esc(activeNote(k))}</div>` : '') +
       (top.length ? `<table>${top.map((m, i) => `<tr><td>${i + 1}</td><td><i style="background:${familyColor(m)}"></i>${esc(m.familyName)}<span class="eff">${effortTag(m)}${m.estimated ? ' · est.' : ''}</span></td><td class="n">${M.fmt(m[k])}</td></tr>`).join('')}</table>` : '');
@@ -3816,7 +3893,7 @@
     const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
 
     $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && !(usesYourIndex() && k === 'myIndex') && (i === 0 || S.x !== S.y))
-      .map((k) => { const c = reportCard(k); return `<b>${esc(METRICS[k].label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(descOf(k))}${c ? ` <span class="upd" title="${esc(c.lines.join('\n'))}">Report card <b>${c.letter}</b> (${c.score}/10): ${esc(c.verdict)}</span>` : ''}`; }).join('<br>');
+      .map((k) => { const c = reportCard(k); return `<b>${esc(METRICS[k].label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(descOf(k))}${c ? ` <span class="upd" title="${esc(c.reason)}">Grading v2 <b>${gradeText(c)}</b></span>` : ''}`; }).join('<br>');
     const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
     svg.replaceChildren();
@@ -4619,8 +4696,8 @@
     render();
   });
 
-  // ---------- by effort level: one row per model, a dot per effort (like slopalytics.com) ----------
-  const ROW_METRICS = [['costPerTask', 'Cost per task'], ['costToRun', 'Total cost'], ['tokensPerTask', 'Tokens per task'], ['outputTokens', 'Total tokens'], ['timePerTask', 'Time per task'], ['y', 'Y axis metric'], ['x', 'X axis metric']];
+  // ---------- by effort level ----------
+  const ROW_METRICS = [['myIndex', 'Your index'], ['costPerTask', 'Cost / task ↓'], ['costToRun', 'Total cost'], ['tokensPerTask', 'Tokens ↓'], ['outputTokens', 'Total tokens'], ['timePerTask', 'Time per task'], ['y', 'Chart metric'], ['x', 'X axis metric']];
   $('rowMetricSeg').innerHTML = ROW_METRICS.map(([v, t]) => `<button data-v="${v}" title="${v === 'y' ? 'Whatever is on the chart\'s Y axis' : v === 'x' ? 'Whatever is on the chart\'s X axis' : esc(METRICS[v].long)}">${t}</button>`).join('');
   function renderRows(models, dimmed = () => false) {
     const key = S.rowMetric === 'y' ? S.y : S.rowMetric === 'x' ? S.x : S.rowMetric, Mt = METRICS[key] || METRICS.costPerTask;
@@ -4628,67 +4705,451 @@
     const W = Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
     const narrow = W < 560, C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
     const scale = S.rowScale === 'log' ? 'log' : 'linear', low = Mt.better === 'low';
+    const values = models.map(m => m[key]).filter(v => Number.isFinite(v));
+    const signed = scale === 'linear' && (key === 'omniscience' || values.some(v => v < 0));
+    const grouped = S.rowLayout === 'grouped' && scale === 'linear' && !signed;
+    const byValue = (a, b) => low ? a - b : b - a;
     const fams = new Map();
-    for (const m of models) if (scaleOk(scale, m[key])) (fams.get(m.family) || fams.set(m.family, []).get(m.family)).push(m);
-    const without = new Set(models.map((m) => m.family)).size - fams.size;
-    // sorted like slopalytics: by each row's top value, cheapest (or best) first
-    const rows = [...fams.values()].map((ms) => ({ ms: ms.sort((a, b) => a.effortLevel - b.effortLevel || a[key] - b[key]), top: low ? Math.max(...ms.map((m) => m[key])) : Math.max(...ms.map((m) => m[key])) }))
-      .sort((a, b) => low ? a.top - b.top : b.top - a.top);
-    $('rowsNote').textContent = rows.length ? `${Mt.long} (${low ? 'lower' : 'higher'} is better)${scale === 'log' ? ', log scale' : ''}. Hover a dot for its value; letters are effort levels (L low, M medium, H high, X xhigh, MX max, N non-reasoning, D default).${without ? ` ${without} selected model famil${without > 1 ? 'ies have' : 'y has'} no ${Mt.label} data.` : ''}` : `None of the selected model families have ${Mt.label} data.`;
+    if (grouped) {
+      for (const m of models) if (scaleOk(scale, m[key])) (fams.get(m.family) || fams.set(m.family, []).get(m.family)).push(m);
+    }
+    const rows = grouped
+      ? [...fams.values()].map(ms => ({ ms, top: Math.max(...ms.map(m => m[key])) }))
+      : models.map(m => ({ ms: [m], top: scaleOk(scale, m[key]) ? m[key] : null }));
+    rows.sort((a, b) => a.top == null ? (b.top == null ? 0 : 1) : b.top == null ? -1 : byValue(a.top, b.top));
+    const benchCount = BASIS_KEYS.length;
+    const basisLabel = BASIS === 'custom' ? 'your mix' : BASIS === 'aa' ? 'AA’s index' : BASIS_SHORT[BASIS];
+    $('rowSubtitle').textContent = `Ranked by ${key === 'myIndex' ? basisLabel + ' · ' + benchCount + (benchCount === 1 ? ' benchmark' : ' benchmarks') : Mt.label} · data as of ${fmtDay(DATA.scrapedAt.slice(0, 10), true)}`;
+    $('groupedLegend').hidden = !grouped || !rows.length;
+    $('rowsNote').textContent = !rows.length ? `No selected models have ${Mt.label} data.`
+      : `${Mt.long} (${low ? 'lower' : 'higher'} is better).${scale === 'log' ? ' Log positions, with non-positive and missing values labeled separately.' : signed ? ' Bars extend from zero in the direction of the score.' : grouped ? ' Hover a marker for its effort and value.' : ''}`;
     svgR.replaceChildren();
+    svgR.setAttribute('aria-label', `${Mt.label}, ${grouped ? 'grouped by model family' : 'each effort'}, ${scale} scale`);
     if (!rows.length) { svgR.setAttribute('height', 0); return; }
-    const nameSize = narrow ? 12 : 12.5, LW = narrow ? 0 : Math.min(190, Math.max(...rows.map((r) => textW(r.ms[0].familyName, nameSize, 600))) + 26);
+    const rowName = m => grouped ? m.familyName : m.label;
+    const nameSize = narrow ? 12 : 12.5;
+    const LW = narrow ? 0 : Math.min(215, Math.max(...rows.map(r => textW(rowName(r.ms[0]), nameSize, 600))) + 26);
     const RH = narrow ? 50 : 38, TOP = 26, H = TOP + rows.length * RH + 8;
-    const x0 = LW + (narrow ? 4 : 10), x1 = W - (narrow ? 6 : 14);
+    const valueGutter = narrow || grouped ? 18 : 12 + Math.max(
+      textW(scale === 'log' ? '≤0 (cannot plot on log)' : 'missing', 11.5),
+      ...values.filter(v => scaleOk(scale, v)).map(v => textW(Mt.fmt(v), 11.5)));
+    const x0 = LW + (narrow ? 4 : 10), x1 = Math.max(x0 + 30, W - valueGutter);
     svgR.setAttribute('viewBox', `0 0 ${W} ${H}`); svgR.setAttribute('width', W); svgR.setAttribute('height', H);
     svgR.append(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: C.surface }));
-    const vals = rows.flatMap((r) => r.ms.map((m) => m[key]));
-    const sc = makeScale(vals, scale, [x0, x1]);
+    const vals = values.filter(v => scaleOk(scale, v));
+    // Include zero for every linear scale, so the bar length always represents the amount.
+    const sc = scale === 'log' ? (vals.length ? makeScale(vals, scale, [x0, x1]) : null) : makeScale(vals.length && vals.some(v => v !== 0) ? [0, ...vals] : [0, 1], scale, [x0, x1]);
     const g = svgEl('g'); svgR.append(g);
-    // ticks along the top, gridlines down through the rows
-    const ticks = [], thinGap = 36; let lastX = -Infinity;
-    for (const t of sc.ticks) { const x = sc.f(t); if (x - lastX >= thinGap) { ticks.push(t); lastX = x; } }
-    for (const t of ticks) {
-      const x = sc.f(t);
-      g.append(svgEl('line', { x1: x, x2: x, y1: TOP - 4, y2: H - 6, stroke: C.grid, 'stroke-width': 1, 'stroke-opacity': S.grid === 'off' ? 0 : S.grid === 'faint' ? 0.5 : 1 }));
-      const tl = Mt.fmt(t), tw = textW(tl, 10.5);
-      g.append(svgEl('text', { x: Math.max(tw / 2 + 1, Math.min(W - tw / 2 - 1, x)), y: TOP - 10, 'text-anchor': 'middle', fill: C.muted, 'font-size': 10.5, style: 'font-variant-numeric:tabular-nums' }, tl));
-    }
-    rows.forEach((r, i) => {
-      const yTop = TOP + i * RH, yc = narrow ? yTop + 34 : yTop + RH / 2, m0 = r.ms[0], color = colorOf(m0);
-      const dim = r.ms.every((m) => dimmed({ m }));
-      const row = svgEl('g', { 'data-fam': m0.family, opacity: dim ? 0.35 : null }); g.append(row);
-      if (i) row.append(svgEl('line', { x1: narrow ? 0 : 0, x2: W, y1: yTop, y2: yTop, stroke: C.grid, 'stroke-width': 1, 'stroke-opacity': 0.6 }));
-      const older = FAMILY.get(m0.family)?.older;
-      const name = svgEl('text', { x: narrow ? 2 : 0, y: narrow ? yTop + 15 : yc + 4.5, fill: S.colorBy === 'lab' || VALUE_BY.has(S.colorBy) ? readable(color) : C.ink, 'font-size': nameSize, 'font-weight': 600 }, m0.familyName);
-      if (!narrow) { let t = m0.familyName; while (textW(t, nameSize, 600) > LW - 10 && t.length > 3) t = t.replace(/…?$/, '').slice(0, -1) + '…'; name.textContent = t; }
-      row.append(name);
-      const xs = r.ms.map((m) => sc.f(m[key]));
-      row.append(svgEl('line', { x1: x0, x2: x1, y1: yc, y2: yc, stroke: C.axis, 'stroke-width': 1, 'stroke-opacity': 0.6 }));
-      if (xs.length > 1) row.append(svgEl('line', { x1: Math.min(...xs), x2: Math.max(...xs), y1: yc, y2: yc, stroke: color, 'stroke-width': 2.5, 'stroke-opacity': 0.55, 'stroke-dasharray': older ? '5 4' : null }));
-      // the range at the right (phones) or value labels under the dots, skipping any that would collide
-      if (narrow) {
-        const a = Mt.fmt(Math.min(...r.ms.map((m) => m[key]))), b = Mt.fmt(Math.max(...r.ms.map((m) => m[key])));
-        row.append(svgEl('text', { x: W - 2, y: yTop + 15, 'text-anchor': 'end', fill: C.ink2, 'font-size': 11.5, style: 'font-variant-numeric:tabular-nums' }, a === b ? a : `${a} – ${b}`));
-      } else {
-        let lastAbove = -Infinity, lastBelow = -Infinity;
-        r.ms.forEach((m, j) => {
-          const x = xs[j], t = Mt.fmt(m[key]), w = textW(t, 10) + 6;
-          let y = null;
-          if (x - w / 2 >= lastBelow) { y = yc + 17; lastBelow = x + w / 2; } else if (x - w / 2 >= lastAbove) { y = yc - 10; lastAbove = x + w / 2; }
-          if (y != null) row.append(svgEl('text', { x, y, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 10, style: 'font-variant-numeric:tabular-nums' }, t));
-        });
+    if (sc) {
+      let lastTick = -Infinity;
+      for (const t of sc.ticks) {
+        const x = sc.f(t);
+        if ((signed && Math.abs(x - sc.f(0)) < 36) || x - lastTick < 36) continue;
+        lastTick = x;
+        g.append(svgEl('line', { x1: x, x2: x, y1: TOP - 4, y2: H - 6, stroke: C.grid, 'stroke-width': 1, 'stroke-opacity': S.grid === 'off' ? 0 : S.grid === 'faint' ? 0.5 : 1 }));
+        const label = Mt.fmt(t), tw = textW(label, 10.5);
+        g.append(svgEl('text', { x: Math.max(tw / 2 + 1, Math.min(W - tw / 2 - 1, x)), y: TOP - 10, 'text-anchor': 'middle', fill: C.muted, 'font-size': 10.5 }, label));
       }
-      r.ms.forEach((m, j) => {
-        const x = xs[j], dot = svgEl('g', {});
-        dot.append(svgEl('circle', { cx: x, cy: yc, r: 7, fill: color, stroke: C.surface, 'stroke-width': 1.5, 'fill-opacity': m.estimated ? 0.5 : 1 }));
-        dot.append(svgEl('text', { x, y: yc + 2.8, 'text-anchor': 'middle', fill: C.surface, 'font-size': 7.5, 'font-weight': 700, 'pointer-events': 'none' }, EFFORT_SHORT[m.effort] || ''));
-        dot.append(svgEl('title', {}, `${m.label}: ${Mt.fmt(m[key])}`));
-        row.append(dot);
-      });
+    }
+    rows.forEach(({ ms }, i) => {
+      const yTop = TOP + i * RH, yc = narrow ? yTop + 34 : yTop + RH / 2, m0 = ms[0];
+      const color = grouped ? labBase(m0.creatorSlug) : colorOf(m0);
+      const row = svgEl('g', { 'data-fam': m0.family, opacity: ms.every(m => dimmed({ m })) ? 0.35 : null }); g.append(row);
+      if (i) row.append(svgEl('line', { x1: 0, x2: W, y1: yTop, y2: yTop, stroke: C.grid, 'stroke-opacity': 0.6 }));
+      const raw = m0[key];
+      const value = grouped ? (() => {
+        const amounts = ms.map(m => m[key]), a = Mt.fmt(Math.min(...amounts)), b = Mt.fmt(Math.max(...amounts));
+        return a === b ? a : `${a} – ${b}`;
+      })() : !Number.isFinite(raw) ? 'missing' : scale === 'log' && raw <= 0 ? '≤0 (cannot plot on log)' : Mt.fmt(raw);
+      const valueWidth = textW(value, 11.5);
+      const nameWidth = narrow ? W - valueWidth - 16 : LW - 10;
+      let name = rowName(m0);
+      while (textW(name, nameSize, 600) > nameWidth && name.length > 3) name = name.replace(/…?$/, '').slice(0, -1) + '…';
+      const nameEl = svgEl('text', { x: 2, y: narrow ? yTop + 15 : yc + 4.5, fill: C.ink, 'font-size': nameSize, 'font-weight': 600 }, name);
+      nameEl.append(svgEl('title', {}, rowName(m0))); row.append(nameEl);
+      const labelAttrs = { x: W - 2, y: narrow ? yTop + 15 : yc + 4, 'text-anchor': 'end', fill: C.ink2, 'font-size': 11.5 };
+      if (narrow || !grouped) row.append(svgEl('text', labelAttrs, value));
+      if (!sc || !grouped && !scaleOk(scale, raw)) return;
+
+      row.append(svgEl('line', { x1: x0, x2: x1, y1: yc, y2: yc, stroke: C.grid }));
+      const isEstimate = m => m.estimated || (key === 'myIndex' && !!m.myEst);
+      if (grouped) {
+        const marks = ms.map(m => ({ m, x: sc.f(m[key]) })).sort((a, b) => a.x - b.x);
+        const far = marks[marks.length - 1].x;
+        row.append(svgEl('rect', { class: 'gfill', x: x0, y: yc - 8, width: Math.max(0, far - x0), height: 16, rx: 3, fill: color }));
+        // Cluster whenever the actual marker pills would overlap at this width.
+        const markerFor = marks => {
+          const efforts = marks.map(({ m }) => m).sort((a, b) => a.effortLevel - b.effortLevel);
+          const label = [...new Set(efforts.map(m => EFFORT_SHORT[m.effort] || 'D'))].join('/');
+          const width = textW(label, 8, 700) + 7;
+          const center = marks.reduce((sum, mark) => sum + mark.x, 0) / marks.length;
+          const x = Math.max(width / 2, Math.min(W - width / 2, center));
+          return { marks, efforts, label, width, x };
+        };
+        const clusters = [];
+        for (const mark of marks) {
+          let marker = markerFor([mark]), left = clusters.at(-1);
+          while (left && marker.x - marker.width / 2 < left.x + left.width / 2 + 2) {
+            marker = markerFor([...clusters.pop().marks, ...marker.marks]);
+            left = clusters.at(-1);
+          }
+          clusters.push(marker);
+        }
+        let valueRight = -Infinity;
+        for (const { marks, efforts, label, width, x } of clusters) {
+          const dot = svgEl('g', { class: 'effort-marker' });
+          dot.append(svgEl('rect', { x: x - width / 2, y: yc - 7, width, height: 14, rx: 5, fill: color, stroke: C.surface, 'fill-opacity': efforts.every(isEstimate) ? .55 : 1 }));
+          dot.append(svgEl('text', { x, y: yc + 3, 'text-anchor': 'middle', fill: C.surface, 'font-size': 8, 'font-weight': 700, 'pointer-events': 'none' }, label));
+          dot.append(svgEl('title', {}, efforts.map(m => `${m.label}: ${Mt.fmt(m[key])}`).join('\n')));
+          row.append(dot);
+          if (!narrow && marks.length === 1) {
+            const amount = Mt.fmt(marks[0].m[key]), half = textW(amount, 10) / 2;
+            if (x - half > valueRight + 4) {
+              row.append(svgEl('text', { x, y: yc + 16, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 10 }, amount));
+              valueRight = x + half;
+            }
+          }
+        }
+      } else {
+        const x = sc.f(raw);
+        const mark = scale === 'log'
+          ? svgEl('circle', { class: 'effort-log-dot', cx: x, cy: yc, r: 4, fill: color })
+          : svgEl('rect', { class: 'effort-bar', x: Math.min(x, sc.f(0)), y: yc - 6, width: Math.abs(x - sc.f(0)), height: 12, rx: 2, fill: color, 'data-estimated': String(isEstimate(m0)), 'data-value': raw });
+        mark.append(svgEl('title', {}, `${m0.label}: ${value}`)); row.append(mark);
+      }
+    });
+    if (signed) {
+      const x = sc.f(0);
+      g.append(svgEl('line', { class: 'effort-zero', x1: x, x2: x, y1: TOP - 4, y2: H - 6, stroke: C.axis, 'pointer-events': 'none' }));
+      g.append(svgEl('text', { x, y: TOP - 10, 'text-anchor': 'middle', fill: C.ink2, 'font-size': 11 }, '0'));
+    }
+  }
+  const rowSyncs = [
+    ...[['rowMetricSeg', 'rowMetric'], ['rowScaleSeg', 'rowScale'], ['rowLayoutSeg', 'rowLayout']].map(([id, key]) =>
+      bindSeg(id, key, () => { markDirty(); updateMixUrl(); })),
+  ];
+
+  // ---------- benchmark grades and custom mix ----------
+  const PILLARS = [
+    ['Headroom and spread', 25], ['Exposure resistance', 20], ['Grading objectivity', 20],
+    ['Lab independence', 15], ['Frontier and efforts', 10], ['Sample size and currency', 10],
+  ];
+  function gradeDetails(card, showReason = false) {
+    const parts = PILLARS.map(([name, max], i) => {
+      const part = 'P' + (i + 1), score = card[part.toLowerCase()];
+      return { part, name, max, score };
+    });
+    const details = card.score == null ? 'No pillar scores available.' : `
+      <div class="pbar" aria-hidden="true">${parts.map(({ max, score }, i) => `<span style="width:${max}%;--pillar:var(--s${i + 1})"><i style="width:${100 * score / max}%"></i></span>`).join('')}</div>
+      <div class="pbreakdown">${parts.map(({ part, name, max, score }) => `<span title="${name}">${part} ${score}/${max}</span>`).join(' · ')}</div>`;
+    return `<details class="pdetail"><summary aria-label="Grading v2 for ${esc(card.label)}: ${gradeText(card)}"><span class="grade g${card.letter}">${card.letter}</span>${card.score ?? ''}</summary><div class="pmeta">${details}${showReason ? `<div>${esc(card.reason)}</div>` : ''}</div></details>`;
+  }
+  function renderGradeTable() {
+    const counts = [...GRADE_ORDER, '—'].map(grade => `${grade}=${gradeRows.filter(card => card.letter === grade).length}`).join(', ');
+    $('gradeSummary').textContent = `${gradeRows.length} benchmarks · ${eligibleGrades('B').length} eligible at B or better · ${counts}`;
+    $('gradeRows').innerHTML = gradeRows.map(card => {
+      const subset = card.k === 'critptHard' ? '<span class="ii-tag">40-task subset · AA v5</span>' : '';
+      return `<tr data-bench="${esc(card.k)}"><td class="col-head"><strong>${esc(card.label)}</strong>${subset}</td><td class="col-badge">${gradeDetails(card)}</td><td class="preason">${esc(card.reason)}</td></tr>`;
+    }).join('');
+  }
+
+  let mixUndo = null, mixFrame = 0, mixDrag = null;
+  const zeroWeights = new Set();
+  const activeMix = () => S.basis === 'custom' ? S.customWeights : knownMixWeights(Object.fromEntries(BASIS_KEYS));
+  function rememberMix() {
+    mixUndo = {
+      basis: S.basis, customWeights: { ...S.customWeights }, basisFill: S.basisFill, customCover: S.customCover,
+      zeroWeightKeys: [...zeroWeights],
+    };
+    $('mixUndo').disabled = false;
+  }
+  function writeMixParams(params) {
+    params.set('basis', S.basis);
+    params.set('rowLayout', S.rowLayout);
+    params.set('mix', PriorsFit.serializeMix(S.customWeights));
+    params.set('mixCover', String(S.customCover));
+    params.set('mixFill', S.basisFill === false ? '0' : '1');
+  }
+  function updateMixUrl() {
+    const url = new URL(location.href);
+    const anyMixSetting = ['basis', 'rowLayout', 'mix', 'mixCover', 'mixFill'].some(key => url.searchParams.has(key));
+    const rowOverrides = ['rowMetric', 'rowScale'].filter(key => url.searchParams.has(key));
+    if (!anyMixSetting && !rowOverrides.length) return;
+    if (anyMixSetting) writeMixParams(url.searchParams);
+    for (const key of rowOverrides) url.searchParams.set(key, S[key]);
+    try { history.replaceState(null, '', url); } catch { /* local file viewers may restrict URL changes */ }
+  }
+  function commitMix(refreshEditor = true) {
+    cancelAnimationFrame(mixFrame); mixFrame = 0;
+    applyBasis(); markDirty(); updateMixUrl(); save(); syncControls(); render(); renderUsage();
+    if (refreshEditor) renderMix();
+  }
+  function updateShares(weights) {
+    const shares = PriorsFit.sharesFromWeights(weights);
+    $('mixSliders').querySelectorAll('.mix-slider').forEach(row => {
+      const key = row.dataset.bench, weight = weights[key] || 0;
+      row.querySelector('.mix-values').textContent = `${shares[key] || 0}% share · ${weight.toFixed(2)}× raw`;
+      row.querySelector('input').setAttribute('aria-valuetext', `${weight.toFixed(2)} times weight`);
     });
   }
-  const rowSyncs = [bindSeg('rowMetricSeg', 'rowMetric', markDirty), bindSeg('rowScaleSeg', 'rowScale', markDirty)];
+  function renderMixBrowse() {
+    const grade = $('mixGrade').value, current = $('mixAdd').value;
+    const cards = grade === 'any' ? gradeRows : eligibleGrades(grade);
+    const weights = activeMix();
+    const available = cards.filter(card => METRICS[card.k] && !Object.hasOwn(weights, card.k) && !zeroWeights.has(card.k));
+    $('mixAdd').innerHTML = '<option value="">Add a benchmark…</option>' + available.map(card => `<option value="${esc(card.k)}">${esc(card.label)} · ${card.letter}</option>`).join('');
+    $('mixAdd').value = available.some(card => card.k === current) ? current : '';
+    $('mixAddBtn').disabled = !$('mixAdd').value;
+    $('mixGrade').querySelector('[value="B"]').textContent = `${eligibleGrades('B').length} B or better`;
+  }
+  function renderMix() {
+    const weights = activeMix(), keys = new Set([...Object.keys(weights), ...zeroWeights]);
+    const expanded = new Set([...$('mixSliders').querySelectorAll('.pdetail[open]')].map(el => el.closest('.mix-slider').dataset.bench));
+    $('mixCard').dataset.basis = S.basis;
+    $('mixPreset').innerHTML = '<option value="">Load preset…</option>' + Object.entries(BASES).filter(([id]) => id !== 'custom').map(([id, label]) =>
+      `<option value="${id}">${esc(label)}</option>`).join('');
+    $('mixSliders').innerHTML = [...keys].filter(key => reportCard(key)).map(key => {
+      const card = reportCard(key), track = PriorsFit.weightToTrack(weights[key] || 0);
+      return `<div class="mix-slider" data-bench="${esc(key)}"><div class="mix-slider-head"><strong>${esc(card.label)}</strong><span class="mix-values"></span></div>
+        <div class="mix-slider-track"><label><input type="range" min="0" max="100" step="1" value="${Math.min(100, Math.round(track))}" data-weight="${esc(key)}" aria-label="Weight for ${esc(card.label)}"></label>
+        <button type="button" class="mix-remove" data-remove="${esc(key)}" aria-label="Remove ${esc(card.label)}">×</button>
+        <div class="mix-ticks note" aria-hidden="true"><span>0</span><span>1×</span><span>4×</span></div></div>${gradeDetails(card, true)}</div>`;
+    }).join('') || '<p class="note">Add benchmarks to calculate your index.</p>';
+    $('mixSliders').querySelectorAll('.pdetail').forEach(el => { el.open = expanded.has(el.closest('.mix-slider').dataset.bench); });
+    $('mixUndo').disabled = !mixUndo;
+    updateShares(weights); renderMixBrowse();
+  }
+
+  $('editMix').addEventListener('click', () => {
+    $('mixCard').open = true;
+    $('mixCard').scrollIntoView({ block: 'start' });
+    $('mixCard').querySelector('summary').focus({ preventScroll: true });
+  });
+  $('mixCard').addEventListener('toggle', () => $('editMix').setAttribute('aria-expanded', String($('mixCard').open)));
+  $('mixReturn').addEventListener('click', () => {
+    $('rowsCard').open = true; $('rowsCard').scrollIntoView({ block: 'start' });
+    $('rankingHeading').focus({ preventScroll: true });
+  });
+  $('mixShare').addEventListener('click', async () => {
+    const url = new URL(location.pathname, location.href);
+    writeMixParams(url.searchParams);
+    try { await navigator.clipboard.writeText(url.href); $('mixLinkStatus').textContent = 'Mix link copied.'; }
+    catch { prompt('Copy this mix link', url.href); }
+  });
+  $('mixPreset').addEventListener('change', event => {
+    const preset = event.target.value;
+    if (!preset) return;
+    rememberMix(); zeroWeights.clear();
+    S.customWeights = knownMixWeights(Object.fromEntries(keysFor(preset)));
+    S.basis = preset;
+    commitMix();
+  });
+  $('mixUndo').addEventListener('click', () => {
+    if (!mixUndo) return;
+    const { zeroWeightKeys, ...previousMix } = mixUndo;
+    Object.assign(S, previousMix); mixUndo = null; mixDrag = null; zeroWeights.clear();
+    for (const key of zeroWeightKeys) zeroWeights.add(key);
+    commitMix();
+  });
+  $('mixSliders').addEventListener('click', event => {
+    const key = event.target.dataset.remove;
+    if (!key) return;
+    const nextKey = event.target.closest('.mix-slider').nextElementSibling?.dataset.bench;
+    rememberMix();
+    const weights = { ...activeMix() };
+    delete weights[key];
+    zeroWeights.delete(key);
+    if (S.basis !== 'custom') S.customCover = DEFAULT_FITTER.cover;
+    S.basis = 'custom';
+    S.customWeights = knownMixWeights(weights);
+    commitMix();
+    const nextSlider = [...event.currentTarget.querySelectorAll('input[data-weight]')].find(el => el.dataset.weight === nextKey);
+    (nextSlider || $('mixAdd')).focus();
+  });
+  $('mixSliders').addEventListener('input', event => {
+    const key = event.target.dataset.weight;
+    if (!key) return;
+    if (mixDrag !== key) { rememberMix(); mixDrag = key; }
+    const weight = PriorsFit.trackToWeight(Number(event.target.value));
+    const weights = { ...activeMix(), [key]: weight };
+    if (weight > 0) zeroWeights.delete(key); else zeroWeights.add(key);
+    if (S.basis !== 'custom') S.customCover = DEFAULT_FITTER.cover;
+    S.basis = 'custom'; S.customWeights = knownMixWeights(weights);
+    $('mixCard').dataset.basis = S.basis;
+    updateShares(S.customWeights);
+    if (!mixFrame) mixFrame = requestAnimationFrame(() => commitMix(false));
+  });
+  $('mixSliders').addEventListener('change', event => {
+    if (mixDrag !== event.target.dataset.weight) return;
+    mixDrag = null;
+    commitMix(false); renderMixBrowse();
+  });
+  $('mixGrade').addEventListener('change', renderMixBrowse);
+  $('mixAdd').addEventListener('change', () => { $('mixAddBtn').disabled = !$('mixAdd').value; });
+  $('mixAddBtn').addEventListener('click', () => {
+    const key = $('mixAdd').value;
+    if (!mixKeys().includes(key)) return;
+    rememberMix();
+    const weights = { ...activeMix(), [key]: 1 };
+    if (S.basis !== 'custom') S.customCover = DEFAULT_FITTER.cover;
+    S.basis = 'custom'; S.customWeights = knownMixWeights(weights);
+    commitMix();
+    [...$('mixSliders').querySelectorAll('input')].find(el => el.dataset.weight === key)?.focus();
+  });
+
+  // The lineup only changes the objective. Preview ranks come from the same full
+  // score calculation used when the fit is applied to Your mix.
+  function fitModels() {
+    return ALL.filter(m => !m.deprecated && !m.extOnly).sort((a, b) => (b.intelligence ?? -Infinity) - (a.intelligence ?? -Infinity));
+  }
+  let lineup = FrontierScoring.frontierFor(ALL, DATA.scrapedAt).frontier.map(m => m.id);
+  let fitVersion = 0, fitResult = null, fitDrag = null;
+  $('fitMax').innerHTML = Array.from({ length: 12 }, (_, i) => `<option>${i + 1}</option>`).join('');
+  function renderLineup() {
+    const selected = $('fitModel').value;
+    $('fitModel').innerHTML = '<option value="">Choose a model…</option>' + fitModels().filter(m => !lineup.includes(m.id))
+      .map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('');
+    $('fitModel').value = [...$('fitModel').options].some(o => o.value === selected) ? selected : '';
+    $('fitAdd').disabled = !$('fitModel').value;
+    $('fitLineup').innerHTML = lineup.map((id, i) => {
+      const label = esc(BY_ID.get(id).label);
+      return `<li data-position="${i}"><div class="fit-row"><strong>${label}</strong><div class="fit-reorder">
+        <button class="fit-grip" type="button" aria-label="Drag ${label}">⠿</button>
+        <button type="button" data-move="-1" aria-label="Move ${label} up" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" data-move="1" aria-label="Move ${label} down" ${i === lineup.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" data-remove aria-label="Remove ${label}">×</button></div></div></li>`;
+    }).join('');
+    $('fitRun').disabled = lineup.length < 2;
+    $('fitRelaxC').disabled = lineup.length < 2;
+    $('fitRelaxAny').disabled = lineup.length < 2;
+  }
+  function syncFitSettings() {
+    $('fitGrade').value = S.fitterOpts.minGrade;
+    if (![...$('fitCover').options].some(option => Number(option.value) === S.fitterOpts.cover)) {
+      $('fitCover').add(new Option(`${Math.round(S.fitterOpts.cover * 100)}%`, String(S.fitterOpts.cover)));
+    }
+    $('fitCover').value = S.fitterOpts.cover;
+    $('fitFill').checked = S.fitterOpts.fill;
+    $('fitMax').value = S.fitterOpts.maxBenches;
+  }
+  function resetFitPreview() {
+    fitVersion++; fitResult = null;
+    lineup = lineup.filter(id => BY_ID.has(id));
+    $('fitRun').textContent = 'Fit weights';
+    $('fitPreview').hidden = true; $('fitApply').disabled = true;
+    renderLineup();
+  }
+  function moveFitModel(from, to) {
+    if (from === to || to < 0 || to >= lineup.length) return;
+    lineup.splice(to, 0, lineup.splice(from, 1)[0]);
+    resetFitPreview();
+  }
+  $('fitModel').addEventListener('change', () => { $('fitAdd').disabled = !$('fitModel').value; });
+  $('fitAdd').addEventListener('click', () => {
+    const id = $('fitModel').value;
+    if (BY_ID.has(id) && !lineup.includes(id)) { lineup.push(id); resetFitPreview(); }
+  });
+  $('fitLineup').addEventListener('click', e => {
+    const btn = e.target.closest('button'), row = btn?.closest('li');
+    if (!row) return;
+    const i = Number(row.dataset.position);
+    if (btn.matches('[data-remove]')) { lineup.splice(i, 1); resetFitPreview(); $('fitModel').focus(); }
+    else if (btn.hasAttribute('data-move')) {
+      const dest = i + Number(btn.dataset.move);
+      moveFitModel(i, dest);
+      const newRow = $('fitLineup').children[dest];
+      (newRow?.querySelector(`[data-move="${btn.dataset.move}"]:enabled`) || newRow?.querySelector('[data-move]:enabled'))?.focus();
+    }
+  });
+  $('fitLineup').addEventListener('pointerdown', e => {
+    const grip = e.target.closest('.fit-grip');
+    if (!grip || e.button !== 0) return;
+    const from = Number(grip.closest('li').dataset.position);
+    fitDrag = { pointer: e.pointerId, from, to: from };
+    grip.setPointerCapture(e.pointerId);
+  });
+  $('fitLineup').addEventListener('pointermove', e => {
+    if (fitDrag?.pointer !== e.pointerId) return;
+    const row = document.elementFromPoint(e.clientX, e.clientY)?.closest('#fitLineup > li');
+    $('fitLineup').querySelector('.fit-drop')?.classList.remove('fit-drop');
+    fitDrag.to = row ? Number(row.dataset.position) : fitDrag.from;
+    if (row && fitDrag.to !== fitDrag.from) row.classList.add('fit-drop');
+  });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $('fitLineup').addEventListener(type, e => {
+    if (fitDrag?.pointer !== e.pointerId) return;
+    const { from, to } = fitDrag;
+    fitDrag = null; $('fitLineup').querySelector('.fit-drop')?.classList.remove('fit-drop');
+    if (type === 'pointerup') moveFitModel(from, to);
+  });
+
+  function showFit(result, ids, running, count) {
+    const { ranked, ag, entropy, weights } = result;
+    const ranks = new Map(ranked.map(row => [row.id, row]));
+    const tau = PriorsFit.kendallTau(ids, ranked);
+    $('fitStatus').textContent = `${running ? 'Fitting… · ' : ''}${ag.matched}/${ag.total} requested pairs matched · ${Object.keys(weights).length} of ${count} benchmarks · mix entropy ${entropy.toFixed(2)}${tau == null ? '' : ' · Kendall τ ' + tau.toFixed(2)}`;
+    $('fitResults').innerHTML = ids.map((id, i) => {
+      const row = ranks.get(id);
+      const swaps = ids.slice(0, i).filter(other => row && ranks.get(other)?.rank > row.rank).length;
+      return `<li>${esc(BY_ID.get(id).label)} · ${row ? `overall #${row.rank} (${row.score.toFixed(1)})` : 'below measured floor'}${swaps ? ` <span class="fit-swap">${swaps} swap${swaps === 1 ? '' : 's'}</span>` : ''}</li>`;
+    }).join('');
+    $('fitApply').disabled = running || !ranked.length;
+  }
+
+  async function runFit() {
+    resetFitPreview();
+    const id = fitVersion, targetIds = [...lineup], opts = { ...S.fitterOpts }, scoreMix = deriveMix;
+    const candidateKeys = opts.minGrade === 'any' ? mixKeys() : eligibleGrades(opts.minGrade).map(card => card.k);
+    if (targetIds.length < 2) return;
+    const liveIds = new Set(fitModels().map(m => m.id));
+    const deriveFn = weights => {
+      const rows = scoreMix(weights, opts).filter(row => liveIds.has(row.id));
+      let rank = 0;
+      return rows.map((row, i) => {
+        if (row.score !== rows[i - 1]?.score) rank = i + 1;
+        return { ...row, rank };
+      });
+    };
+    $('fitPreview').hidden = false;
+    $('fitRun').textContent = 'Fitting…'; $('fitRun').disabled = true;
+    $('fitStatus').textContent = 'Fitting…'; $('fitResults').replaceChildren();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    if (id !== fitVersion) return;
+    try {
+      const result = await PriorsFit.fitWeights({ targetIds, candidateKeys, deriveFn, maxBenches: opts.maxBenches,
+        onProgress: best => { if (id === fitVersion) showFit(best, targetIds, true, candidateKeys.length); },
+        shouldStop: () => id !== fitVersion,
+      });
+      if (id !== fitVersion) return;
+      if (result?.ranked.length) {
+        fitResult = { ...result, opts }; showFit(result, targetIds, false, candidateKeys.length);
+      } else $('fitStatus').textContent = 'No ranked models. Try a lower measured floor or a wider grade filter.';
+    } catch {
+      if (id === fitVersion) $('fitStatus').textContent = 'Fitting could not finish. Try again.';
+    } finally {
+      if (id === fitVersion) { $('fitRun').textContent = 'Fit weights'; $('fitRun').disabled = false; }
+    }
+  }
+  $('fitRun').addEventListener('click', runFit);
+  for (const [control, key] of [['fitGrade', 'minGrade'], ['fitCover', 'cover'], ['fitFill', 'fill'], ['fitMax', 'maxBenches']]) {
+    $(control).addEventListener('change', e => {
+      const field = e.target;
+      S.fitterOpts[key] = key === 'fill' ? field.checked : key === 'minGrade' ? field.value : Number(field.value);
+      resetFitPreview(); save();
+    });
+  }
+  for (const [control, grade] of [['fitRelaxC', 'C'], ['fitRelaxAny', 'any']]) {
+    $(control).addEventListener('click', () => { S.fitterOpts.minGrade = grade; syncFitSettings(); save(); runFit(); });
+  }
+  $('fitApply').addEventListener('click', () => {
+    if (!fitResult) return;
+    rememberMix(); zeroWeights.clear();
+    S.customWeights = fitResult.weights; S.basis = 'custom';
+    S.basisFill = fitResult.opts.fill; S.customCover = fitResult.opts.cover;
+    S.rowMetric = 'myIndex';
+    fitResult = null; $('fitApply').disabled = true;
+    commitMix();
+  });
+  renderLineup(); syncFitSettings();
 
   // ---------- subscription math ----------
   // Monthly fees as published on the providers' pricing pages in early October 2026 (see the README for sources); edit the fee if yours differs.
@@ -4890,9 +5351,9 @@
   // "Your index": one setting, shown in the options and under Subscription math
   for (const sel of document.querySelectorAll('.basisSel')) {
     sel.innerHTML = Object.entries(BASES).map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('');
-    sel.addEventListener('change', (e) => { S.basis = e.target.value; applyBasis(); save(); syncControls(); render(); renderUsage(); }); // usage scores use your index
+    sel.addEventListener('change', (e) => { rememberMix(); zeroWeights.clear(); S.basis = e.target.value; commitMix(); }); // usage scores use your index
   }
-  for (const box of document.querySelectorAll('.basisFill')) box.addEventListener('change', (e) => { S.basisFill = e.target.checked; applyBasis(); save(); syncControls(); render(); renderUsage(); });
+  for (const box of document.querySelectorAll('.basisFill')) box.addEventListener('change', (e) => { S.basisFill = e.target.checked; commitMix(false); });
 
   // ---------- your usage (T3 Code) ----------
   // What the models you use in T3 Code would cost at API list prices. A collector on the Mac (usage/collect.mjs) adds up
@@ -6224,6 +6685,7 @@
       S.selected = new Set([...S.selected].filter((id) => BY_ID.has(id)));
       S.pinned = new Set([...S.pinned].filter((id) => BY_ID.has(id)));
       if (!S.selected.size) S.selected = new Set(theoSelection());
+      renderGradeTable(); resetFitPreview(); renderMix();
       syncControls(); save(); renderList(); render(); renderAgents(); renderUsage(); checkNews();
       showMeta((!changed ? 'checked · no changes' : why ? 'updated from the site\'s own copy' : 'updated') + (before.size && added ? ` · ${added} new model${added > 1 ? 's' : ''}` : '') +
         (why ? ` · ${why}` : '') + (saved ? '' : ' · shown until you close the page (this browser wouldn\'t save it)'), !!why);
@@ -6258,8 +6720,12 @@
   showMeta();
   // URL overrides, e.g. ?theme=dark&x=costPerTask&xScale=log&pin=claude-opus-5-5:low
   const qp = new URLSearchParams(location.search);
-  for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale', 'basis', 'planView', 'planScope', 'lineStyle', 'valueLabels', 'xRel', 'yRel', 'ramp', 'zone', 'zoneStyle', 'frontStyle', 'shape', 'glow', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (qp.get(k) && !(qp.get(k) in Object.prototype)) S[k] = qp.get(k); // names like ?x=constructor would reach inherited properties
-  if (qp.get('basis')) applyBasis();
+  for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale', 'rowLayout', 'basis', 'planView', 'planScope', 'lineStyle', 'valueLabels', 'xRel', 'yRel', 'ramp', 'zone', 'zoneStyle', 'frontStyle', 'shape', 'glow', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (qp.get(k) && !(qp.get(k) in Object.prototype)) S[k] = qp.get(k); // names like ?x=constructor would reach inherited properties
+  if (qp.has('mix')) S.customWeights = PriorsFit.parseMix(qp.get('mix'), mixKeys());
+  if (qp.has('mixCover')) S.customCover = mixCover(qp.get('mixCover'));
+  if (['0', '1'].includes(qp.get('mixFill'))) S.basisFill = qp.get('mixFill') === '1';
+  fixMixState(); applyBasis();
+  renderGradeTable(); renderMix();
   if (qp.get('fullFrontier')) S.fullFrontier = qp.get('fullFrontier') === '1';
   if (qp.get('valueFront')) S.valueFront = qp.get('valueFront') === '1';
   if (qp.get('shortEffort')) { S.shortEffort = qp.get('shortEffort') === '1'; S.shortEffortTouched = true; }

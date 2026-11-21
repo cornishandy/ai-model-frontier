@@ -98,9 +98,11 @@ fs.writeFileSync(here('./data/models.js'), `window.AA_DATA = ${JSON.stringify(ou
 const inlineScript = (js) => `<script>${js.replace(/<\//g, '<\\/')}</script>`;
 const tags = {
   '<script src="scoring.js"></script>': inlineScript(fs.readFileSync(here('./scoring.js'), 'utf8')),
+  '<script src="priors-fit.js"></script>': inlineScript(fs.readFileSync(here('./priors-fit.js'), 'utf8')),
   '<script src="aa-data.js"></script>': inlineScript(fs.readFileSync(here('./aa-data.js'), 'utf8')),
   '<script src="data/models.js"></script>': inlineScript(`window.AA_DATA = ${JSON.stringify(out)};`),
   '<script src="data/external.js"></script>': inlineScript(fs.readFileSync(here('./data/external.js'), 'utf8')),
+  '<script src="data/plan-shares.js"></script>': inlineScript(fs.readFileSync(here('./data/plan-shares.js'), 'utf8')),
 };
 let page = fs.readFileSync(here('./index.html'), 'utf8');
 for (const [tag, inline] of Object.entries(tags)) {

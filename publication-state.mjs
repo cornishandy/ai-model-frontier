@@ -25,7 +25,7 @@ export function knownState(state) {
 }
 export function publicationState(data, previous, missing, now = new Date().toISOString(), external, board) {
   const hash = fingerprint(data, external), old = previous?.publication;
-  if (knownState(old) && old.fingerprint === hash && (!board || globalThis.FrontierScoring.validBoard(old.currentBoard))) return old;
+  if (knownState(old) && old.fingerprint === hash && (!board || (globalThis.FrontierScoring.validBoard(old.currentBoard) && old.currentBoard.rubric === board.rubric))) return old;
   return {status:'known', fingerprint:hash, date:data.scrapedAt || now,
     missingSpeedFields:missing, currentBoard:board || null, priorBoard:knownState(old) ? old.currentBoard : null};
 }

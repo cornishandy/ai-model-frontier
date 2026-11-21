@@ -33,6 +33,11 @@ assert.deepEqual(publicationState({...data,scrapedAt:'2026-11-09'}, {publication
 const extChanged={sources:[{key:'x',rows:[{value:.3}]}]};
 const next=publicationState(data,{publication:first},[],undefined,extChanged,{...board,identity:'b'});
 assert.deepEqual(next.priorBoard,board,'external-only change promotes frozen prior board');
+const rubric = { ...board, rubric: 2 };
+const regraded = publicationState(data, { publication:first }, [], undefined, external, rubric);
+assert.deepEqual(regraded.currentBoard, rubric, 'same-data deployment still replaces a prior grading rubric');
+assert.deepEqual(regraded.priorBoard, board);
+
 assert.notEqual(next.fingerprint,first.fingerprint);
 
 for (const rows of ['bad',[null,null],[{},{}]]) assert.equal(FrontierScoring.validBoard({...board,rows}),false,'malformed saved state is ignored without crashing');

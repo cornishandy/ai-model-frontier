@@ -13,7 +13,14 @@ assert.doesNotThrow(()=>vm.runInContext('shiftStory()',sandbox));
  const browser = await chromium.launch();
  try {
  const page = await browser.newPage();
- if (process.env.AIMF_DATA_FIXTURE) await page.route('**/data/models.js*', r => r.fulfill({path: process.env.AIMF_DATA_FIXTURE, contentType: 'application/javascript'}));
+ // Exercise the October fallback independently of the publisher's historical board.
+ const fixture = process.env.AIMF_DATA_FIXTURE || require('node:path').join(__dirname, '../data/models.js');
+ const seed = { window: {} };
+ vm.runInNewContext(fs.readFileSync(fixture, 'utf8'), seed);
+ delete seed.window.AA_DATA.publication;
+ await page.route('**/data/models.js*', r => r.fulfill({
+   body: 'window.AA_DATA = ' + JSON.stringify(seed.window.AA_DATA) + ';', contentType: 'application/javascript',
+ }));
  await page.goto((process.env.FRONTIER_URL || 'http://127.0.0.1:8792/index.html') + '?noAutoUpdate');
  const note = page.locator('#shiftText');
  await note.waitFor({state:'visible'});
@@ -24,7 +31,7 @@ assert.doesNotThrow(()=>vm.runInContext('shiftStory()',sandbox));
   const toggle = note.locator('[data-shift-details]');
   assert.equal(await toggle.innerText(),'The regrade and how the list changed');
   await toggle.click(); assert.equal(await toggle.getAttribute('aria-expanded'),'true');
-  assert.match(await note.innerText(), /17 added, 1 left \(Terminal-Bench-Science\), so 7 became 23:/);
+  assert.match(await note.innerText(), /12 added, so 7 became 19:/);
   // Inline-block separators stay with their item, so cannot end the previous line.
   // Any item on a new line must suppress its leading separator.
   assert.deepEqual(await note.locator('.shift-item.sep').evaluateAll(items => items.flatMap(it => {
