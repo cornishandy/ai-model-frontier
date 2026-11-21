@@ -6,7 +6,7 @@ import os from 'node:os';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { gzipSync, gunzipSync } from 'node:zlib';
+import { gzipSync, gunzipSync, createZstdDecompress } from 'node:zlib';
 import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import vm from 'node:vm';
@@ -18,8 +18,8 @@ const DEFAULT_PROJECT_DENYLIST = ['taxes', 'medical', 'secret', 'interview'];
 const gistId = s => typeof s === 'string' && /^[a-f0-9]{20,40}$/i.test(s);
 const ownerLogin = s => typeof s === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}$/.test(s);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const BILLING = { claudeAgent: 'subscription', codex: 'subscription', antigravity: 'subscription', codex_openai_api: 'api', opencode: 'api', grok: 'unknown' };
-const LABELS = { claudeAgent: 'Claude', codex: 'Codex', codex_openai_api: 'Codex — OpenAI API (paid)', antigravity: 'Antigravity', opencode: 'OpenCode', grok: 'Grok' };
+const BILLING = { claudeAgent: 'subscription', codex: 'subscription', codex_lean: 'subscription', antigravity: 'subscription', codex_openai_api: 'api', opencode: 'api', grok: 'unknown' };
+const LABELS = { claudeAgent: 'Claude', codex: 'Codex', codex_lean: 'Codex · lean reviewers', codex_openai_api: 'Codex — OpenAI API (paid)', antigravity: 'Antigravity', opencode: 'OpenCode', grok: 'Grok' };
 // Antigravity's names for Gemini 3.1 Pro (the owner confirmed). T3 Code's usageModelAliases setting overrides these.
 const DEFAULT_MODEL_ALIASES = { 'gemini-pro-agent': 'gemini-3.1-pro-preview', 'gemini-pro-default': 'gemini-3.1-pro-preview' };
 class UsageError extends Error {}
@@ -49,8 +49,12 @@ export function localBucket(ts, tz) {
 }
 
 async function *lines(file, label) {
-  const stream = fs.createReadStream(file, { encoding: 'utf8' });
-  const reader = readline.createInterface({ input: stream, crlfDelay: Infinity });
+  const raw = fs.createReadStream(file);
+  const decomp = file.endsWith('.zst') ? createZstdDecompress() : null;
+  if (decomp) raw.on('error', err => decomp.destroy(err));
+  const input = decomp ? raw.pipe(decomp) : raw;
+  input.setEncoding('utf8');
+  const reader = readline.createInterface({ input, crlfDelay: Infinity });
   try {
     for await (const line of reader) {
       if (!line.trim()) continue;
@@ -61,7 +65,7 @@ async function *lines(file, label) {
   } catch (error) {
     if (error.message?.startsWith(label + ':')) throw error;
     fail(`${label}: raw log could not be read`);
-  } finally { reader.close(); stream.destroy(); }
+  } finally { reader.close(); if (decomp) decomp.destroy(); raw.destroy(); }
 }
 
 function cacheTokens(provider, u) {
@@ -73,7 +77,7 @@ function cacheTokens(provider, u) {
 // Verify live column semantics on each source/model/tier, without retaining message content.
 async function inspectFile(file, provider, wanted, scanAll = false) {
   let cwd = null, activeModel = null, firstSession = null;
-  const verified = new Set(), grok = new Map();
+  const verified = new Set(), turSeen = new Set(), turVerified = new Set(), legacyVerified = new Set(), keyMismatch = new Set(), grok = new Map();
   let scanned = 0;
   for await (const x of lines(file, `${provider} log`)) {
     scanned++;
@@ -84,7 +88,8 @@ async function inspectFile(file, provider, wanted, scanAll = false) {
     }
     if (provider === 'grok' && x.params?.update?.sessionUpdate === 'turn_completed') {
       const u = x.params.update.usage;
-      requireThat(u && u.modelUsage && typeof u.modelUsage === 'object' && !Array.isArray(u.modelUsage), 'Grok log: missing per-model turn usage');
+      if (u == null) continue;
+      requireThat(u.modelUsage && typeof u.modelUsage === 'object' && !Array.isArray(u.modelUsage), 'Grok log: missing per-model turn usage');
       const ts = x.params._meta?.agentTimestampMs ?? x.timestamp * 1000;
       for (const [model, usage] of Object.entries(u.modelUsage)) {
         requireThat(safeId(model) && isCount(usage.modelCalls) && usage.modelCalls > 0 && isCount(usage.costUsdTicks), 'Grok log: invalid call count or cost');
@@ -96,26 +101,55 @@ async function inspectFile(file, provider, wanted, scanAll = false) {
       }
     }
     for (let i = 0; i < wanted.length; i++) {
-      if (verified.has(i)) continue;
+      if (verified.has(i) && !legacyVerified.has(i)) continue;
       const r = wanted[i];
       if (provider === 'grok') {
         const v = grok.get(JSON.stringify([r[0], r.model, ...r.slice(3, 8)]));
         if (v) { requireThat(Math.abs(v.cost - r[9]) < 1e-9, 'Grok cache: cost column no longer matches raw ticks'); verified.add(i); }
       } else {
         if (Date.parse(x.timestamp) !== r[0]) continue;
-        const u = provider === 'claude' ? x.message?.usage : x.payload?.type === 'token_count' ? x.payload.info?.last_token_usage : null;
+        const isTur = provider === 'codex' && x.type === 'token_usage_record';
+        const isLegacyCount = provider === 'codex' && x.payload?.type === 'token_count';
+        const u = provider === 'claude' ? x.message?.usage
+          : isTur ? x.payload?.usage
+          : isLegacyCount ? x.payload.info?.last_token_usage : null;
         if (!u) continue;
         const rawModel = provider === 'claude' ? x.message.model : activeModel;
         if (rawModel && rawModel !== r.model) continue;
         if (JSON.stringify(cacheTokens(provider, u)) !== JSON.stringify(r.slice(3, 8))) continue;
-        if (provider === 'claude') requireThat(r[8] === `${x.message.id}:${x.requestId}`, 'Claude cache: dedupe key format changed');
+        if (provider === 'claude') {
+          if (r[8] !== `${x.message.id}:${x.requestId}`) { keyMismatch.add(i); continue; }
+        }
+        if (isTur) {
+          turSeen.add(i);
+          const respId = typeof x.payload?.response_id === 'string' && x.payload.response_id.length > 0 ? x.payload.response_id : null;
+          const sid = firstSession ?? x.payload?.session_id;
+          const expectedKey = respId && typeof sid === 'string' && sid.length > 0 ? JSON.stringify(['codex', sid, respId]) : null;
+          if (r[8] !== expectedKey) {
+            if (!turVerified.has(i) && legacyVerified.has(i)) { legacyVerified.delete(i); verified.delete(i); }
+            keyMismatch.add(i);
+            continue;
+          }
+          turVerified.add(i);
+          legacyVerified.delete(i);
+        }
+        if (isLegacyCount) {
+          if (r[8] !== null) { keyMismatch.add(i); continue; }
+          if (turSeen.has(i)) continue;
+          legacyVerified.add(i);
+        }
         verified.add(i);
       }
     }
-    if (!scanAll && verified.size === wanted.length && (cwd || scanned >= 200)) break;
+    if (!scanAll && verified.size === wanted.length && legacyVerified.size === 0 && (cwd || scanned >= 200)) break;
     if (!scanAll && wanted.length === 0 && (cwd || scanned >= 200)) break;
   }
-  requireThat(verified.size === wanted.length, `${provider} cache: sampled rows do not match raw logs`);
+  if (verified.size !== wanted.length) {
+    for (let i = 0; i < wanted.length; i++) {
+      if (!verified.has(i) && keyMismatch.has(i)) fail(`${provider === 'claude' ? 'Claude' : 'Codex'} cache: dedupe key format changed`);
+    }
+    fail(`${provider} cache: sampled rows do not match raw logs`);
+  }
   return { project: projectName(cwd), grok, verified: verified.size };
 }
 
@@ -123,35 +157,56 @@ function sourceRoots(home) {
   return [
     { provider: 'claude', instance: 'claudeAgent', dir: path.join(home, '.claude/projects') },
     { provider: 'codex', instance: 'codex', dir: path.join(home, '.codex/sessions') },
+    { provider: 'codex', instance: 'codex_lean', dir: path.join(home, '.codex-t3-lean/sessions') },
     { provider: 'codex', instance: 'codex_openai_api', dir: path.join(home, '.codex-t3-api/sessions') },
     { provider: 'grok', instance: 'grok', dir: path.join(home, '.grok/sessions') },
+    { provider: 'pi', instance: 'pi', dir: path.join(home, '.pi/agent/sessions'), emptyOnly: true },
   ];
 }
 
+function findUsageCache(home) {
+  const dir = path.join(home, '.t3/userdata');
+  if (!fs.existsSync(dir)) return null;
+  let best = null;
+  for (const name of fs.readdirSync(dir)) {
+    const m = /^usage-scan-cache-v(\d+)\.json$/.exec(name);
+    if (!m) continue;
+    const version = Number(m[1]);
+    if (version >= 1 && (!best || version > best.version)) best = { version, file: path.join(dir, name) };
+  }
+  return best;
+}
+
 async function readCache(home, noProjects, warn) {
-  const file = path.join(home, '.t3/userdata/usage-scan-cache-v5.json');
-  if (!fs.existsSync(file)) { warn('T3 usage cache is missing'); return { events: [], verified: 0, duplicates: 0, synthetic: 0, missingRaw: 0, missingSource: true }; }
-  const c = readJSON(file, 'T3 usage cache');
-  requireThat(c.version === 5 && Array.isArray(c.models) && Array.isArray(c.sessions) && c.sources && typeof c.sources === 'object' && !Array.isArray(c.sources) && c.files && typeof c.files === 'object' && !Array.isArray(c.files), 'T3 usage cache: expected version 5 structure');
+  const found = findUsageCache(home);
+  if (!found) { warn('T3 usage cache is missing'); return { events: [], verified: 0, duplicates: 0, synthetic: 0, missingRaw: 0, missingSource: true }; }
+  const c = readJSON(found.file, 'T3 usage cache');
+  requireThat(c.version === found.version && (c.version === 5 || c.version === 17) && Array.isArray(c.models) && Array.isArray(c.sessions) && c.sources && typeof c.sources === 'object' && !Array.isArray(c.sources) && c.files && typeof c.files === 'object' && !Array.isArray(c.files), 'T3 usage cache: expected version 5 or 17 structure');
   requireThat(c.models.every(m => m === '<synthetic>' || safeId(m)) && c.sessions.every(s => typeof s === 'string'), 'T3 usage cache: invalid model/session dictionaries');
   const roots = sourceRoots(home);
   for (const [k, s] of Object.entries(c.sources)) requireThat(roots.some(r => k === `${r.provider}\0${r.dir}` && s.dir === r.dir), 'T3 usage cache: unverified source root');
-  const events = [], seen = new Map(), sampled = new Set();
+  const events = [], seen = new Map(), sampled = new Set(), hasRaw = new Set();
   let verified = 0, duplicates = 0, synthetic = 0, missingRaw = 0;
   for (const [file, entry] of Object.entries(c.files).sort(([a], [b]) => a.localeCompare(b))) {
     requireThat(entry && typeof entry === 'object', 'T3 usage cache: invalid file metadata');
     const root = roots.find(r => entry.p === r.provider && file.startsWith(r.dir + path.sep));
-    requireThat(root && c.sources[`${root.provider}\0${root.dir}`] && path.resolve(file) === file && Array.isArray(entry.r), 'T3 usage cache: invalid file entry');
+    requireThat(root && c.sources[`${root.provider}\0${root.dir}`] && path.resolve(file) === file && Array.isArray(entry.r) && (entry.t === undefined || (c.version === 17 && Array.isArray(entry.t))), 'T3 usage cache: invalid file entry');
+    const rows = entry.t?.length ? [...entry.r.map(r => [r, 'r']), ...entry.t.map(r => [r, 't'])] : entry.r.map(r => [r, 'r']);
+    if (root.emptyOnly) { requireThat(rows.length === 0, 'T3 usage cache: unverified provider rows'); continue; }
+    const available = fs.existsSync(file);
     const wanted = [];
-    for (const r of entry.r) {
-      requireThat(Array.isArray(r) && r.length === 11 && isCount(r[0]) && r[0] > 0 && !Number.isNaN(new Date(r[0]).getTime()) && isCount(r[1]) && r[1] < c.models.length && isCount(r[2]) && r[2] < c.sessions.length && (r[8] === null || typeof r[8] === 'string') && isCost(r[9]) && (r[10] === 0 || r[10] === 1), 'T3 usage cache: row layout changed');
+    for (const [r] of rows) {
+      const layoutOk = c.version === 5
+        ? Array.isArray(r) && r.length === 11 && (r[10] === 0 || r[10] === 1)
+        : Array.isArray(r) && r.length >= 11 && r.length <= 14 && (r[10] === 0 || r[10] === 1 || r[10] === 2) && (r.length <= 11 || r[11] === null || (isCount(r[11]) && r[11] < c.models.length)) && (r.length <= 12 || r[12] === null || typeof r[12] === 'string') && (r.length <= 13 || r[13] === null || (isCount(r[13]) && r[13] <= r[5]));
+      requireThat(layoutOk && isCount(r[0]) && r[0] > 0 && !Number.isNaN(new Date(r[0]).getTime()) && isCount(r[1]) && r[1] < c.models.length && isCount(r[2]) && r[2] < c.sessions.length && (r[8] === null || typeof r[8] === 'string') && isCost(r[9]), 'T3 usage cache: row layout changed');
       tokens(r.slice(3, 8), 'T3 usage cache');
       if (c.models[r[1]] === '<synthetic>') continue;
-      const sampleKey = `${root.instance}:${c.models[r[1]]}:${r[10]}`;
-      if (!sampled.has(sampleKey) && fs.existsSync(file)) { const sample = [...r]; sample.model = c.models[r[1]]; wanted.push(sample); sampled.add(sampleKey); }
+      if (available) hasRaw.add(`${root.instance}:${c.models[r[1]]}`);
+      const sampleKey = `${root.instance}:${c.models[r[1]]}:${r[10]}:${r[8] === null ? 0 : 1}`;
+      if (!sampled.has(sampleKey) && available) { const sample = [...r]; sample.model = c.models[r[1]]; wanted.push(sample); sampled.add(sampleKey); }
     }
-    if (!entry.r.length) continue;
-    const available = fs.existsSync(file);
+    if (!rows.length) continue;
     if (available) requireThat(fs.realpathSync(file).startsWith(fs.realpathSync(root.dir) + path.sep), 'T3 usage cache: raw file escapes its source root');
     let info = { project: null, grok: new Map() };
     if (available && (wanted.length || !noProjects || entry.p === 'grok')) {
@@ -162,18 +217,23 @@ async function readCache(home, noProjects, warn) {
       try { info.project = projectName(decodeURIComponent(path.relative(root.dir, file).split(path.sep)[0])); }
       catch { fail('Grok log: invalid encoded project directory'); }
     }
-    for (const r of entry.r) {
+    const partCounts = { r: new Map(), t: new Map() };
+    for (const [r, part] of rows) {
       const model = c.models[r[1]];
       if (model === '<synthetic>') { synthetic++; continue; }
       // A millisecond timestamp alone is not unique: several genuine calls can share it.
       const key = r[8] === null ? JSON.stringify([root.instance, c.sessions[r[2]], r[0], model, ...r.slice(3, 8), r[9]]) : `${root.instance}:${r[8]}`;
       const signature = JSON.stringify([r[0], model, ...r.slice(3, 8), r[9]]);
+      const nth = r[8] === null ? (partCounts[part].get(key) ?? 0) + 1 : 1;
+      if (r[8] === null) partCounts[part].set(key, nth);
       if (seen.has(key)) {
         const prior = seen.get(key);
         requireThat(prior.signature === signature, 'T3 usage cache: conflicting dedupe key');
-        if (r[8] !== null || prior.file !== file) { duplicates++; continue; }
+        if (r[8] !== null || nth <= prior.emitted) { duplicates++; continue; }
+        prior.emitted = nth;
+      } else {
+        seen.set(key, { signature, emitted: nth });
       }
-      seen.set(key, {signature,file});
       let requests = 1, cost = r[9];
       if (entry.p === 'grok') {
         const usage = info.grok.get(JSON.stringify([r[0], model, ...r.slice(3, 8)]));
@@ -184,7 +244,12 @@ async function readCache(home, noProjects, warn) {
     }
   }
   if (missingRaw) warn(`${missingRaw} cached files no longer have raw logs; their projects may be omitted`);
-  for (const r of roots) for (const model of new Set(events.filter(e => e.instance === r.instance).map(e => e.model))) requireThat([...sampled].some(k => k.startsWith(`${r.instance}:${model}:`)), 'T3 cache: cannot verify a model against raw logs');
+  for (const r of roots) {
+    const models = new Set(events.filter(e => e.instance === r.instance).map(e => e.model));
+    if (!models.size) continue;
+    requireThat([...sampled].some(k => k.startsWith(`${r.instance}:`)), 'T3 cache: cannot verify a model against raw logs');
+    for (const model of models) if (hasRaw.has(`${r.instance}:${model}`)) requireThat([...sampled].some(k => k.startsWith(`${r.instance}:${model}:`)), 'T3 cache: cannot verify a model against raw logs');
+  }
   return { events, verified, duplicates, synthetic, missingRaw };
 }
 
@@ -426,7 +491,8 @@ function readT3(home, noProjects, openCodeEvents, warn, note, antigravityCovered
     if (!eligible) { if (r.usage !== null) excluded++; continue; }
     if (r.usage === null) { absent++; note(r.driver === 'antigravity' ? 'antigravity_without_counters' : 'missing_counters', 't3-turns'); continue; }
     let u; try { u = JSON.parse(r.usage); } catch { fail('T3 state: invalid usage JSON'); }
-    requireThat(u.usageScope === 'main_agent' && typeof u.hasSubagents === 'boolean' && ['complete','partial','unknown'].includes(u.usageStatus), 'T3 state: unverified turn usage scope/status');
+    requireThat(u.usageScope === 'main_agent' && typeof u.hasSubagents === 'boolean' && ['complete','partial','unknown','unavailable'].includes(u.usageStatus), 'T3 state: unverified turn usage scope/status');
+    if (u.usageStatus === 'unavailable') { absent++; note(r.driver === 'antigravity' ? 'antigravity_without_counters' : 'missing_counters', 't3-turns'); continue; }
     if (u.usageStatus !== 'complete' || !r.completed_at) { warn('T3 has incomplete turn usage; it is omitted until complete'); note('incomplete_usage', 't3-turns'); continue; }
     requireThat(Number.isFinite(Date.parse(r.completed_at)), 'T3 state: invalid turn completion time');
     const t = tokens([u.inputTokens - u.cachedInputTokens - u.cacheCreationTokens, u.cachedInputTokens, u.cacheCreationTokens, u.outputTokens, u.reasoningTokens], 'T3 turn');

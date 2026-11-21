@@ -6,7 +6,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { gzipSync } from 'node:zlib';
+import { gzipSync, zstdCompressSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { collect, validatePayload, encryptPayload, decryptEnvelope, localBucket, loadConfig, publishPayload, payloadHash, main, serializePayload, prepareLog, withConfigLock, fetchDatabaseRows, writePrivate, ghHttpOutcome } from './collect.mjs';
 
@@ -865,4 +865,114 @@ test('Antigravity: mixed-id mirrors keep their day, ids join across copies, copi
   assert.equal(inst('ag2'),-1); // its only use is the copies (counted under antigravity) and the excluded T3 turn
   assert.equal(r.checks.t3OverlapExcluded,3);
   const json=JSON.stringify(q);for(const id of ['response-a','response-b','response-d','response-x'])assert(!json.includes(id));
+});
+
+test('T3 v17 cache, codex_lean, zstd logs, token_usage_record, empty Grok turns, pruned models and unavailable status',async()=>{
+  const h=cloneHome();
+  fs.unlinkSync(path.join(h,'.t3/userdata/usage-scan-cache-v5.json'));
+  const v17File=path.join(h,'.t3/userdata/usage-scan-cache-v17.json');
+  const leanDir=path.join(h,'.codex-t3-lean/sessions'),piDir=path.join(h,'.pi/agent/sessions');
+  const leanFile=path.join(leanDir,'lean.jsonl.zst'),retiredFile=path.join(h,'.codex/sessions/pruned-old.jsonl'),piFile=path.join(piDir,'empty.jsonl');
+  const sid='lean-session-1',respId='resp_abc123',turKey=JSON.stringify(['codex',sid,respId]);
+  const turLines=[
+    {type:'session_meta',payload:{id:sid,cwd:'/work/ai-model-frontier'}},
+    {type:'turn_context',payload:{model:'gpt-6.2-sol'}},
+    {timestamp:iso,type:'token_usage_record',payload:{session_id:sid,response_id:respId,usage:{input_tokens:150,cached_input_tokens:100,cache_write_input_tokens:10,output_tokens:12,reasoning_output_tokens:4}}},
+  ].map(x=>JSON.stringify(x)).join('\n')+'\n';
+  fs.mkdirSync(leanDir,{recursive:true});
+  fs.writeFileSync(leanFile,zstdCompressSync(Buffer.from(turLines)),{mode:0o600});
+  put(piFile,'');
+  // Append a cancelled Grok turn (usage omitted) beside the valid Grok turn.
+  const gfCopy=path.join(h,'.grok/sessions/%2Fwork%2Fai-model-frontier/session/events.jsonl');
+  fs.appendFileSync(gfCopy,JSON.stringify({timestamp:(ts+1000)/1000,params:{update:{sessionUpdate:'turn_completed'},_meta:{agentTimestampMs:ts+1000}}})+'\n');
+  // Add an Antigravity turn with usageStatus: 'unavailable' in statev2.sqlite.
+  const db=new DatabaseSync(path.join(h,'.t3/userdata/statev2.sqlite'));
+  db.prepare('INSERT INTO orchestration_v2_projection_provider_turns VALUES(?,?,?,?,?,?,?)').run('unavail-1','a','t',null,iso,new Date(day2).toISOString(),JSON.stringify({turnTokenUsage:{inputTokens:0,cachedInputTokens:0,cacheCreationTokens:0,outputTokens:0,reasoningTokens:0,usageScope:'main_agent',hasSubagents:false,usageStatus:'unavailable'},modelSelection:{model:'gemini-3.8-flash-high'}}));
+  db.close();
+  const baseV5=JSON.parse(fs.readFileSync(cacheFile,'utf8').replaceAll(home,h));
+  const v17={
+    version:17,
+    sources:{...baseV5.sources,[`codex\0${leanDir}`]:{dir:leanDir},[`pi\0${piDir}`]:{dir:piDir}},
+    models:[...baseV5.models,'gpt-6.2-sol','gpt-6-luna'],
+    sessions:[...baseV5.sessions,sid,'pruned-s'],
+    files:{
+      ...Object.fromEntries(Object.entries(baseV5.files).map(([f,e])=>[f,{...e,r:e.r.map(row=>[...row,null,null,0])}])),
+      [leanFile]:{p:'codex',r:[],t:[[ts,4,4,40,100,10,12,4,turKey,null,2,null,'turn-1',5]]},
+      [retiredFile]:{p:'codex',r:[[ts,5,5,10,0,0,5,0,null,null,0,null]]},
+      [piFile]:{p:'pi',r:[]},
+    },
+  };
+  put(v17File,v17);
+  const r=await collect({...options,home:h}),q=r.payload;
+  assert.equal(validatePayload(q),true);
+  assert.equal(q.instances.find(i=>i.id==='codex_lean').billing,'subscription');
+  const leanIdx=q.instances.findIndex(i=>i.id==='codex_lean');
+  const leanRows=q.days.flatMap(d=>d.r).filter(row=>row[1]===leanIdx);
+  assert.equal(leanRows.length,1);
+  assert.deepEqual(leanRows[0].slice(3,9),[1,40,100,10,12,4]);
+  assert(q.models.some(m=>m.id==='gpt-6-luna'));
+  assert(q.coverage.some(c=>c.code==='missing_raw_logs'&&c.count===1));
+  assert(q.coverage.some(c=>c.code==='antigravity_without_counters'&&c.count===1));
+  // Fail closed: non-empty pi rows, bad v17 col r[13]>r[5], bad dedupe key, and unverified v18 cache file.
+  const badPi=structuredClone(v17);badPi.files[piFile].r=[[ts,0,0,1,0,0,1,0,null,null,0,null]];put(v17File,badPi);
+  await assert.rejects(collect({...options,home:h}),/unverified provider rows/);
+  const bad1h=structuredClone(v17);bad1h.files[leanFile].t[0][13]=11;put(v17File,bad1h);
+  await assert.rejects(collect({...options,home:h}),/row layout/);
+  const badKey=structuredClone(v17);badKey.files[leanFile].t[0][8]='wrong-key';put(v17File,badKey);
+  await assert.rejects(collect({...options,home:h}),/dedupe key format changed/);
+  // Null key must NOT bypass response_id verification on a token_usage_record.
+  const nullKey=structuredClone(v17);nullKey.files[leanFile].t[0][8]=null;put(v17File,nullKey);
+  await assert.rejects(collect({...options,home:h}),/dedupe key format changed/);
+  // Two responses sharing timestamp, model and token counts still verify when the matching response_id comes second.
+  put(v17File,v17);
+  const dupRecords=turLines.trimEnd().split('\n');
+  dupRecords.splice(2,0,dupRecords[2].replace(respId,'resp_other'));
+  fs.writeFileSync(leanFile,zstdCompressSync(Buffer.from(dupRecords.join('\n')+'\n')),{mode:0o600});
+  const colRes=await collect({...options,home:h});
+  assert.equal(colRes.payload.days.flatMap(d=>d.r).filter(row=>row[1]===colRes.payload.instances.findIndex(i=>i.id==='codex_lean')).reduce((n,row)=>n+row[3],0),1);
+  // Overlapping unkeyed row present in both entry.r and entry.t must deduplicate instead of double-counting.
+  const unkeyedTur=turLines.replace(respId,'');
+  fs.writeFileSync(leanFile,zstdCompressSync(Buffer.from(unkeyedTur)),{mode:0o600});
+  const overlap=structuredClone(v17);overlap.files[leanFile].t[0][8]=null;overlap.files[leanFile].r.push([...overlap.files[leanFile].t[0]]);put(v17File,overlap);
+  const ovRes=await collect({...options,home:h});
+  const ovLeanIdx=ovRes.payload.instances.findIndex(i=>i.id==='codex_lean');
+  const ovRows=ovRes.payload.days.flatMap(d=>d.r).filter(row=>row[1]===ovLeanIdx);
+  assert.equal(ovRows.length,1);assert.deepEqual(ovRows[0].slice(3,9),[1,40,100,10,12,4]);
+  // One overlapping row in entry.r plus two genuine identical repeats in entry.t must count 2 calls (80 input tokens).
+  overlap.files[leanFile].t.push([...overlap.files[leanFile].t[0]]);
+  fs.writeFileSync(leanFile,zstdCompressSync(Buffer.from(unkeyedTur+unkeyedTur.trimEnd().split('\n').at(-1)+'\n')),{mode:0o600});
+  put(v17File,overlap);
+  const ovRepRes=await collect({...options,home:h});
+  const ovRepRows=ovRepRes.payload.days.flatMap(d=>d.r).filter(row=>row[1]===ovRepRes.payload.instances.findIndex(i=>i.id==='codex_lean'));
+  assert.equal(ovRepRows.length,1);assert.deepEqual(ovRepRows[0].slice(3,9),[2,80,200,20,24,8]);
+  // A legacy token_count event sharing timestamp/model/tokens with a token_usage_record must NOT bypass null or wrong key verification (either order).
+  const rawTur=JSON.parse(turLines.trimEnd().split('\n').at(-1));
+  const legacyDup=JSON.stringify({timestamp:iso,payload:{type:'token_count',info:{last_token_usage:rawTur.payload.usage}}})+'\n';
+  for(const mixed of [turLines+legacyDup, turLines.trimEnd().split('\n').slice(0,2).join('\n')+'\n'+legacyDup+turLines.trimEnd().split('\n').at(-1)+'\n']) {
+    fs.writeFileSync(leanFile,zstdCompressSync(Buffer.from(mixed)),{mode:0o600});
+    put(v17File,nullKey);
+    await assert.rejects(collect({...options,home:h}),/dedupe key format changed/);
+    put(v17File,badKey);
+    await assert.rejects(collect({...options,home:h}),/dedupe key format changed/);
+  }
+  // Also reject a non-null cache key on a pure legacy token_count file.
+  const legacyOnly=turLines.trimEnd().split('\n').slice(0,2).join('\n')+'\n'+legacyDup;
+  fs.writeFileSync(leanFile,zstdCompressSync(Buffer.from(legacyOnly)),{mode:0o600});
+  put(v17File,badKey);
+  await assert.rejects(collect({...options,home:h}),/dedupe key format changed/);
+  // Migrated legacy cache rows (token_count timestamp distinct from an earlier token_usage_record in the same file) still verify with null key.
+  const earlierTur=JSON.stringify({...rawTur,timestamp:new Date(ts-52).toISOString()})+'\n';
+  fs.writeFileSync(leanFile,zstdCompressSync(Buffer.from(turLines.trimEnd().split('\n').slice(0,2).join('\n')+'\n'+earlierTur+legacyDup)),{mode:0o600});
+  put(v17File,nullKey);
+  const migRes=await collect({...options,home:h});
+  assert.equal(migRes.payload.days.flatMap(d=>d.r).filter(row=>row[1]===migRes.payload.instances.findIndex(i=>i.id==='codex_lean')).reduce((n,row)=>n+row[3],0),1);
+  // Restore clean zstd log & v17 before v18 and pruned-only checks.
+  fs.writeFileSync(leanFile,zstdCompressSync(Buffer.from(turLines)),{mode:0o600});
+  put(v17File,v17);
+  const v18File=path.join(h,'.t3/userdata/usage-scan-cache-v18.json');put(v18File,{...v17,version:18});
+  await assert.rejects(collect({...options,home:h}),/expected version 5 or 17/);
+  fs.unlinkSync(v18File);
+  // An instance whose only cached file is pruned (zero live verification) still fails closed.
+  fs.unlinkSync(leanFile);
+  await assert.rejects(collect({...options,home:h}),/cannot verify a model against raw logs/);
 });
