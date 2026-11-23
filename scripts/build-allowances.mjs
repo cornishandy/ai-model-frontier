@@ -741,8 +741,8 @@ export function serializeCatalog(built) {
   if (!/^[0-9a-f]{7,40}$/i.test(String(shipped.sourceRevision || ''))) {
     throw new Error(`Invalid sourceRevision (expected 7-40 hex chars): ${JSON.stringify(shipped.sourceRevision)}`);
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(shipped.catalogDate || ''))) {
-    throw new Error(`Invalid catalogDate (expected YYYY-MM-DD): ${JSON.stringify(shipped.catalogDate)}`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(shipped.catalogDate || '')) || !isValidDateStr(String(shipped.catalogDate || ''))) {
+    throw new Error(`Invalid catalogDate (expected calendar-valid YYYY-MM-DD): ${JSON.stringify(shipped.catalogDate)}`);
   }
   return [
     `// ${shipped.attribution}`,

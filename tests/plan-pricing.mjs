@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
@@ -308,7 +309,7 @@ test('8. SI-28 320px omission footers (1-, 2-, 3-, and 4-reason) preserve exact 
   assert.equal(/see chart list/i.test(r4.text), false);
 });
 
-test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed, 0 untyped), host enums, ext:*, 4-seg model refs, and strips sentinels', () => {
+test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed, 0 untyped), host enums, ext:*, 4-seg model refs, and strips sentinels', async () => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const m = html.match(/function snapshot\(\)\s*\{\s*return\s*\{([\s\S]*?)\};\s*\}/);
   assert.ok(m, 'Missing snapshot() in index.html');
@@ -382,9 +383,9 @@ test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed
   assert.deepEqual(Object.keys(coll), ['My legacy view']);
   assert.equal('subPlans' in coll['My legacy view'], false);
 
-  // Shape-only projection (ctx = {}) preserves cross-catalog model IDs/ext metrics and >120-char set names, while stripping private fields
+  // Shape-only projection (ctx = {}) preserves cross-catalog model IDs/ext metrics and long set names (121 & 1001 chars), while stripping private fields
   const longName = 'A'.repeat(121);
-  const tooLongName = 'B'.repeat(1001);
+  const veryLongName = 'B'.repeat(1001);
   const futureSet = {
     x: 'ext:futureBench2027',
     y: 'intelligence',
@@ -397,8 +398,8 @@ test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed
     estimate: false,
     evilExtra: 'DROP',
   };
-  const crossCat = PM.scrubSetCollection({ [longName]: futureSet, [tooLongName]: futureSet }, {});
-  assert.deepEqual(Object.keys(crossCat), [longName]);
+  const crossCat = PM.scrubSetCollection({ [longName]: futureSet, [veryLongName]: futureSet }, {});
+  assert.deepEqual(Object.keys(crossCat).sort(), [longName, veryLongName].sort());
   assert.equal(crossCat[longName].x, 'ext:futureBench2027');
   assert.deepEqual(crossCat[longName].selected, ['future-model-2027-max']);
   assert.deepEqual(crossCat[longName].pinned, ['future-model-2027-max']);
@@ -411,9 +412,27 @@ test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed
   // Decision 5 exact source label for predecessor estimates
   assert.equal(PM.formatSourceLabel('predecessor'), 'Estimated from similar model (≈)');
 
-  // serializeCatalog rejects malformed sourceRevision or catalogDate before comment interpolation
+  // serializeCatalog rejects malformed or impossible-calendar dates & bad sourceRevision before comment interpolation
   assert.throws(() => serializeCatalog({ ...CAT, sourceRevision: 'bad\nwindow.X=1;' }), /Invalid sourceRevision/);
   assert.throws(() => serializeCatalog({ ...CAT, catalogDate: '2026-11-21\n//injected' }), /Invalid catalogDate/);
+  assert.throws(() => serializeCatalog({ ...CAT, catalogDate: '2026-02-30' }), /Invalid catalogDate/);
+  assert.throws(() => serializeCatalog({ ...CAT, catalogDate: '2026-04-31' }), /Invalid catalogDate/);
+
+  // Shared standalone bundler rejects un-inlined scripts regardless of attribute order (e.g. <script defer src=...>)
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aimf-bundle-test-'));
+  try {
+    for (const rel of ['scoring.js', 'priors-fit.js', 'aa-data.js', 'plan-math.js', 'data/models.js', 'data/external.js', 'data/plan-shares.js', 'data/plan-allowances.js']) {
+      const dst = path.join(tmpDir, rel);
+      fs.mkdirSync(path.dirname(dst), { recursive: true });
+      fs.writeFileSync(dst, fs.readFileSync(path.join(ROOT, rel), 'utf8'));
+    }
+    fs.writeFileSync(path.join(tmpDir, 'index.html'), html.replace('</body>', '<script defer src="missing-local.js"></script></body>'));
+    const { buildStandalone } = await import(path.join(ROOT, 'scripts/build-standalone.mjs'));
+    assert.throws(() => buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out.html') }), /external <script src=>/);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+  assert.match(fs.readFileSync(path.join(ROOT, 'scrape.mjs'), 'utf8'), /buildStandalone/, 'scrape.mjs must use shared scripts/build-standalone.mjs');
 });
 
 test('10. Local profile persistence, sanitization & malformed-storage recovery', () => {

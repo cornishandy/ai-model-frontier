@@ -1521,6 +1521,7 @@
 
 <div class="pop-backdrop" id="popBackdrop"></div>
 <div class="plans-pop" id="plansPop" role="dialog" aria-modal="true" aria-label="Your plans">
+  <span tabindex="0" data-trap-sentinel="start" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap"></span>
   <div class="pop-head">
     <h2>Your plans</h2>
     <button type="button" class="pop-close" id="popClose" aria-label="Close Your plans">&times;</button>
@@ -1560,6 +1561,7 @@
     <span style="font-size:11px;color:var(--ink-2)">Stored locally only</span>
   </div>
   <div class="pop-meta" id="popMeta"></div>
+  <span tabindex="0" data-trap-sentinel="end" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap"></span>
 </div>
 
 <div id="scrim"></div>
@@ -2646,36 +2648,68 @@
   let base = (() => { try { return JSON.parse(readKey(BASE_KEY)); } catch { return null; } })();
   let syncing = false, lastSyncOk = null;
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  const FALLBACK_PUBLIC_KEYS = new Set([
-    'selected', 'efforts', 'pinned', 'x', 'y', 'price', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier',
-    'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid',
-    'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'basis', 'basisFill', 'customWeights',
-    'customCover', 'rowLayout', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort',
-    'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor',
-    'zoneColor', 'nameAt', 'tallRatio', 'valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'smallCaps', 'smallCapsOff',
-    'smallCapsAuto', 'autoPts', 'autoBest', 'autoBestPct', 'autoBase', 'autoBasePts',
-  ]);
-  const FALLBACK_ARRAY_KEYS = new Set(['selected', 'efforts', 'pinned']);
-  const FALLBACK_MAP_KEYS = new Set(['customWeights', 'autoPts']);
+  const FALLBACK_EFFORTS = new Set(['non-reasoning', 'minimal', 'low', 'medium', 'default', 'high', 'xhigh', 'max']);
+  const FALLBACK_SCHEMA = {
+    selected: { t: 'idArray' }, efforts: { t: 'effortArray' }, pinned: { t: 'idArray' },
+    x: { t: 'metricKey' }, y: { t: 'metricKey' },
+    price: { t: 'enum', v: ['api', 'plan', 'pct'] },
+    xScale: { t: 'enum', v: ['linear', 'sqrt', 'log', 'logit'] }, yScale: { t: 'enum', v: ['linear', 'sqrt', 'log', 'logit'] },
+    pareto: { t: 'enum', v: ['off', 'step', 'line'] }, frontStyle: { t: 'enum', v: ['shade', 'fade', 'rings'] },
+    fullFrontier: { t: 'bool' }, guides: { t: 'enum', v: ['hover', 'pinned', 'frontier', 'all'] },
+    labels: { t: 'enum', v: ['auto', 'autoplus', 'ladder', 'series', 'all', 'none'] },
+    ladderAt: { t: 'enum', v: ['top', 'low', 'medium', 'high', 'xhigh', 'max'] },
+    colorBy: { t: 'enum', v: ['lab', 'effort', 'x', 'y', 'both'] }, idColor: { t: 'enum', v: ['lab', 'effort'] },
+    dual: { t: 'enum', v: ['off', 'lines', 'ring', 'field', 'split'] }, connect: { t: 'bool' },
+    markEffort: { t: 'enum', v: ['none', 'minimal', 'low', 'medium', 'default', 'high', 'xhigh', 'max'] },
+    markStyle: { t: 'enum', v: ['none', 'hash', 'ring', 'square'] }, grid: { t: 'enum', v: ['normal', 'faint', 'off'] },
+    axisText: { t: 'enum', v: ['normal', 'faint'] }, glow: { t: 'enum', v: ['off', 'on'] }, hideOlder: { t: 'bool' },
+    zone: { t: 'enum', v: ['off', 'quadrant', 'near', 'top', 'knee', 'beats', 'diagonal'] },
+    zoneStyle: { t: 'enum', v: ['none', 'tint', 'hatch', 'outline', 'gradient'] },
+    shape: { t: 'enum', v: ['standard', 'tall', 'diamond'] }, focus: { t: 'enum', v: ['off', 'pinned'] },
+    basis: { t: 'enum', v: ['aa', 'A', 'B', 'C', 'listed', 'custom'] }, basisFill: { t: 'bool' },
+    customWeights: { t: 'weightMap', min: 0, max: 100 }, customCover: { t: 'num', min: 0, max: 1 },
+    rowLayout: { t: 'enum', v: ['grouped', 'bars'] }, rowMetric: { t: 'metricKeyOrAxis' },
+    rowScale: { t: 'enum', v: ['linear', 'log'] }, lineStyle: { t: 'enum', v: ['off', 'solid', 'dashed', 'dotted'] },
+    valueLabels: { t: 'enum', v: ['off', 'x', 'y', 'both'] }, valueFront: { t: 'bool' },
+    shortEffort: { t: 'bool' }, shortEffortTouched: { t: 'bool' }, extWithFamily: { t: 'enum', v: ['auto', 'on', 'off'] },
+    xRel: { t: 'refString' }, yRel: { t: 'refString' },
+    ramp: { t: 'enum', v: ['viridis', 'cividis', 'magma', 'plasma', 'accent', 'diverge'] },
+    guideAxes: { t: 'enum', v: ['both', 'x', 'y'] }, guideBox: { t: 'enum', v: ['none', 'tint', 'hatch', 'gradient'] },
+    guideBoxColor: { t: 'enum', v: ['model', 'grey'] }, zoneColor: { t: 'enum', v: ['theme', 'grey', 'model'] },
+    nameAt: { t: 'enum', v: ['end', 'maxX'] }, tallRatio: { t: 'num', min: 1.2, max: 3 },
+    valueAsX: { t: 'enum', v: ['auto', 'value', 'rel', 'vr', 'rv', 'delta', 'vd'] },
+    valueAsY: { t: 'enum', v: ['auto', 'value', 'rel', 'vr', 'rv', 'delta', 'vd'] },
+    valueVsX: { t: 'enum', v: ['axis', 'best'] }, valueVsY: { t: 'enum', v: ['axis', 'best'] },
+    smallCaps: { t: 'bool' }, smallCapsOff: { t: 'bool' }, smallCapsAuto: { t: 'bool' },
+    autoPts: { t: 'numberMap', min: 0, max: 1e9 }, autoBest: { t: 'bool' }, autoBestPct: { t: 'num', min: 0, max: 100 },
+    autoBase: { t: 'bool' }, autoBasePts: { t: 'num', min: 0, max: 1e9 },
+  };
   function fallbackScrubSet(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
     const out = {};
-    for (const k of Object.keys(raw).sort()) {
-      if (!FALLBACK_PUBLIC_KEYS.has(k)) continue;
+    for (const [k, def] of Object.entries(FALLBACK_SCHEMA)) {
+      if (!Object.prototype.hasOwnProperty.call(raw, k)) continue;
       const v = raw[k];
       if (v === undefined || v === null) continue;
-      if (FALLBACK_ARRAY_KEYS.has(k)) {
-        if (Array.isArray(v)) out[k] = [...new Set(v.filter((x) => typeof x === 'string' && x.length > 0 && x.length <= 200))];
-      } else if (FALLBACK_MAP_KEYS.has(k)) {
+      if (def.t === 'bool') { if (typeof v === 'boolean') out[k] = v; }
+      else if (def.t === 'enum') { if (typeof v === 'string' && def.v.includes(v)) out[k] = v; }
+      else if (def.t === 'num') { if (typeof v === 'number' && Number.isFinite(v) && v >= def.min && v <= def.max) out[k] = v; }
+      else if (def.t === 'metricKey') { if (typeof v === 'string' && /^(?:[a-zA-Z0-9_]+|ext:[a-zA-Z0-9_-]+)$/.test(v)) out[k] = v; }
+      else if (def.t === 'metricKeyOrAxis') { if (typeof v === 'string' && (v === 'x' || v === 'y' || /^(?:[a-zA-Z0-9_]+|ext:[a-zA-Z0-9_-]+)$/.test(v))) out[k] = v; }
+      else if (def.t === 'refString') {
+        if (typeof v === 'string' && v.length <= 160 && (['off', 'sweet', 'best', 'median', 'pinned'].includes(v) || /^model:[a-z0-9._-]+:[a-z0-9._-]+(?::[a-z0-9._-]+)?$/i.test(v))) out[k] = v;
+      } else if (def.t === 'idArray') {
+        if (Array.isArray(v)) out[k] = [...new Set(v.filter((x) => typeof x === 'string' && /^[a-z0-9._:-]+$/i.test(x)))];
+      } else if (def.t === 'effortArray') {
+        if (Array.isArray(v)) out[k] = [...new Set(v.filter((x) => typeof x === 'string' && FALLBACK_EFFORTS.has(x)))];
+      } else if (def.t === 'weightMap' || def.t === 'numberMap') {
         if (v && typeof v === 'object' && !Array.isArray(v)) {
-          const m = {};
+          const m = {}, re = def.t === 'weightMap' ? /^(?:[a-zA-Z0-9_]+|ext:[a-zA-Z0-9_-]+)$/ : /^[a-zA-Z0-9_.:-]+$/;
           for (const mk of Object.keys(v).sort()) {
-            if (/^[a-zA-Z0-9_.:-]+$/.test(mk) && typeof v[mk] === 'number' && Number.isFinite(v[mk]) && v[mk] >= 0) m[mk] = v[mk];
+            if (re.test(mk) && typeof v[mk] === 'number' && Number.isFinite(v[mk]) && v[mk] >= def.min && v[mk] <= def.max) m[mk] = v[mk];
           }
           out[k] = m;
         }
-      } else if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)) || (typeof v === 'string' && v.length <= 240)) {
-        out[k] = v;
       }
     }
     return out;
@@ -2684,7 +2718,7 @@
     if (!rawSets || typeof rawSets !== 'object' || Array.isArray(rawSets)) return {};
     const out = {};
     for (const name of Object.keys(rawSets).sort()) {
-      if (typeof name !== 'string' || !name.trim() || name.length > 1000 || name === '__proto__' || name === 'constructor' || name === 'prototype') continue;
+      if (typeof name !== 'string' || !name.trim() || name === '__proto__' || name === 'constructor' || name === 'prototype') continue;
       const scrubbed = fallbackScrubSet(rawSets[name]);
       if (Object.keys(scrubbed).length) out[name] = scrubbed;
     }
@@ -2721,16 +2755,23 @@
     const cleanRemote = publicSets(remote), cleanLocal = publicSets(sets), cleanBase = base ? publicSets(base) : null;
     if (!cleanBase) {
       const out = {};
-      for (const n of new Set([...Object.keys(cleanLocal), ...Object.keys(cleanRemote)])) {
-        const picked = cleanRemote[n] ?? cleanLocal[n];
-        if (picked) out[n] = withLocalSubPlans(picked, sets[n]);
+      for (const n of new Set([...Object.keys(sets), ...Object.keys(cleanRemote)])) {
+        if (cleanRemote[n]) out[n] = withLocalSubPlans(cleanRemote[n], sets[n]);
+        else if (sets[n]) out[n] = sets[n];
       }
       return out;
     }
     const out = {};
-    for (const n of new Set([...Object.keys(cleanBase), ...Object.keys(cleanLocal), ...Object.keys(cleanRemote)])) {
-      const picked = same(cleanLocal[n], cleanBase[n]) ? cleanRemote[n] : cleanLocal[n];
-      if (picked) out[n] = withLocalSubPlans(picked, sets[n]);
+    for (const n of new Set([...Object.keys(cleanBase), ...Object.keys(sets), ...Object.keys(cleanRemote)])) {
+      const localUnchanged = same(cleanLocal[n], cleanBase[n]);
+      const remoteUnchanged = same(cleanRemote[n], cleanBase[n]);
+      if (!localUnchanged) {
+        if (sets[n]) out[n] = sets[n];
+      } else if (remoteUnchanged) {
+        if (sets[n]) out[n] = sets[n];
+      } else if (cleanRemote[n]) {
+        out[n] = withLocalSubPlans(cleanRemote[n], sets[n]);
+      }
     }
     return out;
   }
@@ -3661,7 +3702,7 @@
   });
   $('setSave').addEventListener('click', () => {
     const n = prompt('Name this set (models, efforts, axes & display options):', sets[S.activeSet] ? S.activeSet : '');
-    if (!n) return;
+    if (!n || !n.trim() || n === '__proto__' || n === 'constructor' || n === 'prototype') return;
     if (sets[n] && !confirm(`Overwrite "${n}"?`)) return;
     sets[n] = snapshot(); S.activeSet = n; dirty = false; persistSets(); save(); renderSetSelect();
   });
@@ -3674,7 +3715,11 @@
   $('setImport').addEventListener('click', () => $('importFile').click());
   $('importFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    try { const raw = JSON.parse(await f.text()), clean = publicSets(raw); Object.assign(sets, clean); persistSets(); renderSetSelect(); alert(`Imported ${Object.keys(clean).length} set(s).`); }
+    try {
+      const raw = JSON.parse(await f.text()), clean = publicSets(raw);
+      for (const n of Object.keys(clean)) sets[n] = withLocalSubPlans(clean[n], sets[n]);
+      persistSets(); renderSetSelect(); alert(`Imported ${Object.keys(clean).length} set(s).`);
+    }
     catch (err) { alert('Could not read that file: ' + err.message); }
     e.target.value = '';
   });
@@ -4161,15 +4206,28 @@
   function toggleWide() { if (phoneLayout.matches) return; if (document.body.classList.contains('sheet-open')) setSheet(false); S.wide = !S.wide; applyWide(); closeMenu(); save(); render(); $('wideToggle').focus(); }
   $('wideToggle').addEventListener('click', toggleWide);
   phoneLayout.addEventListener('change', () => { if (document.body.classList.contains('sheet-open')) setSheet(false); syncDrawerInert(); });
+  function plansPopFocusables() {
+    const pop = $('plansPop');
+    if (!pop) return [];
+    return [...pop.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+      .filter((el) => !el.disabled && !el.dataset.trapSentinel && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+  }
+  $('plansPop')?.querySelectorAll('[data-trap-sentinel]').forEach((sen) => {
+    sen.addEventListener('focus', () => {
+      if (!subPopOpen) return;
+      const list = plansPopFocusables();
+      if (!list.length) return;
+      (sen.dataset.trapSentinel === 'start' ? list.at(-1) : list[0]).focus();
+    });
+  });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab' && subPopOpen) {
-      const pop = $('plansPop');
-      const focusable = [...pop.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
-        .filter((el) => !el.disabled && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+    if (e.key === 'Tab' && subPopOpen && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      const focusable = plansPopFocusables();
       if (focusable.length) {
-        const first = focusable[0], last = focusable.at(-1);
-        if (e.shiftKey && (document.activeElement === first || !pop.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && (document.activeElement === last || !pop.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+        e.preventDefault();
+        const idx = focusable.indexOf(document.activeElement);
+        const nextIdx = idx === -1 ? (e.shiftKey ? focusable.length - 1 : 0) : (idx + (e.shiftKey ? -1 : 1) + focusable.length) % focusable.length;
+        focusable[nextIdx].focus();
       }
       return;
     }
@@ -4309,7 +4367,13 @@
     { id: 'google',    label: 'Google',    color: 'var(--s1)' },
     { id: 'xai',       label: 'xAI',       color: 'var(--s3)' },
   ];
-  const legacyAxisActive = () => !!PM && PM.hasActiveLegacyAxis(S.x, S.y);
+  const LEGACY_DISCLOSURES = {
+    legacyExportTitleCost: 'Plan cost per task · default plan prices',
+    legacyExportTitleTasks: 'Tasks a month · default plan prices',
+    legacyExportAxisCost: 'Plan cost per task (estimated, legacy API-fee math)',
+    legacyExportAxisTasks: 'Tasks a month (legacy API-fee math, higher is better)',
+  };
+  const legacyAxisActive = () => S.x === 'planCost' || S.x === 'planTasks' || S.y === 'planCost' || S.y === 'planTasks';
   const subAxisKey = (k) => !!PM && PM.isPriceEligibleAxis(k);
   const subLensActive = () => !!PM && !legacyAxisActive() && (S.price === 'plan' || S.price === 'pct') && (subAxisKey(S.x) || subAxisKey(S.y));
   const subNowOpt = () => subClockOverride ? { now: subClockOverride } : {};
@@ -4663,7 +4727,7 @@
         : Math.round(Math.max(340, Math.min(W * (diamond ? 1.15 : 1.35), innerHeight * 0.66))))
       : Math.round(Math.min(diamond ? (S.wide ? 900 : 820) : (S.wide ? 880 : 760), Math.max(diamond ? 500 : 440, W * (diamond ? 0.66 : 0.6))));
     // Diamond: tick labels and axis titles sit outside the rhombus, in the corners of the plot rectangle, so margins are small.
-    const M = diamond ? (narrow ? { top: 22, right: 6, bottom: 40, left: 6 } : { top: 30, right: 24, bottom: 40, left: 24 })
+    const M = diamond ? (narrow ? { top: 22, right: (subActive || isExport) ? 38 : 6, bottom: 40, left: (subActive || isExport) ? 38 : 6 } : { top: 30, right: (subActive || isExport) ? 48 : 24, bottom: 40, left: (subActive || isExport) ? 48 : 24 })
       : narrow ? { top: subActive ? 34 : 26, right: 12, bottom: 44, left: subActive ? 30 : 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
     if (tall && !narrow) { M.right = 150; W = Math.min(availW, M.left + tallPW + M.right); } // the right margin takes labels
     let PW = W - M.left - M.right;
@@ -4674,7 +4738,13 @@
     if (!isExport) {
       syncPriceBar();
       $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => effectiveDescOf(k, subActive, S.price) && !(usesYourIndex() && k === 'myIndex') && (i === 0 || S.x !== S.y))
-        .map((k) => { const c = reportCard(k), mk = effectiveMetric(k, subActive, S.price); return `<b>${esc(mk.label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(effectiveDescOf(k, subActive, S.price))}${c ? ` <span class="upd" title="${esc(c.reason)}">Grading v2 <b>${gradeText(c)}</b></span>` : ''}`; }).join('<br>');
+        .map((k) => {
+          const c = reportCard(k), mk = effectiveMetric(k, subActive, S.price);
+          const updTag = (subActive && subAxisKey(k) && PLAN_CAT?.catalogDate)
+            ? ` <span class="upd" title="${esc([updatedNote(k), `Subscription catalog ${PLAN_CAT.catalogDate}`].filter(Boolean).join('. '))}">(AA data ${esc(updatedDay(k))} · plans ${esc(fmtDay(PLAN_CAT.catalogDate))})</span>`
+            : UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : '';
+          return `<b>${esc(mk.label)}</b>${updTag}: ${esc(effectiveDescOf(k, subActive, S.price))}${c ? ` <span class="upd" title="${esc(c.reason)}">Grading v2 <b>${gradeText(c)}</b></span>` : ''}`;
+        }).join('<br>');
     }
     const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
@@ -4702,8 +4772,10 @@
     // the Y axis's 1.0, worked out on the selected models only, so Also show's dots can't move it (and "within N points
     // of Y's 1.0" uses exactly the 1.0 the chart divides by)
     const manualPts = chosen.map((m) => ({ m, xv: getAxisVal(m, S.x), yv: getAxisVal(m, S.y), subPrice: getSubPrice(m) })).filter((p) => scaleOk(S.xScale, p.xv) && scaleOk(S.yScale, p.yv));
-    const manualFront = paretoFront(subActive ? manualPts.filter((p) => p.subPrice?.lane !== 2) : manualPts), yKey = refKeyOf(S.yRel);
-    const yPick = yKey !== 'off' && REF_DEFS[yKey] ? REF_DEFS[yKey].pick(manualPts, 'y', { front: manualFront, knee: kneeOf(manualFront), notes: [], ghosts: [] }) : null;
+    const manualPools = new Set(manualPts.filter((p) => p.subPrice && !p.subPrice.omitted && p.subPrice.lane === 1 && p.subPrice.poolKey).map((p) => p.subPrice.poolKey));
+    const manualPoolBlocked = subActive && S.price === 'pct' && (manualPools.size > 1 || (S.fullFrontier && S.pareto !== 'off' && ALL.some((m) => !superseded(m) && (S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights) && S.efforts.has(m.effort) && (() => { const pr = getSubPrice(m); return pr && !pr.omitted && pr.lane === 1 && pr.poolKey && (manualPools.size ? !manualPools.has(pr.poolKey) : false) && scaleOk(S.xScale, getAxisVal(m, S.x)) && scaleOk(S.yScale, getAxisVal(m, S.y)); })())));
+    const manualFront = manualPoolBlocked ? [] : paretoFront(subActive ? manualPts.filter((p) => p.subPrice?.lane !== 2) : manualPts), yKey = refKeyOf(S.yRel);
+    const yPick = yKey !== 'off' && REF_DEFS[yKey] ? REF_DEFS[yKey].pick(manualPts, 'y', { front: manualFront, knee: manualPoolBlocked ? null : kneeOf(manualFront), notes: [], ghosts: [] }) : null;
     const yBase = Number.isFinite(yPick?.value) && yPick.value > 0 ? { value: yPick.value, label: `${yPick.model ? refName(yPick.model) : yPick.point ? yPick.point.m.label : REF_DEFS[yKey].label.toLowerCase()}, Y's 1.0` } : null;
     const auto = autoIncluded(chosen, yBase); if (!isExport) lastAutoIds = [...auto.ids];
     chosen.push(...auto.extra);
@@ -4777,17 +4849,21 @@
     }
     if (!isExport) lastSubRender = subActive ? { evalRes: subEval, mode: S.price, profileSummary: subProfileSummary(subProfile), catalogDate: PLAN_CAT.catalogDate, sourceRevision: PLAN_CAT.sourceRevision } : null;
     // Export header & footer sizing (reuses the live host render pipeline with 100% live public chart settings fidelity).
-    let expTop = 0, expBot = 0, expCaption = '', expShowKey = false, expHasLane2 = false, expFooterRes = null;
+    const disc = PM?.DISCLOSURES || LEGACY_DISCLOSURES;
+    let expTop = 0, expBot = 0, expCaption = '', expShowKey = false, expHasLane2 = false, expFooterRes = null, expStackKey = false;
     if (isExport) {
       expCaption = legActive
-        ? (S.x === 'planTasks' || S.y === 'planTasks' ? PM.DISCLOSURES.legacyExportTitleTasks : PM.DISCLOSURES.legacyExportTitleCost)
+        ? (S.x === 'planTasks' || S.y === 'planTasks' ? disc.legacyExportTitleTasks : disc.legacyExportTitleCost)
         : (S.price === 'pct' ? '% of week · Example entry plans' : 'Plan $ · Example entry plans');
       expHasLane2 = !!(subActive && subEval && subEval.lane2.length > 0);
       expShowKey = !!(subActive && subEval && (expHasLane2 || (S.pareto !== 'off' && subEval.comparable && subEval.frontierSteps.length >= 2)));
       expFooterRes = (subActive && subOmitted.length)
         ? PM.formatOmissionFooter(subOmitted, W - 20, (t) => measureSvgText(t, narrow ? 8.5 : 10, 400), { useShortNames: narrow })
         : null;
-      expTop = expShowKey ? (narrow && expHasLane2 ? 64 : 50) : 34;
+      const fTxtExp = (subActive && subEval && S.pareto !== 'off' && subEval.comparable) ? subEval.frontierKeyLabel : '';
+      const kFontExp = narrow ? 8.5 : 10.2, titleXExp = narrow ? 10 : M.left;
+      expStackKey = narrow || (expHasLane2 && !!fTxtExp && (titleXExp + 17 + measureSvgText(fTxtExp, kFontExp, 400) + 18 + 10 + measureSvgText(disc.lane2Key, kFontExp, 400) > W - 8));
+      expTop = expShowKey ? (expStackKey && expHasLane2 && fTxtExp ? 64 : 50) : 34;
       expBot = expFooterRes?.text ? 20 : 0;
       M.top += expTop;
       M.bottom += expBot;
@@ -4802,11 +4878,12 @@
       exportCtx.footerRes = expFooterRes;
     }
     // Frontier membership and the sweet spot are decided before any division, using only shown models for references.
+    const subBlockedFront = !!(subActive && subEval && !subEval.comparable);
     const rawFrontPool = subActive ? (subEval.comparable ? points.filter((p) => !p.isLane2) : []) : points;
-    const rawFront = paretoFront(rawFrontPool), refCtx = { front: rawFront, knee: kneeOf(rawFront), notes: [], ghosts: [] };
-    const sweetRef = REF_DEFS.sweet.pick(points, 'x', refCtx), knee = sweetRef?.point || null;
+    const rawFront = paretoFront(rawFrontPool), refCtx = { front: rawFront, knee: subBlockedFront ? null : kneeOf(rawFront), notes: [], ghosts: [] };
+    const sweetRef = subBlockedFront ? null : REF_DEFS.sweet.pick(points, 'x', refCtx), knee = sweetRef?.point || null;
     let front = [], ghosts = [], inScale = [];
-    if (points.length && S.pareto !== 'off' && (!subActive || subEval.comparable)) {
+    if (points.length && S.pareto !== 'off' && !subBlockedFront) {
       if (S.fullFrontier) {
         const pool = (subActive ? points.filter((p) => !p.isLane2) : points).concat(ghostCandidates);
         front = paretoFront(pool); ghosts = front.filter((p) => p.ghost);
@@ -4815,9 +4892,10 @@
       } else front = paretoFront(subActive ? points.filter((p) => !p.isLane2) : points);
     }
     refCtx.ghosts = inScale; // the faint frontier dots that get drawn (a model reference may be one of them)
-    // 1.0 comes from the models you selected: dots added by Also show never move it
-    const manual = auto.ids.size ? points.filter((p) => !p.auto) : points, manualF = manual === points ? null : paretoFront(manual);
-    const relCtx = manualF ? { ...refCtx, front: manualF, knee: kneeOf(manualF) } : refCtx;
+    // 1.0 comes from the models you selected: dots added by Also show never move it (and cross-pool weekly suppression always wins)
+    const manual = auto.ids.size ? points.filter((p) => !p.auto) : points;
+    const manualF = manual === points ? null : (subBlockedFront ? [] : paretoFront(subActive ? manual.filter((p) => !p.isLane2) : manual));
+    const relCtx = manualF !== null ? { ...refCtx, front: manualF, knee: subBlockedFront ? null : kneeOf(manualF) } : refCtx;
     X = relativeMetric(X, points, 'x', relCtx, manual); Y = relativeMetric(Y, points, 'y', relCtx, manual);
     if (X.ref?.key === 'sweet' && Y.ref?.key === 'sweet' && X.ref.point === Y.ref.point) refCtx.notes = [refCtx.notes[0].replace(/^X: 1.0 =/, '1.0 on both axes =')];
     for (const p of points.concat(ghosts, anchors)) { p.rawX = p.xv; p.rawY = p.yv; if (X.ref) p.xv /= X.ref.value; if (Y.ref) p.yv /= Y.ref.value; }
@@ -4872,7 +4950,8 @@
     // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
     if (!diamond && (!narrow || subActive)) {
       const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), narrow ? 11 : 12, narrow ? 400 : 700)));
-      const needLeft = narrow ? Math.ceil(yw + 10) : Math.ceil(yw + 44);
+      const pinYw = (narrow && S.pinned.size) ? Math.max(0, ...points.filter((p) => S.pinned.has(p.m.id)).map((p) => textW(Y.fmt(p.yv), 12, 700))) : 0;
+      const needLeft = narrow ? Math.max(Math.ceil(yw + 10), pinYw ? Math.ceil(pinYw + 14) : 0) : Math.ceil(yw + 44);
       if (needLeft > M.left) { M.left = needLeft; if (tall && !narrow) W = Math.min(availW, M.left + tallPW + M.right); PW = W - M.left - M.right; }
     }
     // "Ladder" labels: model names in a column to the right of the plot, so they never sit on the data
@@ -4902,13 +4981,16 @@
       const planNamed = (m) => [S.x, S.y].includes('planCost') && m.planInfo?.startsWith('No plan data') && m[S.x === 'planCost' ? S.y : S.x] != null;
       const missNote = missing.filter((m) => !planNamed(m));
       if (missNote.length) {
-        const zeroOnLogX = S.xScale === 'log' && missNote.some((m) => { const v = getAxisVal(m, S.x); return Number.isFinite(v) && v <= 0; });
-        const zeroOnLogY = S.yScale === 'log' && missNote.some((m) => { const v = getAxisVal(m, S.y); return Number.isFinite(v) && v <= 0; });
-        if (zeroOnLogX || zeroOnLogY) {
-          const zLbl = zeroOnLogX ? X.label : Y.label;
-          note.push(`${missNote.length} selected model-effort variant${missNote.length > 1 ? 's are' : ' is'} hidden on a log scale because ${zLbl} is $0.00 (switch to a linear scale to show $0 plans): ${missNote.slice(0, 6).map((m) => m.label).join(', ')}${missNote.length > 6 ? '…' : ''}`);
-        } else {
-          note.push(`${missNote.length} selected model-effort variant${missNote.length > 1 ? 's have' : ' has'} no ${!missNote.every((m) => getAxisVal(m, S.x) != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missNote.slice(0, 6).map((m) => m.label).join(', ')}${missNote.length > 6 ? '…' : ''}`);
+        const isZeroX = (m) => S.xScale === 'log' && (() => { const v = getAxisVal(m, S.x); return Number.isFinite(v) && v <= 0; })();
+        const isZeroY = (m) => S.yScale === 'log' && (() => { const v = getAxisVal(m, S.y); return Number.isFinite(v) && v <= 0; })();
+        const zeroMiss = missNote.filter((m) => isZeroX(m) || isZeroY(m));
+        const otherMiss = missNote.filter((m) => !isZeroX(m) && !isZeroY(m));
+        if (zeroMiss.length) {
+          const zLbl = zeroMiss.some(isZeroX) ? X.label : Y.label;
+          note.push(`${zeroMiss.length} selected model-effort variant${zeroMiss.length > 1 ? 's are' : ' is'} hidden on a log scale because ${zLbl} is $0.00 (switch to a linear scale to show $0 plans): ${zeroMiss.slice(0, 6).map((m) => m.label).join(', ')}${zeroMiss.length > 6 ? '…' : ''}`);
+        }
+        if (otherMiss.length) {
+          note.push(`${otherMiss.length} selected model-effort variant${otherMiss.length > 1 ? 's have' : ' has'} no ${!otherMiss.every((m) => getAxisVal(m, S.x) != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${otherMiss.slice(0, 6).map((m) => m.label).join(', ')}${otherMiss.length > 6 ? '…' : ''}`);
         }
       }
       if (hiddenByEffort) note.push(`${hiddenByEffort} hidden by the effort filter.`);
@@ -4954,7 +5036,7 @@
       if (expShowKey) {
         const fTxt = (S.pareto !== 'off' && subEval.comparable) ? subEval.frontierKeyLabel : '';
         let kFont = narrow ? 8.5 : 10.2;
-        if (narrow) {
+        if (expStackKey) {
           let ky = 34;
           if (fTxt) {
             let ff = kFont;
@@ -4965,14 +5047,14 @@
           }
           if (expHasLane2) {
             let lf = kFont;
-            while (lf > 7 && measureSvgText(PM.DISCLOSURES.lane2Key, lf, 400) > W - titleX - 24) lf -= 0.4;
+            while (lf > 7 && measureSvgText(disc.lane2Key, lf, 400) > W - titleX - 24) lf -= 0.4;
             const bx = titleX + 6;
             for (let i = 0; i < 10; i++) {
               const a = (i * 36 - 90) * Math.PI / 180;
               svg.append(svgEl('circle', { cx: (bx + Math.cos(a) * 4.6).toFixed(2), cy: (ky - 3 + Math.sin(a) * 4.6).toFixed(2), r: 0.8, fill: C.ink, stroke: C.surface, 'stroke-width': 1.1, 'paint-order': 'stroke fill' }));
             }
             svg.append(svgEl('circle', { cx: bx, cy: ky - 3, r: 2.2, fill: C.accent }));
-            svg.append(svgEl('text', { x: bx + 9, y: ky, fill: C.ink2, 'font-size': lf }, PM.DISCLOSURES.lane2Key));
+            svg.append(svgEl('text', { x: bx + 9, y: ky, fill: C.ink2, 'font-size': lf }, disc.lane2Key));
           }
         } else {
           const ky = 34;
@@ -4989,7 +5071,7 @@
               svg.append(svgEl('circle', { cx: (bx + Math.cos(a) * 5).toFixed(2), cy: (ky - 3 + Math.sin(a) * 5).toFixed(2), r: 0.85, fill: C.ink, stroke: C.surface, 'stroke-width': 1.2, 'paint-order': 'stroke fill' }));
             }
             svg.append(svgEl('circle', { cx: bx, cy: ky - 3, r: 2.4, fill: C.accent }));
-            svg.append(svgEl('text', { x: bx + 10, y: ky, fill: C.ink2, 'font-size': kFont }, PM.DISCLOSURES.lane2Key));
+            svg.append(svgEl('text', { x: bx + 10, y: ky, fill: C.ink2, 'font-size': kFont }, disc.lane2Key));
           }
         }
       }
@@ -5078,8 +5160,9 @@
       const y = sy.f(t), txt = Y.fmt(t), tw = textW(txt, 11);
       if (S.grid !== 'off') g.append(seg(T(M.left, y), T(M.left + PW, y), gridAttrs));
       const [qx, qy] = diamond ? T(xWorse, y) : [M.left - 8, y];
-      const el = diamond ? svgEl('text', { ...tickFont, x: qx + 6, y: qy + 12 }, txt) : svgEl('text', { ...tickFont, x: qx, y: qy + 4, 'text-anchor': 'end' }, txt);
-      g.append(el); tickEls.push([el, diamond ? { x0: qx + 6, x1: qx + 6 + tw, y0: qy + 2, y1: qy + 14 } : { x0: qx - tw, x1: qx, y0: y - 7, y1: y + 7 }]);
+      const dtx = (diamond && (subActive || isExport)) ? Math.min(qx + 6, W - 2 - tw) : qx + 6;
+      const el = diamond ? svgEl('text', { ...tickFont, x: dtx, y: qy + 12 }, txt) : svgEl('text', { ...tickFont, x: qx, y: qy + 4, 'text-anchor': 'end' }, txt);
+      g.append(el); tickEls.push([el, diamond ? { x0: dtx, x1: dtx + tw, y0: qy + 2, y1: qy + 14 } : { x0: qx - tw, x1: qx, y0: y - 7, y1: y + 7 }]);
     }
     for (const t of sx.ticks) {
       const x = sx.f(t), txt = X.fmt(t), tw = textW(txt, 11);
@@ -5090,12 +5173,13 @@
         if (qx + tw / 2 > W - 2) { tx = Math.min(qx, W - 2); anchor = 'end'; }
         else if (qx - tw / 2 < 2) { tx = Math.max(qx, 2); anchor = 'start'; }
       }
-      const el = diamond ? svgEl('text', { ...tickFont, x: qx - 6, y: qy + 12, 'text-anchor': 'end' }, txt) : svgEl('text', { ...tickFont, x: tx, y: qy + 18, 'text-anchor': anchor }, txt);
-      g.append(el); tickEls.push([el, diamond ? { x0: qx - 6 - tw, x1: qx - 6, y0: qy + 2, y1: qy + 14 } : { x0: anchor === 'end' ? tx - tw : anchor === 'start' ? tx : tx - tw / 2, x1: anchor === 'end' ? tx : anchor === 'start' ? tx + tw : tx + tw / 2, y0: qy + 6, y1: qy + 22 }]);
+      const dtx = (diamond && (subActive || isExport)) ? Math.max(qx - 6, tw + 2) : qx - 6;
+      const el = diamond ? svgEl('text', { ...tickFont, x: dtx, y: qy + 12, 'text-anchor': 'end' }, txt) : svgEl('text', { ...tickFont, x: tx, y: qy + 18, 'text-anchor': anchor }, txt);
+      g.append(el); tickEls.push([el, diamond ? { x0: dtx - tw, x1: dtx, y0: qy + 2, y1: qy + 14 } : { x0: anchor === 'end' ? tx - tw : anchor === 'start' ? tx : tx - tw / 2, x1: anchor === 'end' ? tx : anchor === 'start' ? tx + tw : tx + tw / 2, y0: qy + 6, y1: qy + 22 }]);
     }
     const scaleTag = (s) => s === 'linear' ? '' : narrow ? ` (${word[s]})` : ` · ${SCALE_NOTE[s]}`, yLow = Y.better === 'low';
     const titleFont = { ...axisText, fill: C.ink2, 'font-size': narrow ? 10.5 : 12, 'font-weight': 500 };
-    const legAxisText = (k) => k === 'planTasks' ? PM.DISCLOSURES.legacyExportAxisTasks : k === 'planCost' ? PM.DISCLOSURES.legacyExportAxisCost : null;
+    const legAxisText = (k) => k === 'planTasks' ? disc.legacyExportAxisTasks : k === 'planCost' ? disc.legacyExportAxisCost : null;
     const fitAxisFont = (txt, startSize, maxW) => {
       let sz = startSize;
       while (sz > 7.2 && measureSvgText(txt, sz, 500) > maxW) sz -= 0.5;
@@ -5173,7 +5257,7 @@
     const frontSet = new Set(front.map((p) => p.m.id));
     if (ramp && dual === 'field') { const fl = svgEl('g', { 'clip-path': `url(#${clipId})` }); fl.append(valueField(ramp, defs, { M, PW, PH, T, xWorse, xBest, yWorse, yBest })); plot.append(fl); }
     const zoneLayer = svgEl('g', { class: 'zone-layer', 'clip-path': `url(#${clipId})` }); plot.append(zoneLayer);
-    const zone = S.zone === 'off' ? null : drawZone({ points, front, rawFront, knee, kneeNote: sweetRef?.note, kneeGap: sweetRef?.gap, X, Y, sx, sy, T, pts, M, PW, PH, xBest, xWorse, yBest, yWorse, defs, layer: zoneLayer, C });
+    const zone = (S.zone === 'off' || (S.zone === 'knee' && subBlockedFront)) ? null : drawZone({ points, front, rawFront, knee, kneeNote: sweetRef?.note, kneeGap: sweetRef?.gap, X, Y, sx, sy, T, pts, M, PW, PH, xBest, xWorse, yBest, yWorse, defs, layer: zoneLayer, C });
     if (!isExport && zone?.note) $('chartNote').textContent = [zone.note, $('chartNote').textContent].filter(Boolean).join(' · ');
     const refLayer = svgEl('g', { 'clip-path': `url(#${clipId})`, 'pointer-events': 'none' }); plot.append(refLayer);
     for (const [axis, metric, sc] of [['x', X, sx], ['y', Y, sy]]) {
@@ -5411,7 +5495,9 @@
     } else {
       const cx = Math.max(M.left + xw / 2, Math.min(M.left + PW - xw / 2, p.px));
       xc = [cx, y0 + 18, 'middle', { x0: cx - xw / 2, x1: cx + xw / 2, y0: y0 + 5, y1: y0 + 23 }];
-      yc = [M.left - 8, p.py + 4, 'end', { x0: M.left - yw - 6, x1: M.left - 2, y0: p.py - 9, y1: p.py + 9 }];
+      const ytW = textW(yt, 12, 700);
+      const yTx = (subLensActive() && M.left - 8 - ytW < 2) ? (ytW + 2) : (M.left - 8);
+      yc = [yTx, p.py + 4, 'end', { x0: Math.max(0, yTx - ytW - 4), x1: Math.max(M.left - 2, yTx + 4), y0: p.py - 9, y1: p.py + 9 }];
     }
     for (const [tx, ty, anchor, b, t] of [toX && [...xc, xt], toY && [...yc, yt]].filter(Boolean)) {
       if (taken?.some((o) => overlaps(o, b))) continue;
@@ -5591,24 +5677,27 @@
     const topMarginAllow = isExport ? 4 : (M.top >= 70 ? 14 : M.top >= 54 ? 10 : 4);
     const minTopY = Math.max(4, M.top - topMarginAllow);
 
-    const findBestPlacementFor = (p, txt, weight, placedBoxes, drawnLeaders, unplacedFrontier = [], allowNear = true) => {
+    const findBestPlacementFor = (p, txt, weight, placedBoxes, drawnLeaders, unplacedMeasured = [], allowNear = true, fine = false) => {
       const tw = measureSvgText(txt, lblFont, weight) + 4;
       const th = lblFont + 2.2;
       const off = markPaintedR(p) + 4.5;
       const ownDotR = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25;
       const others = points.filter((o) => o.m.id !== p.m.id);
-      const ownR = markPaintedR(p) + 1.5;
+      const ownR = markPaintedR(p) + (fine ? 1.15 : 1.5);
       const ownOb = { x1: p.px - ownR, y1: p.py - ownR, x2: p.px + ownR, y2: p.py + ownR };
+      const dBoxes = fine ? dotBoxes : dotBoxesStrict;
+      const segPad = fine ? 2.05 : 2.2;
+      const sameRowHard = fine ? 18.2 : 19.5;
       const leaderSeg = (ax, ay) => {
         const dx = ax - p.px, dy = ay - p.py, len = Math.hypot(dx, dy) || 1;
-        let sr = p.isLane2 ? markOuterR(p) - 0.5 : ownDotR + 1.5;
+        let sr = p.isLane2 ? markOuterR(p) - 0.5 : (fine ? ownDotR + 1.5 : ownDotR + 1.5);
         if (!p.isLane2) {
           const ux = dx / len, uy = dy / len;
           for (const o of others) {
             const dOp = Math.hypot(o.px - p.px, o.py - p.py);
-            const need = markPaintedR(o) + 2.3;
+            const need = markPaintedR(o) + 2.15;
             if (dOp < need + sr && ((p.px - o.px) * ux + (p.py - o.py) * uy) > 0) {
-              sr = Math.max(sr, Math.min(ownDotR + 3.8, len * 0.45));
+              sr = Math.max(sr, Math.min(ownDotR + 4.8, len * 0.45));
             }
           }
         }
@@ -5624,20 +5713,20 @@
         }
         for (const pb of placedBoxes) if (boxHit(box, pb)) return 30000;
         if (boxHit(box, ownOb)) return 25000;
-        for (const db of dotBoxesStrict) if (db.id !== p.m.id && boxHit(box, db)) return 25000;
+        for (const db of dBoxes) if (db.id !== p.m.id && boxHit(box, db)) return 25000;
         const cy = (box.y1 + box.y2) / 2;
         for (const o of others) {
           if (Math.abs(cy - o.py) < 10) {
             const dx = Math.min(Math.abs(box.x1 - o.px), Math.abs(box.x2 - o.px));
-            if (dx < 19.5) return 15000;
-            if (dx < markPaintedR(o) + 10.5) pen += 650;
+            if (dx < sameRowHard) return 15000;
+            if (dx < markPaintedR(o) + 18) pen += 1800;
           }
         }
-        const boxPad = { x1: box.x1 - 1.5, y1: box.y1 - 1.5, x2: box.x2 + 1.5, y2: box.y2 + 1.5 };
+        const boxPad = { x1: box.x1 - (fine ? 1.0 : 1.5), y1: box.y1 - (fine ? 1.0 : 1.5), x2: box.x2 + (fine ? 1.0 : 1.5), y2: box.y2 + (fine ? 1.0 : 1.5) };
         for (const dl of drawnLeaders) if (segHitsBox(dl.x1, dl.y1, dl.x2, dl.y2, boxPad)) return 25000;
         for (const fs of segs) if (segHitsBox(fs[0], fs[1], fs[2], fs[3], box)) pen += 300;
-        if (narrow && unplacedFrontier.length) {
-          for (const uf of unplacedFrontier) if (distPointToBox(uf.px, uf.py, box) < 22) pen += 450;
+        if (unplacedMeasured.length) {
+          for (const um of unplacedMeasured) if (distPointToBox(um.px, um.py, box) < 22) pen += 500;
         }
         return pen;
       };
@@ -5651,11 +5740,11 @@
         const ownBoxD = distPointToBox(p.px, p.py, box);
         if (c.far) pen += 22 + lDist * 0.42 + Math.abs((box.x1 + box.x2) / 2 - p.px) * 0.22;
         if (!c.far) {
-          for (const o of others) if (distPointToBox(o.px, o.py, box) < ownBoxD + 7.5) return { ...c, box, pen: pen + 15000, seg };
+          for (const o of others) if (distPointToBox(o.px, o.py, box) < ownBoxD + (fine ? 4.8 : 7.5)) return { ...c, box, pen: pen + 15000, seg };
         } else {
-          for (const o of others) if (segDist(o.px, o.py, seg.x1, seg.y1, seg.x2, seg.y2) <= markPaintedR(o) + 2.2) return { ...c, box, pen: pen + 25000, seg };
+          for (const o of others) if (segDist(o.px, o.py, seg.x1, seg.y1, seg.x2, seg.y2) <= markPaintedR(o) + segPad) return { ...c, box, pen: pen + 25000, seg };
           for (const pb of placedBoxes) {
-            const pbPad = { x1: pb.x1 - 1.5, y1: pb.y1 - 1.5, x2: pb.x2 + 1.5, y2: pb.y2 + 1.5 };
+            const pbPad = { x1: pb.x1 - (fine ? 1.0 : 1.5), y1: pb.y1 - (fine ? 1.0 : 1.5), x2: pb.x2 + (fine ? 1.0 : 1.5), y2: pb.y2 + (fine ? 1.0 : 1.5) };
             if (segHitsBox(seg.x1, seg.y1, seg.x2, seg.y2, pbPad)) return { ...c, box, pen: pen + 25000, seg };
           }
           for (const dl of drawnLeaders) if (segsCross(seg, dl)) return { ...c, box, pen: pen + 25000, seg };
@@ -5668,6 +5757,9 @@
               if (od < minOtherD) minOtherD = od;
             }
             if (ownBoxD > minOtherD) pen += 18 + (ownBoxD - minOtherD) * 0.4;
+          }
+          if (unplacedMeasured.length) {
+            for (const um of unplacedMeasured) if (segDist(um.px, um.py, seg.x1, seg.y1, seg.x2, seg.y2) < 14) pen += 350;
           }
         }
         return { ...c, box, pen, seg };
@@ -5693,7 +5785,7 @@
       if (!best || bestPen >= 10000) {
         const yMin = Math.max(Math.ceil(th) + 4, minTopY + Math.ceil(th) - 1);
         const yMax = M.top + PH - 4;
-        const stepX = narrow ? 3 : 8, stepY = narrow ? 2 : 6;
+        const stepX = fine ? 2 : (narrow ? 3 : 6), stepY = fine ? 2 : (narrow ? 2 : 4);
         const yLo = Math.max(yMin, yMin + Math.max(0, Math.floor((p.py - 84 - yMin) / stepY)) * stepY);
         const yHi = Math.min(yMax, Math.ceil(p.py + th + 84));
         for (let ly = yLo; ly <= yHi; ly += stepY) {
@@ -5711,15 +5803,19 @@
             const candAnchors = [[cx, cy]];
             if (p.py < b.y1 || p.py > b.y2) {
               candAnchors.push([b.x1 + 2, cy], [b.x2 - 2, cy], [Math.max(b.x1, Math.min(b.x2, p.px - 14)), cy], [Math.max(b.x1, Math.min(b.x2, p.px + 14)), cy]);
+              if (fine) candAnchors.push([(b.x1 + b.x2) / 2, cy], [b.x1 + (b.x2 - b.x1) * 0.25, cy], [b.x1 + (b.x2 - b.x1) * 0.75, cy]);
             }
-            if (p.px <= b.x1) candAnchors.push([b.x1, b.y1], [b.x1, b.y2]);
-            else if (p.px >= b.x2) candAnchors.push([b.x2, b.y1], [b.x2, b.y2]);
+            if (p.px <= b.x1) candAnchors.push([b.x1, b.y1], [b.x1, b.y2], [b.x1, (b.y1 + b.y2) / 2]);
+            else if (p.px >= b.x2) candAnchors.push([b.x2, b.y1], [b.x2, b.y2], [b.x2, (b.y1 + b.y2) / 2]);
             for (const [ax, ay] of candAnchors) {
               const r = evalCand({ lx, ly, anchor: 'start', bx1: lx, by1, ax, ay, far: true }, b, bp);
               if (r.pen < bestPen) { bestPen = r.pen; best = r; }
             }
           }
         }
+      }
+      if ((!best || bestPen >= 10000) && !fine && !p.isLane2) {
+        return findBestPlacementFor(p, txt, weight, placedBoxes, drawnLeaders, unplacedMeasured, allowNear, true);
       }
       return best && bestPen < 10000 ? best : null;
     };
@@ -5732,10 +5828,10 @@
       for (let qi = 0; qi < queue.length; qi++) {
         const p = queue[qi];
         const isFront = !p.isLane2 && effFront(p.m.id);
-        const unplacedFrontier = queue.slice(qi + 1).filter((u) => !u.isLane2 && effFront(u.m.id));
+        const unplacedMeasured = queue.slice(qi + 1).filter((u) => !u.isLane2);
         const txt = labelTextOf(p);
         const weight = isFront ? 600 : 500;
-        const best = findBestPlacementFor(p, txt, weight, placedBoxes, drawnLeaders, unplacedFrontier, true);
+        const best = findBestPlacementFor(p, txt, weight, placedBoxes, drawnLeaders, unplacedMeasured, true, false);
         if (!best) {
           droppedLabels.push(txt);
           if (isFront) droppedFrontierLabels.push(txt);
@@ -7958,16 +8054,16 @@
     clone.append(g);
   }
   function svgString(opts = {}) {
-    if (PM && (subLensActive() || legacyAxisActive())) {
-      const isSub = subLensActive(), isLeg = legacyAxisActive();
+    const isSub = subLensActive(), isLeg = legacyAxisActive();
+    if (isSub || isLeg) {
       const card = $('chartCard'), cs = getComputedStyle(card);
-      const liveW = Math.round(+svg.getAttribute('width') || Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))));
-      const expW = opts.width || liveW;
-      const pubEst = opts.pubEst !== undefined ? !!opts.pubEst : (subPubDefaultEstOverride !== null ? subPubDefaultEstOverride : PM.PUBLIC_DEFAULT_ESTIMATES);
+      const cardAvailW = Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
+      const expW = opts.width || cardAvailW;
+      const pubEst = opts.pubEst !== undefined ? !!opts.pubEst : (subPubDefaultEstOverride !== null ? subPubDefaultEstOverride : (PM ? PM.PUBLIC_DEFAULT_ESTIMATES : true));
       const prevSubProfile = subProfile, prevSubPlans = SUB_PLANS, prevPlanFee = PLAN_FEE, prevExportCtx = exportCtx;
       const prevSvgHidden = svg.hidden;
       try {
-        if (isSub) subProfile = PM.getExampleProfile(PLAN_CAT, 'entry', pubEst);
+        if (isSub && PM) subProfile = PM.getExampleProfile(PLAN_CAT, 'entry', pubEst);
         if (isLeg) { SUB_PLANS = {}; PLAN_FEE = DEFAULT_STATE.planPrice; derive(); }
         svg.hidden = false;
         exportCtx = { active: true, width: expW, height: opts.height || null, extraOmitted: opts.extraOmitted || [], isSub, isLeg, caption: '', showEstKey: false, footerRes: null, labelAudit: null };

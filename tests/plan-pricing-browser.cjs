@@ -113,14 +113,13 @@ async function attachTestRoutes(target, { blockGists = true, injectCanonical15 =
       const response = await route.fetch();
       const raw = await response.text();
       const data = JSON.parse(raw.replace(/^\s*window\.AA_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
-      const existing = new Set(data.models.map((m) => `${m.family}::${m.effort}`));
+      const c15Keys = new Set(CANONICAL_15.map((cm) => `${cm.family}::${cm.effort}`));
+      data.models = data.models.filter((m) => !c15Keys.has(`${m.family}::${m.effort}`));
       for (const cm of CANONICAL_15) {
-        if (!existing.has(`${cm.family}::${cm.effort}`)) {
-          data.models.push({
-            ...cm, shortName: cm.name.toLowerCase(), isReasoning: true, openWeights: false, deprecated: false,
-            estimated: false, defaultSelected: false, releaseDate: '2026-11-20',
-          });
-        }
+        data.models.push({
+          ...cm, shortName: cm.name.toLowerCase(), isReasoning: true, openWeights: false, deprecated: false,
+          estimated: false, defaultSelected: false, releaseDate: '2026-11-20',
+        });
       }
       await route.fulfill({ response, body: `window.AA_DATA = ${JSON.stringify(data)};\n` });
     });
@@ -158,7 +157,7 @@ async function selectReplay15(page, strictCanonical = false) {
   }, { specs: REPLAY_SPECS, strictCanonical });
 }
 
-// Independent DOM-derived geometry verifier (verifies actual rendered SVG boxes, marks, quadrant hint, and leaders)
+// Independent DOM-derived geometry verifier (verifies actual rendered SVG boxes, marks, bead rings, quadrant hint, same-row, and leaders)
 async function independentDomAudit(page, selector = '#chart') {
   return page.evaluate((sel) => {
     const svg = document.querySelector(sel);
@@ -172,37 +171,74 @@ async function independentDomAudit(page, selector = '#chart') {
         clipped.push({ text: t.textContent, left: +(tr.left - sr.left).toFixed(1), right: +(tr.right - sr.left).toFixed(1), top: +(tr.top - sr.top).toFixed(1), bottom: +(tr.bottom - sr.top).toFixed(1), w: +w.toFixed(1), h: +h.toFixed(1) });
       }
     }
-    const pts = window.__AIMF_TEST ? window.__AIMF_TEST.getPoints() : [];
-    const ptById = new Map(pts.map((p) => [p.id, p]));
-    const lbls = [...svg.querySelectorAll('text.lbl-lane1, text.lbl-lane2')].map((el) => {
-      const bb = el.getBBox();
-      const id = el.getAttribute('data-id');
-      return { id, text: el.textContent, isLane2: el.classList.contains('lbl-lane2'), box: { x1: bb.x, y1: bb.y, x2: bb.x + bb.width, y2: bb.y + bb.height } };
-    });
+    const relRect = (r) => ({ x1: r.left - sr.left, y1: r.top - sr.top, x2: r.right - sr.left, y2: r.bottom - sr.top });
+    const marks = new Map();
+    for (const c of svg.querySelectorAll('circle[data-id]')) {
+      const id = c.getAttribute('data-id');
+      const r = relRect(c.getBoundingClientRect());
+      const px = (r.x1 + r.x2) / 2, py = (r.y1 + r.y2) / 2, rad = Math.max(r.x2 - r.x1, r.y2 - r.y1) / 2;
+      const prev = marks.get(id);
+      if (!prev || rad > prev.r) marks.set(id, { id, px, py, r: rad });
+    }
+    for (const g of svg.querySelectorAll('g.lane2-bead-ring[data-id]')) {
+      const id = g.getAttribute('data-id');
+      const r = relRect(g.getBoundingClientRect());
+      const px = (r.x1 + r.x2) / 2, py = (r.y1 + r.y2) / 2, rad = Math.max(r.x2 - r.x1, r.y2 - r.y1) / 2;
+      const prev = marks.get(id);
+      if (!prev || rad > prev.r) marks.set(id, { id, px, py, r: rad });
+    }
+    const markList = [...marks.values()];
+    const lbls = [...svg.querySelectorAll('text.lbl-lane1, text.lbl-lane2')].map((el) => ({
+      id: el.getAttribute('data-id'),
+      text: el.textContent,
+      isLane2: el.classList.contains('lbl-lane2'),
+      box: relRect(el.getBoundingClientRect()),
+    }));
     const leaders = [...svg.querySelectorAll('line.sub-leader')].map((el) => ({
       id: el.getAttribute('data-id'),
       x1: +el.getAttribute('x1'), y1: +el.getAttribute('y1'), x2: +el.getAttribute('x2'), y2: +el.getAttribute('y2'),
     }));
     const leaderById = new Map(leaders.map((l) => [l.id, l]));
     const qhEl = svg.querySelector('text.quad-hint');
-    const qhBox = qhEl ? (() => { const b = qhEl.getBBox(); return { x1: b.x, y1: b.y, x2: b.x + b.width, y2: b.y + b.height }; })() : null;
+    const qhBox = qhEl ? relRect(qhEl.getBoundingClientRect()) : null;
     const hit = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
     const distPtBox = (px, py, b) => Math.hypot(px < b.x1 ? b.x1 - px : px > b.x2 ? px - b.x2 : 0, py < b.y1 ? b.y1 - py : py > b.y2 ? py - b.y2 : 0);
+    const segDist = (px, py, x1, y1, x2, y2) => {
+      const dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy;
+      const t = L ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / L)) : 0;
+      return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+    };
+    const segHitsBox = (x1, y1, x2, y2, b) => {
+      let t0 = 0, t1 = 1, dx = x2 - x1, dy = y2 - y1;
+      for (const [pv, qv] of [[-dx, x1 - b.x1], [dx, b.x2 - x1], [-dy, y1 - b.y1], [dy, b.y2 - y1]]) {
+        if (pv === 0) { if (qv < 0) return false; }
+        else { const rv = qv / pv; if (pv < 0) { if (rv > t1) return false; if (rv > t0) t0 = rv; } else { if (rv < t0) return false; if (rv < t1) t1 = rv; } }
+      }
+      return t0 <= t1;
+    };
 
-    let overlaps = 0, quadHintOverlaps = 0, misattached = 0, maxLeader = 0;
+    let overlaps = 0, dotOverlaps = 0, quadHintOverlaps = 0, misattached = 0, sameRowHits = 0, leaderThroughMark = 0, leaderThroughLabel = 0, maxLeader = 0;
     for (let i = 0; i < lbls.length; i++) {
-      const a = lbls[i], pa = ptById.get(a.id);
+      const a = lbls[i], pa = marks.get(a.id);
       if (qhBox && hit(a.box, qhBox)) quadHintOverlaps++;
       for (let j = i + 1; j < lbls.length; j++) if (hit(a.box, lbls[j].box)) overlaps++;
+      const cy = (a.box.y1 + a.box.y2) / 2;
+      for (const m of markList) {
+        if (m.id === a.id) continue;
+        if (distPtBox(m.px, m.py, a.box) < m.r - 0.5) dotOverlaps++;
+        if (Math.abs(cy - m.py) < 8.5 && Math.min(Math.abs(a.box.x1 - m.px), Math.abs(a.box.x2 - m.px)) < 17.5) sameRowHits++;
+      }
       const l = leaderById.get(a.id);
       if (l) {
         maxLeader = Math.max(maxLeader, Math.hypot(l.x2 - l.x1, l.y2 - l.y1));
+        for (const m of markList) if (m.id !== a.id && segDist(m.px, m.py, l.x1, l.y1, l.x2, l.y2) < m.r - 0.5) leaderThroughMark++;
+        for (const b of lbls) if (b.id !== a.id && segHitsBox(l.x1, l.y1, l.x2, l.y2, b.box)) leaderThroughLabel++;
       } else if (pa) {
         const ownD = distPtBox(pa.px, pa.py, a.box);
-        if (pts.some((o) => o.id !== a.id && distPtBox(o.px, o.py, a.box) < ownD + 4)) misattached++;
+        if (markList.some((o) => o.id !== a.id && distPtBox(o.px, o.py, a.box) < ownD + 3.8)) misattached++;
       }
     }
-    return { clipped, overlaps, quadHintOverlaps, misattached, maxLeader: +maxLeader.toFixed(1), labelCount: lbls.length };
+    return { clipped, overlaps, dotOverlaps, quadHintOverlaps, misattached, sameRowHits, leaderThroughMark, leaderThroughLabel, maxLeader: +maxLeader.toFixed(1), labelCount: lbls.length };
   }, selector);
 }
 
@@ -283,13 +319,49 @@ async function runAt01(chromium, webkit, baseUrl) {
     assert.equal(customExp.text.includes('stroke="#e5e7eb"') || customExp.text.includes('stroke-opacity="0.4"'), false, 'Export must obey grid=off');
     assert.equal(customExp.labelAudit.clippedTexts.length, 0, `Custom settings export clipped text: ${JSON.stringify(customExp.labelAudit.clippedTexts)}`);
 
-    // Restore default settings & check live phone width preservation (282px on 320px viewport, not inflated to 320!)
-    await p1.evaluate(() => window.__AIMF_TEST.setStatePatch({ grid: 'normal', xRel: 'off', labels: 'auto', pareto: 'step', zone: 'off' }));
+    // Desktop Tall (shape=tall, tallRatio=3) real #downloadSvg keeps desktop layout (rotated Y title, exact live width on Example entry, byte-identical across profiles, zero clips)
+    await p1.evaluate(() => window.__AIMF_TEST.setStatePatch({ grid: 'normal', xRel: 'off', labels: 'auto', pareto: 'step', zone: 'off', shape: 'tall', tallRatio: 3 }));
+    await p2.evaluate(() => window.__AIMF_TEST.setStatePatch({ grid: 'normal', xRel: 'off', labels: 'auto', pareto: 'step', zone: 'off', shape: 'tall', tallRatio: 3 }));
+    const tallLive2 = await p2.evaluate(() => ({
+      w: +document.getElementById('chart').getAttribute('width'),
+      h: +document.getElementById('chart').getAttribute('height'),
+      yRot: document.querySelector('#chart text[transform*="rotate(-90)"]')?.textContent || '',
+    }));
+    const [tallDl1, tallDl2] = await Promise.all([
+      Promise.all([p1.waitForEvent('download'), p1.click('#downloadSvg')]).then(([d]) => d),
+      Promise.all([p2.waitForEvent('download'), p2.click('#downloadSvg')]).then(([d]) => d),
+    ]);
+    const tallSvg1 = fs.readFileSync(await tallDl1.path(), 'utf8');
+    const tallSvg2 = fs.readFileSync(await tallDl2.path(), 'utf8');
+    assert.equal(tallSvg1, tallSvg2, 'Desktop Tall real #downloadSvg must be byte-identical across distinct local profiles');
+    const tallExpAudit = await p2.evaluate(() => window.__AIMF_TEST.svgString());
+    assert.equal(tallExpAudit.width, tallLive2.w, `Desktop Tall export width ${tallExpAudit.width} != Example entry live ${tallLive2.w}`);
+    assert.ok(tallSvg1.includes('rotate(-90)'), 'Desktop Tall export must preserve rotated desktop Y-axis title (not switch to phone layout)');
+    assert.ok(tallExpAudit.height < tallLive2.h + 120, `Desktop Tall export height ${tallExpAudit.height} unexpectedly expanded vs live ${tallLive2.h}`);
+    assert.equal(tallExpAudit.labelAudit.clippedTexts.length, 0, `Desktop Tall export clipped text: ${JSON.stringify(tallExpAudit.labelAudit.clippedTexts)}`);
+    await p2.evaluate(() => window.__AIMF_TEST.setStatePatch({ shape: 'standard' }));
+
+    // Diamond shape under Plan $: live & export zero clipped endpoint ticks ($0.00, 65.0)
+    await p1.evaluate(() => window.__AIMF_TEST.setStatePatch({ shape: 'diamond' }));
+    const diaDom = await independentDomAudit(p1, '#chart');
+    const diaExp = await p1.evaluate(() => window.__AIMF_TEST.svgString());
+    assert.equal(diaDom.clipped.length, 0, `Diamond live clipped text: ${JSON.stringify(diaDom.clipped)}`);
+    assert.equal(diaExp.labelAudit.clippedTexts.length, 0, `Diamond export clipped text: ${JSON.stringify(diaExp.labelAudit.clippedTexts)}`);
+
+    // Restore default settings & check live phone width preservation (282px on 320px viewport) + pinned Y-value tag zero clip
+    await p1.evaluate(() => window.__AIMF_TEST.setStatePatch({ shape: 'standard', grid: 'normal', xRel: 'off', labels: 'auto', pareto: 'step', zone: 'off' }));
     await p1.setViewportSize({ width: 320, height: 640 });
     await p1.waitForTimeout(80);
     const phoneLiveW = await p1.evaluate(() => ({ liveW: +document.getElementById('chart').getAttribute('width'), exp: window.__AIMF_TEST.svgString() }));
     assert.equal(phoneLiveW.exp.width, phoneLiveW.liveW, `Export width (${phoneLiveW.exp.width}) must match live phone SVG width (${phoneLiveW.liveW})`);
     assert.equal(phoneLiveW.exp.labelAudit.clippedTexts.length, 0, 'Live-width phone export clipped text');
+    // Pinned model Y-value tag at 320px & 390px must not clip left edge
+    for (const pw of [320, 390]) {
+      await p1.setViewportSize({ width: pw, height: pw === 320 ? 640 : 844 });
+      await p1.goto(`${baseUrl}/index.html?noAutoUpdate=1&pin=claude-opus-5-5:xhigh`, { waitUntil: 'networkidle' });
+      const pinDom = await independentDomAudit(p1, '#chart');
+      assert.equal(pinDom.clipped.length, 0, `Pinned model clipped text at ${pw}px on Plan $: ${JSON.stringify(pinDom.clipped)}`);
+    }
 
     // 2. Untouched first-visit defaults, #chartDesc honesty, ?price=pct sweet spot, ?price=pct&fullFrontier=1 suppression,
     //    dual-cost-axis tooltip (x=costPerTask&y=myCost), $0 log note, pre-feature saved set, & modal focus trap!
@@ -377,21 +449,27 @@ async function runAt01(chromium, webkit, baseUrl) {
       assert.doesNotMatch(pctSweet.note, /\$\d/, `Sweet spot on % of week must not format dollars: ${pctSweet.note}`);
     }
 
-    // ?price=pct&fullFrontier=1 suppresses cross-pool frontier when ghosts add a second pool!
+    // ?price=pct&fullFrontier=1&autoBest=1 suppresses cross-pool frontier, sweet spot (X & Y), and knee zone even with Also show active!
     const pctFull = await pFirst.evaluate(() => {
-      window.__AIMF_TEST.setStatePatch({ fullFrontier: true });
+      window.__AIMF_TEST.setStatePatch({ fullFrontier: true, xRel: 'sweet', yRel: 'sweet', zone: 'knee', autoBest: true, autoBestPct: 100 });
       const r = window.__AIMF_TEST.getLastRender();
       return {
         comparable: r.evalRes.comparable,
         noticeHidden: document.getElementById('priceNotice').hidden,
         frontLines: document.querySelectorAll('#chart polyline').length,
         ghostCircles: document.querySelectorAll('#chart circle[fill-opacity="0.4"]').length,
+        refLines: document.querySelectorAll('#chart line.reference-line').length,
+        zoneChildren: document.querySelector('#chart g.zone-layer')?.children.length || 0,
+        xTitle: document.getElementById('chartTitle').textContent,
         legendHasFrontier: document.getElementById('legend').textContent.includes('Pareto frontier'),
       };
     });
-    assert.equal(pctFull.comparable, false, 'fullFrontier=1 on % of week with multi-pool ghosts must suppress frontier');
+    assert.equal(pctFull.comparable, false, 'fullFrontier=1 on % of week with multi-pool ghosts/autoBest must suppress frontier');
     assert.equal(pctFull.noticeHidden, false, 'Cross-pool suppression notice must be visible');
     assert.equal(pctFull.ghostCircles, 0, 'Incompatible-pool ghosts must not render on % of week');
+    assert.equal(pctFull.refLines, 0, 'Cross-pool % of week with Also show must not apply X or Y sweet-spot reference line');
+    assert.equal(pctFull.zoneChildren, 0, 'Cross-pool % of week with Also show must not draw knee zone');
+    assert.equal(pctFull.xTitle.includes('sweet spot'), false, 'Cross-pool % of week must keep original units');
     assert.equal(pctFull.legendHasFrontier, false, 'Legend must not advertise suppressed frontier');
 
     // Dual-cost-axis tooltip (x=costPerTask & y=myCost): distinct per-axis values in tooltip!
@@ -412,7 +490,7 @@ async function runAt01(chromium, webkit, baseUrl) {
       assert.notEqual(rTask[1], rMy[1], `Dual-cost tooltip reused X value for Y: ${rTask[1]} vs ${rMy[1]}`);
     }
 
-    // $0 fee on log scale explains $0.00 clearly; pre-feature saved set without price restores API $
+    // $0 fee on log scale explains $0.00 clearly & splits mixed non-zero missing models separately; pre-feature set restores API $
     await pFirst.goto(`${baseUrl}/index.html?noAutoUpdate=1&xScale=log&price=plan`, { waitUntil: 'networkidle' });
     const zeroLogNote = await pFirst.evaluate(() => {
       const prof = window.__AIMF_TEST.getProfile();
@@ -421,6 +499,18 @@ async function runAt01(chromium, webkit, baseUrl) {
       return document.getElementById('chartNote').textContent;
     });
     assert.match(zeroLogNote, /\$0\.00/, `$0 fee on log scale must explain $0.00, got: ${zeroLogNote}`);
+    // Mixed log-scale hide: one $0.00 Anthropic model + one missing-Y model must NOT blame the missing-Y model on $0.00
+    const mixedLogNote = await pFirst.evaluate(() => {
+      const anthZero = window.AA_DATA.models.find(m => m.creatorSlug === 'anthropic' && m.family === 'claude-opus-5-5' && m.effort === 'xhigh');
+      const noIntel = window.AA_DATA.models.find(m => m.intelligence == null && m.costPerTask > 0 && m.creatorSlug === 'google');
+      if (!anthZero || !noIntel) return { skip: true };
+      window.__AIMF_TEST.setSelection([anthZero.id, noIntel.id]);
+      return { skip: false, note: document.getElementById('chartNote').textContent, zeroLabel: anthZero.label, missLabel: noIntel.label };
+    });
+    if (!mixedLogNote.skip) {
+      assert.match(mixedLogNote.note, /1 selected model-effort variant is hidden on a log scale because .*\$0\.00/);
+      assert.match(mixedLogNote.note, /1 selected model-effort variant has no/);
+    }
     const preFeatureRes = await pFirst.evaluate(() => {
       window.__AIMF_TEST.applySet({ x: 'costPerTask', y: 'intelligence', xScale: 'linear', yScale: 'linear' }, false);
       return window.__AIMF_TEST.getState().price;
@@ -505,6 +595,33 @@ async function runAt01(chromium, webkit, baseUrl) {
             assert.ok(expMeasured.true.has(id), `Export measured label ${id} dropped when est=ON (${engineName}/${ds.label} ${expW}px)`);
           }
         }
+        // Width sweep for Heavy est-ON across narrow/mid/laptop/Values=both widths (catches between-breakpoint drops!)
+        if (ds.canonical) {
+          for (const sw of [330, 760, 780, 1120, 1160]) {
+            await pLbl.setViewportSize({ width: sw, height: sw < 560 ? 640 : 860 });
+            await pLbl.waitForTimeout(40);
+            await pLbl.evaluate(() => {
+              window.__AIMF_TEST.setStatePatch({ labels: 'auto', valueLabels: 'off' });
+              window.__AIMF_TEST.setProfile(window.PlanMath.getExampleProfile(window.PLAN_ALLOWANCES, 'heavy', true));
+            });
+            const a = await pLbl.evaluate(() => window.__AIMF_TEST.getLastLabelAudit());
+            const dom = await independentDomAudit(pLbl, '#chart');
+            assert.equal(a.droppedFrontierCount, 0, `${engineName} sweep ${sw}px Heavy ON dropped frontier`);
+            assert.equal(a.droppedMeasuredCount, 0, `${engineName} sweep ${sw}px Heavy ON dropped measured`);
+            assert.equal(dom.overlaps + dom.dotOverlaps + dom.quadHintOverlaps + dom.misattached + dom.clipped.length, 0, `${engineName} sweep ${sw}px Heavy ON DOM issue: ${JSON.stringify(dom)}`);
+          }
+          for (const sw of [760, 780]) {
+            await pLbl.setViewportSize({ width: sw, height: 860 });
+            await pLbl.evaluate(() => {
+              window.__AIMF_TEST.setStatePatch({ labels: 'auto', valueLabels: 'both' });
+              window.__AIMF_TEST.setProfile(window.PlanMath.getExampleProfile(window.PLAN_ALLOWANCES, 'heavy', true));
+            });
+            const a = await pLbl.evaluate(() => window.__AIMF_TEST.getLastLabelAudit());
+            assert.equal(a.droppedFrontierCount, 0, `${engineName} sweep ${sw}px Values=both dropped frontier`);
+            assert.equal(a.droppedMeasuredCount, 0, `${engineName} sweep ${sw}px Values=both dropped measured`);
+          }
+          await pLbl.evaluate(() => window.__AIMF_TEST.setStatePatch({ valueLabels: 'off' }));
+        }
         // Also verify labels=all produces zero overlaps & zero dropped frontier labels at 960px
         await pLbl.setViewportSize({ width: 960, height: 860 });
         await pLbl.evaluate(() => {
@@ -532,6 +649,17 @@ async function runAt01(chromium, webkit, baseUrl) {
 
       await mp.tap('#plansBtn');
       await mp.waitForSelector('#plansPop.open');
+      // Full-cycle modal Tab & Shift+Tab trap check in BOTH Chromium AND WebKit (must NEVER drop to BODY!)
+      for (const dir of ['Tab', 'Shift+Tab']) {
+        for (let step = 0; step < 26; step++) {
+          await mp.keyboard.press(dir);
+          const inPop = await mp.evaluate(() => {
+            const pop = document.getElementById('plansPop');
+            return pop.contains(document.activeElement) && document.activeElement !== document.body;
+          });
+          assert.equal(inPop, true, `${engineName} modal focus escaped on ${dir} step ${step}`);
+        }
+      }
       const sheet844 = await mp.evaluate(() => {
         const pop = document.getElementById('plansPop');
         const cs = getComputedStyle(pop);
@@ -836,11 +964,15 @@ async function runAt03(chromium, baseUrl) {
     assert.deepEqual(localAfterSync['Local New Set'].subPlans, { openai: 'ChatGPT Pro' }, 'Local new-set subPlans lost on sync');
     await pSync.close();
 
-    // 4. FAIL-CLOSED when plan-math.js fails to load: #setExport AND Gist PATCH (including after 503 retry!) emit ZERO subPlans!
+    // 4. FAIL-CLOSED when plan-math.js fails to load:
+    //    (a) #setExport & Gist PATCH (503+retry) emit ZERO subPlans AND strip malformed wire values AND preserve 1001-char names;
+    //    (b) same-name #importFile preserves local subPlans;
+    //    (c) legacy X/Y SVG downloads stay isolated from personal fee (4321.77) with exact Decision 6 disclosures!
     const failCtx = await browser.newContext({ viewport: { width: 1280, height: 860 }, acceptDownloads: true });
     await failCtx.route('**/plan-math.js*', (r) => r.abort());
     let patchAttempts = 0;
     const failPatches = [];
+    const name1001 = 'L'.repeat(1001);
     await failCtx.route('https://api.github.com/gists/**', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ files: { 'aa-charts-sync.json': { content: JSON.stringify({ version: 2, sets: {} }) } } }) });
@@ -852,19 +984,29 @@ async function runAt03(chromium, baseUrl) {
       }
     });
     const pFail = await failCtx.newPage();
-    await pFail.addInitScript(() => {
+    await pFail.addInitScript((n1001) => {
       localStorage.setItem('aa-charts:gh-token', 'test-sync-token-placeholder');
       localStorage.setItem('aa-charts:sets', JSON.stringify({
-        'Private Local Set': { x: 'planCost', y: 'intelligence', price: 'api', subPlans: { anthropic: 'SECRET_LOCAL_PICK' }, planPrice: 200, estimate: false, unknownLeak: 'SECRET_UNKNOWN' },
+        'Private Local Set': {
+          x: 'planCost', y: 'intelligence', price: 'api', pareto: 'bad-sentinel', grid: 'bad-grid', smallCaps: 'not-bool',
+          efforts: ['xhigh', 'bogus-effort'], subPlans: { anthropic: 'SECRET_LOCAL_PICK' }, planPrice: 200, estimate: false, unknownLeak: 'SECRET_UNKNOWN',
+        },
+        [n1001]: { x: 'costPerTask', y: 'intelligence', price: 'api', subPlans: { anthropic: 'SECRET_1001' } },
       }));
-    });
+    }, name1001);
     await pFail.goto(`${baseUrl}/index.html?noAutoUpdate=1`, { waitUntil: 'networkidle' });
     assert.equal(await pFail.evaluate(() => typeof window.PlanMath), 'undefined', 'plan-math.js should be unavailable in this test');
     const [expDl] = await Promise.all([pFail.waitForEvent('download'), pFail.click('#setExport')]);
     const exportedJson = fs.readFileSync(await expDl.path(), 'utf8');
+    const exportedObj = JSON.parse(exportedJson);
     assert.equal(exportedJson.includes('subPlans'), false, 'Failed plan-math.js export leaked subPlans');
     assert.equal(exportedJson.includes('SECRET_LOCAL_PICK'), false, 'Failed plan-math.js export leaked private plan value');
     assert.equal(exportedJson.includes('SECRET_UNKNOWN'), false, 'Failed plan-math.js export leaked unknown field');
+    assert.equal('pareto' in exportedObj['Private Local Set'], false, 'Failed plan-math.js fallback must strip malformed enum pareto');
+    assert.equal('grid' in exportedObj['Private Local Set'], false, 'Failed plan-math.js fallback must strip malformed enum grid');
+    assert.equal('smallCaps' in exportedObj['Private Local Set'], false, 'Failed plan-math.js fallback must strip non-boolean smallCaps');
+    assert.deepEqual(exportedObj['Private Local Set'].efforts, ['xhigh'], 'Failed plan-math.js fallback must strip unknown efforts');
+    assert.ok(exportedObj[name1001], '1001-char set name must survive export');
     // Sync attempt 1 (503) + retry attempt 2 (200)
     await pFail.click('#syncBtn');
     await pFail.waitForFunction(() => document.getElementById('syncStatus').textContent.includes('HTTP 503'));
@@ -874,12 +1016,50 @@ async function runAt03(chromium, baseUrl) {
     for (const body of failPatches) {
       assert.equal(body.includes('subPlans'), false, 'Failed plan-math.js Gist PATCH leaked subPlans');
       assert.equal(body.includes('SECRET_LOCAL_PICK'), false, 'Failed plan-math.js Gist PATCH leaked private value');
+      assert.equal(body.includes('bad-sentinel'), false, 'Failed plan-math.js Gist PATCH emitted malformed enum');
     }
     const survivedLocal = await pFail.evaluate(() => JSON.parse(localStorage.getItem('aa-charts:sets')));
     assert.deepEqual(survivedLocal['Private Local Set'].subPlans, { anthropic: 'SECRET_LOCAL_PICK' }, 'Local subPlans must survive fail-closed sync');
+    assert.equal(survivedLocal['Private Local Set'].unknownLeak, 'SECRET_UNKNOWN', 'Untouched local extra key preserved locally while stripped on wire');
+    assert.ok(survivedLocal[name1001], '1001-char set name must survive fail-closed sync');
+    // Same-name #importFile must preserve local subPlans while applying inbound public edits and stripping inbound subPlans
+    const importTmp = path.join(os.tmpdir(), `aimf-import-${process.pid}.json`);
+    fs.writeFileSync(importTmp, JSON.stringify({
+      'Private Local Set': { x: 'costPerTask', y: 'intelligence', price: 'api', xScale: 'log', subPlans: { anthropic: 'HOSTILE_IMPORT' } },
+    }));
+    pFail.once('dialog', d => d.accept());
+    await pFail.setInputFiles('#importFile', importTmp);
+    await pFail.waitForTimeout(100);
+    fs.rmSync(importTmp, { force: true });
+    const afterImport = await pFail.evaluate(() => JSON.parse(localStorage.getItem('aa-charts:sets')));
+    assert.equal(afterImport['Private Local Set'].xScale, 'log', 'Same-name import must apply public edit');
+    assert.deepEqual(afterImport['Private Local Set'].subPlans, { anthropic: 'SECRET_LOCAL_PICK' }, 'Same-name import must preserve existing local subPlans');
+    // Legacy X/Y downloads when plan-math.js fails to load must remain isolated from personal fee (4321.77) and keep exact Decision 6 disclosures!
+    for (const [param, metric] of [['x', 'planCost'], ['x', 'planTasks'], ['y', 'planCost'], ['y', 'planTasks']]) {
+      const pLegDef = await failCtx.newPage();
+      await pLegDef.goto(`${baseUrl}/index.html?noAutoUpdate=1&${param}=${metric}`, { waitUntil: 'networkidle' });
+      const [dlDef] = await Promise.all([pLegDef.waitForEvent('download'), pLegDef.click('#downloadSvg')]);
+      const svgDef = fs.readFileSync(await dlDef.path(), 'utf8');
+      await pLegDef.close();
+
+      const pLegPriv = await failCtx.newPage();
+      await pLegPriv.addInitScript(() => {
+        localStorage.setItem('aa-charts:state:v2', JSON.stringify({ planPrice: 4321.77, subPlans: { anthropic: 'Claude Max 20x' } }));
+      });
+      await pLegPriv.goto(`${baseUrl}/index.html?noAutoUpdate=1&${param}=${metric}`, { waitUntil: 'networkidle' });
+      const [dlPriv] = await Promise.all([pLegPriv.waitForEvent('download'), pLegPriv.click('#downloadSvg')]);
+      const svgPriv = fs.readFileSync(await dlPriv.path(), 'utf8');
+      await pLegPriv.close();
+
+      assert.equal(svgPriv, svgDef, `Missing plan-math.js legacy download ?${param}=${metric} differed under personal fee 4321.77`);
+      const wantTitle = metric === 'planTasks' ? PM.DISCLOSURES.legacyExportTitleTasks : PM.DISCLOSURES.legacyExportTitleCost;
+      const wantAxis = metric === 'planTasks' ? PM.DISCLOSURES.legacyExportAxisTasks : PM.DISCLOSURES.legacyExportAxisCost;
+      assert.ok(svgPriv.includes(wantTitle), `Missing plan-math.js legacy export missing title on ?${param}=${metric}`);
+      assert.ok(svgPriv.includes(wantAxis), `Missing plan-math.js legacy export missing axis disclosure on ?${param}=${metric}`);
+    }
     await failCtx.close();
 
-    console.log('PASS AT-03 (legacy byte & numerical parity, all 4 legacy URLs & X/Y exports, cross-catalog + 121-char sync, fail-closed missing plan-math.js export/sync/503-retry)');
+    console.log('PASS AT-03 (legacy byte & numerical parity, all 4 legacy URLs & X/Y exports incl. missing plan-math.js, cross-catalog + 121/1001-char sync, same-name import preservation, fail-closed missing plan-math.js export/sync/503-retry)');
   } finally {
     await browser.close();
   }

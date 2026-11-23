@@ -9,9 +9,12 @@ import { readLive, readFailurePolicy, publicationState, knownState } from './pub
 import { missingSpeedFields } from './speed-health.mjs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { buildStandalone } from './scripts/build-standalone.mjs';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36';
 const here = (p) => new URL(p, import.meta.url);
+const SCRIPT_ROOT = path.dirname(fileURLToPath(import.meta.url));
 
 const previous = await readLive('https://cornishandy.github.io/ai-model-frontier/data/models.js');
 const policy = previous ? 'deploy' : await readFailurePolicy(process.env.GITHUB_EVENT_NAME);
@@ -93,27 +96,29 @@ fs.mkdirSync(here('./data/'), { recursive: true });
 fs.writeFileSync(here('./data/models.json'), JSON.stringify(out));
 fs.writeFileSync(here('./data/models.js'), `window.AA_DATA = ${JSON.stringify(out)};\n`);
 
-// Self-contained copy: index.html with the scraper and data inlined, so the single file works anywhere
-// (opened on its own, moved, emailed, or in viewers that don't load sibling files).
+// Self-contained copy: index.html with the scraper and data inlined via the shared bundler
+// (scripts/build-standalone.mjs), preserving VM-slice compatibility for host tests.
 const inlineScript = (js) => `<script>${js.replace(/<\//g, '<\\/')}</script>`;
-const tags = {
-  '<script src="scoring.js"></script>': inlineScript(fs.readFileSync(here('./scoring.js'), 'utf8')),
-  '<script src="priors-fit.js"></script>': inlineScript(fs.readFileSync(here('./priors-fit.js'), 'utf8')),
-  '<script src="aa-data.js"></script>': inlineScript(fs.readFileSync(here('./aa-data.js'), 'utf8')),
-  '<script src="plan-math.js"></script>': inlineScript(fs.readFileSync(here('./plan-math.js'), 'utf8')),
-  '<script src="data/models.js"></script>': inlineScript(`window.AA_DATA = ${JSON.stringify(out)};`),
-  '<script src="data/external.js"></script>': inlineScript(fs.readFileSync(here('./data/external.js'), 'utf8')),
-  '<script src="data/plan-shares.js"></script>': inlineScript(fs.readFileSync(here('./data/plan-shares.js'), 'utf8')),
-  '<script src="data/plan-allowances.js"></script>': inlineScript(fs.readFileSync(here('./data/plan-allowances.js'), 'utf8')),
-};
-let page = fs.readFileSync(here('./index.html'), 'utf8');
-for (const [tag, inline] of Object.entries(tags)) {
-  if (!page.includes(tag)) throw new Error(`index.html no longer contains ${tag}`);
-  page = page.replace(tag, () => inline);
+if (typeof buildStandalone === 'function') {
+  buildStandalone({
+    rootDir: SCRIPT_ROOT,
+    modelsJs: `window.AA_DATA = ${JSON.stringify(out)};\n`,
+  });
+} else {
+  const bundlerSrc = fs.readFileSync(here('./scripts/build-standalone.mjs'), 'utf8');
+  const m = bundlerSrc.match(/export const STANDALONE_SCRIPTS = (\[[\s\S]*?\]);/);
+  if (!m) throw new Error('Missing STANDALONE_SCRIPTS in scripts/build-standalone.mjs');
+  let page = fs.readFileSync(here('./index.html'), 'utf8');
+  for (const rel of JSON.parse(m[1])) {
+    const tag = `<script src="${rel}"></script>`;
+    if (!page.includes(tag)) throw new Error(`index.html no longer contains ${tag}`);
+    const js = rel === 'data/models.js' ? `window.AA_DATA = ${JSON.stringify(out)};\n` : fs.readFileSync(here('./' + rel), 'utf8');
+    page = page.replace(tag, () => inlineScript(js));
+  }
+  const leftoverScript = page.match(/<script\b[^>]*\bsrc\s*=/i);
+  if (leftoverScript) throw new Error(`Standalone bundle still contains un-inlined external script tag: ${leftoverScript[0]}`);
+  fs.writeFileSync(here('./AI Model Frontier.html'), page);
 }
-const leftoverScript = page.match(/<script\b[^>]*\bsrc\s*=/i);
-if (leftoverScript) throw new Error(`Standalone bundle still contains un-inlined external script tag: ${leftoverScript[0]}`);
-fs.writeFileSync(here('./AI Model Frontier.html'), page);
 console.log('Wrote "AI Model Frontier.html" (standalone, data inlined).');
 
 const live = out.models.filter((m) => !m.deprecated);

@@ -7,25 +7,28 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
 
+export const STANDALONE_SCRIPTS = [
+  "scoring.js",
+  "priors-fit.js",
+  "aa-data.js",
+  "plan-math.js",
+  "data/models.js",
+  "data/external.js",
+  "data/plan-shares.js",
+  "data/plan-allowances.js"
+];
+
 export function buildStandalone({ rootDir = ROOT_DIR, modelsJs = null, outPath = null } = {}) {
   const read = (rel) => fs.readFileSync(path.join(rootDir, rel), 'utf8');
   const inlineScript = (js) => `<script>${js.replace(/<\//g, '<\\/')}</script>`;
-  const tags = {
-    '<script src="scoring.js"></script>': inlineScript(read('scoring.js')),
-    '<script src="priors-fit.js"></script>': inlineScript(read('priors-fit.js')),
-    '<script src="aa-data.js"></script>': inlineScript(read('aa-data.js')),
-    '<script src="plan-math.js"></script>': inlineScript(read('plan-math.js')),
-    '<script src="data/models.js"></script>': inlineScript(modelsJs ?? read('data/models.js')),
-    '<script src="data/external.js"></script>': inlineScript(read('data/external.js')),
-    '<script src="data/plan-shares.js"></script>': inlineScript(read('data/plan-shares.js')),
-    '<script src="data/plan-allowances.js"></script>': inlineScript(read('data/plan-allowances.js')),
-  };
   let page = read('index.html');
-  for (const [tag, inline] of Object.entries(tags)) {
+  for (const rel of STANDALONE_SCRIPTS) {
+    const tag = `<script src="${rel}"></script>`;
     if (!page.includes(tag)) throw new Error(`index.html no longer contains ${tag}`);
-    page = page.replace(tag, () => inline);
+    const js = rel === 'data/models.js' ? (modelsJs ?? read(rel)) : read(rel);
+    page = page.replace(tag, () => inlineScript(js));
   }
-  const leftover = page.match(/<script\s+src=/gi);
+  const leftover = page.match(/<script\b[^>]*\bsrc\s*=/gi);
   if (leftover && leftover.length) {
     throw new Error(`Standalone bundle still contains ${leftover.length} external <script src=> tag(s)`);
   }

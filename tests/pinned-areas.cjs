@@ -222,12 +222,12 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
 
   await scenario('a faint frontier dot can be 1.0 and counts as on the chart', '?theme=light&fullFrontier=1&xScale=log', async (page) => {
     const r = await ev(page, () => {
-      const g = __t.ghosts[0]; if (!g) return { skip: true };
+      const g = __t.ghosts[0]; if (!g) return { hasGhost: false };
       const ref = [...document.querySelectorAll('#xRel optgroup[label="A model on the chart"] option')].find((o) => o.textContent === g.m.label.replace(/ \((.+)\)$/, ' $1'))?.value;
       __t.S.xRel = ref; __t.render();
-      return { ref, key: __t.geom.X.ref?.key, off: __t.geom.X.ref?.offChart, note: document.querySelector('#relativeNote').textContent, x: __t.ghosts.find((p) => p.m === g.m)?.xv };
+      return { hasGhost: true, ref, key: __t.geom.X.ref?.key, off: __t.geom.X.ref?.offChart, note: document.querySelector('#relativeNote').textContent, x: __t.ghosts.find((p) => p.m === g.m)?.xv };
     });
-    if (r.skip) { console.log('  (skipped: not in this data)'); return; }
+    assert.ok(r.hasGhost, 'expected at least one faint frontier ghost dot');
     assert.ok(r.ref, 'the faint dot is listed'); assert.equal(r.key, 'model'); assert.ok(!r.off); assert.doesNotMatch(r.note, /isn’t on the chart/);
     assert.ok(Math.abs(r.x - 1) < 1e-9);
   });

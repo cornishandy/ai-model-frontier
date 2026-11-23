@@ -283,7 +283,7 @@ async function main() {
     passed++;
 
     // 3b. Real 2x PNG pixel contrast across Light, Dark, Everforest, Dawn:
-    //     active pill, ANNULAR bead ring (excluding inner dot!), and ≈ label against BOTH --surface and shaded zone (0.045 --ink)
+    //     active pill, per-bead ring, and ≈ label physically inside the shaded polygon AND separately on unshaded --surface
     for (const th of ['light', 'dark', 'everforest', 'dawn']) {
       const pPix = await browser.newPage({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 2 });
       await injectHook(pPix);
@@ -294,45 +294,100 @@ async function main() {
         sel.dispatchEvent(new Event('change'));
       });
       await pPix.waitForTimeout(80);
-      const geom = await pPix.evaluate(() => {
+      const geomShade = await pPix.evaluate(() => {
         const cv = document.createElement('canvas'); cv.width = 1; cv.height = 1;
         const ctx = cv.getContext('2d', { willReadFrequently: true });
         const toRgba = (cssVal) => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = cssVal; ctx.fillRect(0, 0, 1, 1); const d = ctx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; };
         const probe = (v) => { const d = document.createElement('div'); d.style.color = v; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return toRgba(c); };
         const card = document.getElementById('chartCard');
         const cr = card.getBoundingClientRect();
+        const svg = document.getElementById('chart');
+        const sr = svg.getBoundingClientRect();
         const rel = (r) => r ? { x: r.x - cr.x, y: r.y - cr.y, width: r.width, height: r.height } : null;
+        const shadePolyEl = document.querySelector('#chart polygon[fill-opacity="0.045"]');
+        const polyPts = shadePolyEl ? shadePolyEl.getAttribute('points').trim().split(/\s+/).map(s => {
+          const [px, py] = s.split(',').map(Number);
+          return [px + sr.left - cr.left, py + sr.top - cr.top];
+        }) : [];
+        const ptInPoly = (x, y, poly) => {
+          let inside = false;
+          for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const [xi, yi] = poly[i], [xj, yj] = poly[j];
+            if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-9) + xi)) inside = !inside;
+          }
+          return inside;
+        };
         const pill = document.querySelector('#priceSeg button[aria-pressed="true"]');
-        const ring = document.querySelector('#chart .lane2-bead-ring');
-        const lbl = document.querySelector('#chart text.lbl-lane2');
-        const beads = ring ? [...ring.querySelectorAll('circle')].map((c) => {
-          const br = c.getBoundingClientRect();
-          return { x: (br.left + br.right) / 2 - cr.x, y: (br.top + br.bottom) / 2 - cr.y };
-        }) : null;
+        const rings = [...document.querySelectorAll('#chart g.lane2-bead-ring')];
+        let shadedBeads = null;
+        for (const ring of rings) {
+          const beads = [...ring.querySelectorAll('circle')].map((c) => {
+            const br = c.getBoundingClientRect();
+            return { x: (br.left + br.right) / 2 - cr.x, y: (br.top + br.bottom) / 2 - cr.y };
+          });
+          const insideCnt = beads.filter(b => ptInPoly(b.x, b.y, polyPts)).length;
+          if (insideCnt >= Math.ceil(beads.length * 0.8)) { shadedBeads = beads; break; }
+        }
+        const lbls = [...document.querySelectorAll('#chart text.lbl-lane2')];
+        let shadedLblRect = null;
+        for (const l of lbls) {
+          const r = rel(l.getBoundingClientRect());
+          if (r && ptInPoly(r.x + r.width / 2, r.y + r.height / 2, polyPts)) { shadedLblRect = r; break; }
+        }
         return {
           surfaceRgb: probe('var(--surface)'),
           inkRgb: probe('var(--ink)'),
           pillBgRgb: toRgba(getComputedStyle(pill).backgroundColor),
           pillRect: rel(pill.getBoundingClientRect()),
-          beads,
-          lblRect: rel(lbl?.getBoundingClientRect()),
+          polyCount: polyPts.length,
+          shadedBeads,
+          shadedLblRect,
         };
       });
-      assert.ok(geom.beads && geom.beads.length >= 10 && geom.lblRect, `Expected Lane-2 bead ring & label on ${th}`);
-      const png = decodePng(await pPix.locator('#chartCard').screenshot({ type: 'png' }));
-      const surfRgb = geom.surfaceRgb;
-      const shadedRgb = compositeOver([geom.inkRgb[0], geom.inkRgb[1], geom.inkRgb[2], 0.045], surfRgb);
-      const pillBg = compositeOver(geom.pillBgRgb, surfRgb);
-      const pillCr = bestContrastInRect(png, geom.pillRect, pillBg, 2);
-      const ringSurf = checkBeadRingContrast(png, geom.beads, surfRgb, 3.0, 2);
-      const ringShade = checkBeadRingContrast(png, geom.beads, shadedRgb, 3.0, 2);
-      const lblCrSurf = bestContrastInRect(png, geom.lblRect, surfRgb, 2);
-      const lblCrShade = bestContrastInRect(png, geom.lblRect, shadedRgb, 2);
+      assert.ok(geomShade.polyCount >= 4, `Expected rendered shaded polygon on ${th}`);
+      assert.ok(geomShade.shadedBeads && geomShade.shadedBeads.length >= 10, `Expected Lane-2 bead ring physically inside shaded polygon on ${th}`);
+      assert.ok(geomShade.shadedLblRect, `Expected Lane-2 ≈ label physically inside shaded polygon on ${th}`);
+      const pngShade = decodePng(await pPix.locator('#chartCard').screenshot({ type: 'png' }));
+      const surfRgb = geomShade.surfaceRgb;
+      const shadedRgb = compositeOver([geomShade.inkRgb[0], geomShade.inkRgb[1], geomShade.inkRgb[2], 0.045], surfRgb);
+      const pillBg = compositeOver(geomShade.pillBgRgb, surfRgb);
+      const pillCr = bestContrastInRect(pngShade, geomShade.pillRect, pillBg, 2);
+      const ringShade = checkBeadRingContrast(pngShade, geomShade.shadedBeads, shadedRgb, 3.0, 2);
+      const lblCrShade = bestContrastInRect(pngShade, geomShade.shadedLblRect, shadedRgb, 2);
       assert.ok(pillCr >= 4.5, `${th} rendered Plan $ pill contrast ${pillCr.toFixed(2)} < 4.5`);
-      assert.ok(ringSurf.ratio >= 0.8, `${th} rendered bead ring contrast (surface): only ${ringSurf.passing}/${ringSurf.total} beads >= 3.0 (p20=${ringSurf.p20.toFixed(2)})`);
-      assert.ok(ringShade.ratio >= 0.8, `${th} rendered bead ring contrast (shaded zone): only ${ringShade.passing}/${ringShade.total} beads >= 3.0 (p20=${ringShade.p20.toFixed(2)})`);
-      assert.ok(lblCrSurf >= 4.5, `${th} rendered ≈ label contrast (surface) ${lblCrSurf.toFixed(2)} < 4.5`);
-      assert.ok(lblCrShade >= 4.5, `${th} rendered ≈ label contrast (shaded zone) ${lblCrShade.toFixed(2)} < 4.5`);
+      assert.ok(ringShade.ratio >= 0.8, `${th} rendered bead ring contrast (physically in shaded zone): only ${ringShade.passing}/${ringShade.total} beads >= 3.0 (p20=${ringShade.p20.toFixed(2)})`);
+      assert.ok(lblCrShade >= 4.5, `${th} rendered ≈ label contrast (physically in shaded zone) ${lblCrShade.toFixed(2)} < 4.5`);
+
+      // Separately sample unshaded surface (frontStyle=rings: full opacity, zero shaded polygon)
+      await pPix.goto(`${url}/index.html?noAutoUpdate=1&theme=${th}&frontStyle=rings`, { waitUntil: 'networkidle' });
+      await pPix.evaluate(() => {
+        const sel = document.getElementById('setSelect');
+        sel.value = '★ AA default selection';
+        sel.dispatchEvent(new Event('change'));
+        // Re-apply rings so surface is genuinely unshaded at full opacity
+        document.querySelector('#frontStyleSeg button[data-v="rings"]')?.click();
+      });
+      await pPix.waitForTimeout(80);
+      const geomSurf = await pPix.evaluate(() => {
+        const card = document.getElementById('chartCard');
+        const cr = card.getBoundingClientRect();
+        const rel = (r) => r ? { x: r.x - cr.x, y: r.y - cr.y, width: r.width, height: r.height } : null;
+        const hasShade = !!document.querySelector('#chart polygon[fill-opacity="0.045"]');
+        const ring = document.querySelector('#chart g.lane2-bead-ring');
+        const lbl = document.querySelector('#chart text.lbl-lane2');
+        const beads = ring ? [...ring.querySelectorAll('circle')].map((c) => {
+          const br = c.getBoundingClientRect();
+          return { x: (br.left + br.right) / 2 - cr.x, y: (br.top + br.bottom) / 2 - cr.y };
+        }) : null;
+        return { hasShade, beads, lblRect: rel(lbl?.getBoundingClientRect()) };
+      });
+      assert.equal(geomSurf.hasShade, false, `Expected unshaded surface on ${th} frontStyle=fade`);
+      assert.ok(geomSurf.beads && geomSurf.beads.length >= 10 && geomSurf.lblRect, `Expected Lane-2 bead ring & label on unshaded ${th}`);
+      const pngSurf = decodePng(await pPix.locator('#chartCard').screenshot({ type: 'png' }));
+      const ringSurf = checkBeadRingContrast(pngSurf, geomSurf.beads, surfRgb, 3.0, 2);
+      const lblCrSurf = bestContrastInRect(pngSurf, geomSurf.lblRect, surfRgb, 2);
+      assert.ok(ringSurf.ratio >= 0.8, `${th} rendered bead ring contrast (unshaded surface): only ${ringSurf.passing}/${ringSurf.total} beads >= 3.0 (p20=${ringSurf.p20.toFixed(2)})`);
+      assert.ok(lblCrSurf >= 4.5, `${th} rendered ≈ label contrast (unshaded surface) ${lblCrSurf.toFixed(2)} < 4.5`);
       await pPix.close();
       passed++;
     }
