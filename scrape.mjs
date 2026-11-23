@@ -111,6 +111,8 @@ for (const [tag, inline] of Object.entries(tags)) {
   if (!page.includes(tag)) throw new Error(`index.html no longer contains ${tag}`);
   page = page.replace(tag, () => inline);
 }
+const leftoverScript = page.match(/<script\b[^>]*\bsrc\s*=/i);
+if (leftoverScript) throw new Error(`Standalone bundle still contains un-inlined external script tag: ${leftoverScript[0]}`);
 fs.writeFileSync(here('./AI Model Frontier.html'), page);
 console.log('Wrote "AI Model Frontier.html" (standalone, data inlined).');
 

@@ -10,10 +10,19 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const passed = [];
-  async function scenario(name, query, run, { viewport = { width: 1280, height: 900 } } = {}) {
+  async function scenario(name, query, run, { viewport = { width: 1280, height: 900 }, modelsPatch = null } = {}) {
     const context = await browser.newContext({ viewport });
     await context.route('https://api.github.com/gists/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"files":{}}' }));
     await context.addInitScript(() => { if (!localStorage.getItem('aa-charts:collapsed-groups')) localStorage.setItem('aa-charts:collapsed-groups', '{}'); });
+    if (modelsPatch) {
+      await context.route('**/data/models.js*', async (route) => {
+        const response = await route.fetch();
+        const raw = await response.text();
+        const data = JSON.parse(raw.replace(/^\s*window\.AA_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
+        modelsPatch(data);
+        await route.fulfill({ response, body: `window.AA_DATA = ${JSON.stringify(data)};\n` });
+      });
+    }
     await context.route('**/index.html*', async (route) => {
       const response = await route.fetch();
       await route.fulfill({ response, body: (await response.text()).replace('  // ---------- boot ----------', hook + '\n  // ---------- boot ----------') });
@@ -171,17 +180,29 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
 
   await scenario('two models with the same family and effort are told apart', '?theme=light&x=priceBlended&y=intelligence', async (page) => {
     const r = await ev(page, () => {
-      const pair = __t.ALL().filter((m) => m.family === 'claude-sonnet-4-6' && m.effort === 'non-reasoning');
-      if (pair.length < 2) return { skip: true };
+      const pair = __t.ALL().filter((m) => m.family === 'claude-sonnet-4-6' && m.effort === 'non-reasoning' && m.intelligence != null && m.priceBlended != null);
+      if (pair.length < 2) return { count: pair.length };
       __t.S.showDeprecated = true; for (const m of pair) __t.S.selected.add(m.id); __t.render();
       const opts = [...document.querySelectorAll('#yRel option')].filter((o) => o.value.startsWith('model:claude-sonnet-4-6:non-reasoning'));
       const out = {};
       for (const o of opts) { __t.S.yRel = o.value; __t.render(); const m = pair.find((x) => o.value.endsWith(':' + x.slug)); const p = __t.points.find((q) => q.m === m); out[o.textContent] = p ? p.yv : null; }
-      return { opts: opts.map((o) => o.value), out };
+      return { count: pair.length, opts: opts.map((o) => o.value), out };
     });
-    if (r.skip) { console.log('  (skipped: not in this data)'); return; }
+    assert.ok(r.count >= 2, `Expected >=2 claude-sonnet-4-6 non-reasoning models, got ${r.count}`);
     assert.equal(r.opts.length, 2); assert.notEqual(r.opts[0], r.opts[1]);
     for (const [name, v] of Object.entries(r.out)) assert.ok(Math.abs(v - 1) < 1e-9, `${name} is 1.0 when picked (${v})`);
+  }, {
+    modelsPatch: (data) => {
+      const existing = data.models.filter((m) => m.family === 'claude-sonnet-4-6' && m.effort === 'non-reasoning' && m.intelligence != null && m.priceBlended != null);
+      if (existing.length < 2) {
+        const tmpl = data.models.find((m) => m.family === 'claude-sonnet-4-6') || data.models[0];
+        data.models = data.models.filter((m) => !(m.family === 'claude-sonnet-4-6' && m.effort === 'non-reasoning'));
+        data.models.push(
+          { ...tmpl, id: 'syn-sonnet46-nr-high', slug: 'claude-sonnet-4-6-nr-high', name: 'Claude Sonnet 4.6 (Non-reasoning, High)', shortName: 'Claude Sonnet 4.6 (non-reasoning, high)', family: 'claude-sonnet-4-6', familyName: 'Claude Sonnet 4.6', effort: 'non-reasoning', effortLevel: 0, isReasoning: false, deprecated: true, priceBlended: 6, intelligence: 48.2 },
+          { ...tmpl, id: 'syn-sonnet46-nr-low', slug: 'claude-sonnet-4-6-nr-low', name: 'Claude Sonnet 4.6 (Non-reasoning, Low)', shortName: 'Claude Sonnet 4.6 (non-reasoning, low)', family: 'claude-sonnet-4-6', familyName: 'Claude Sonnet 4.6', effort: 'non-reasoning', effortLevel: 0, isReasoning: false, deprecated: true, priceBlended: 6, intelligence: 45.6 }
+        );
+      }
+    },
   });
 
   await scenario('an update that drops the reference model falls back to Off', `?theme=light&xRel=${OPUS}`, async (page) => {

@@ -345,7 +345,7 @@
       measured_raw: 'Measured (raw sample)',
       scaled: 'Scaled from plan tier',
       measured_low: 'Direct (low conf., ≈)',
-      predecessor: 'Similar model (≈)',
+      predecessor: 'Estimated from similar model (≈)',
     }[sc] || sc;
   }
 
@@ -815,7 +815,7 @@
     if (!rawSets || typeof rawSets !== 'object' || Array.isArray(rawSets)) return {};
     const out = {};
     for (const name of Object.keys(rawSets).sort()) {
-      if (typeof name !== 'string' || !name.trim() || name.length > 120 || name === '__proto__' || name === 'constructor' || name === 'prototype') continue;
+      if (typeof name !== 'string' || !name.trim() || name.length > 1000 || name === '__proto__' || name === 'constructor' || name === 'prototype') continue;
       const scrubbed = scrubSet(rawSets[name], ctx);
       if (scrubbed && Object.keys(scrubbed).length) out[name] = scrubbed;
     }

@@ -2646,16 +2646,52 @@
   let base = (() => { try { return JSON.parse(readKey(BASE_KEY)); } catch { return null; } })();
   let syncing = false, lastSyncOk = null;
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  function scrubCtx() {
-    return {
-      validIds: new Set(ALL.map((m) => m.id)),
-      validMetrics: new Set(Object.keys(METRICS)),
-      validBenchKeys: new Set(Object.keys(METRICS).filter((k) => isBench(k))),
-      validAutoKeys: new Set([...Object.keys(METRICS), 'x', 'y']),
-      validEfforts: new Set(EFFORTS),
-    };
+  const FALLBACK_PUBLIC_KEYS = new Set([
+    'selected', 'efforts', 'pinned', 'x', 'y', 'price', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier',
+    'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid',
+    'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'basis', 'basisFill', 'customWeights',
+    'customCover', 'rowLayout', 'rowMetric', 'rowScale', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort',
+    'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor',
+    'zoneColor', 'nameAt', 'tallRatio', 'valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'smallCaps', 'smallCapsOff',
+    'smallCapsAuto', 'autoPts', 'autoBest', 'autoBestPct', 'autoBase', 'autoBasePts',
+  ]);
+  const FALLBACK_ARRAY_KEYS = new Set(['selected', 'efforts', 'pinned']);
+  const FALLBACK_MAP_KEYS = new Set(['customWeights', 'autoPts']);
+  function fallbackScrubSet(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out = {};
+    for (const k of Object.keys(raw).sort()) {
+      if (!FALLBACK_PUBLIC_KEYS.has(k)) continue;
+      const v = raw[k];
+      if (v === undefined || v === null) continue;
+      if (FALLBACK_ARRAY_KEYS.has(k)) {
+        if (Array.isArray(v)) out[k] = [...new Set(v.filter((x) => typeof x === 'string' && x.length > 0 && x.length <= 200))];
+      } else if (FALLBACK_MAP_KEYS.has(k)) {
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          const m = {};
+          for (const mk of Object.keys(v).sort()) {
+            if (/^[a-zA-Z0-9_.:-]+$/.test(mk) && typeof v[mk] === 'number' && Number.isFinite(v[mk]) && v[mk] >= 0) m[mk] = v[mk];
+          }
+          out[k] = m;
+        }
+      } else if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)) || (typeof v === 'string' && v.length <= 240)) {
+        out[k] = v;
+      }
+    }
+    return out;
   }
-  const publicSets = (obj) => window.PlanMath ? window.PlanMath.scrubSetCollection(obj, scrubCtx()) : (obj || {});
+  function fallbackScrubSetCollection(rawSets) {
+    if (!rawSets || typeof rawSets !== 'object' || Array.isArray(rawSets)) return {};
+    const out = {};
+    for (const name of Object.keys(rawSets).sort()) {
+      if (typeof name !== 'string' || !name.trim() || name.length > 1000 || name === '__proto__' || name === 'constructor' || name === 'prototype') continue;
+      const scrubbed = fallbackScrubSet(rawSets[name]);
+      if (Object.keys(scrubbed).length) out[name] = scrubbed;
+    }
+    return out;
+  }
+  // Shape-only public projection (preserves cross-catalog model IDs/benchmarks; fail-closed even if plan-math.js fails to load).
+  const publicSets = (obj) => window.PlanMath ? window.PlanMath.scrubSetCollection(obj, {}) : fallbackScrubSetCollection(obj);
   const withLocalSubPlans = (cleanSet, localSet) => (cleanSet && localSet?.subPlans && typeof localSet.subPlans === 'object' && Object.keys(localSet.subPlans).length)
     ? { ...cleanSet, subPlans: { ...localSet.subPlans } }
     : cleanSet;
@@ -2759,10 +2795,14 @@
     sweet: {
       label: 'Sweet spot', title: '1.0 is the frontier’s knee: the shown model farthest toward better on both from a straight line between the frontier’s ends, on this scale.',
       detail: (ref) => {
-        const X = METRICS[S.x], Y = METRICS[S.y], p = ref.point;
+        const subOn = subLensActive();
+        const X = effectiveMetric(S.x, subOn, S.price), Y = effectiveMetric(S.y, subOn, S.price), p = ref.point;
         const scales = { linear: 'linear', log: 'log', sqrt: 'square-root', logit: 'logit' };
         const scale = S.xScale === S.yScale ? scales[S.xScale] : `${scales[S.xScale]} X / ${scales[S.yScale]} Y`;
-        return `${p.m.label} (${X.fmt === money ? '' : X.label + ' '}${X.fmt(p.xv)}, ${Y.label} ${Y.fmt(p.yv)}), the sweet spot: the frontier’s knee on this ${scale} scale. Beyond it, gains in ${Y.label} shrink.${ref.gap < 0.12 ? ' The bend is slight on this scale.' : ''}`;
+        const xIsUsd = X.fmt === money || (subOn && S.price === 'plan' && subAxisKey(S.x));
+        const xStr = (subOn && subAxisKey(S.x)) ? (S.price === 'pct' ? PM.fmtPct(p.xv, p.isLane2) : PM.fmtPlanUsd(p.xv, p.isLane2)) : X.fmt(p.xv);
+        const yStr = (subOn && subAxisKey(S.y)) ? (S.price === 'pct' ? PM.fmtPct(p.yv, p.isLane2) : PM.fmtPlanUsd(p.yv, p.isLane2)) : Y.fmt(p.yv);
+        return `${p.m.label} (${xIsUsd ? '' : X.label + ' '}${xStr}, ${Y.label} ${yStr}), the sweet spot: the frontier’s knee on this ${scale} scale. Beyond it, gains in ${Y.label} shrink.${ref.gap < 0.12 ? ' The bend is slight on this scale.' : ''}`;
       },
       pick: (points, axis, ctx) => ctx.knee ? { ...ctx.knee, value: ctx.knee.point[axis + 'v'] } : { note: sweetSpotFailure(ctx.front) },
     },
@@ -2849,7 +2889,7 @@
   S.price = PM ? PM.resolveInitialPrice({ hasSavedState: hadSavedState, savedPrice: savedState.price }) : 'api';
   let subProfile = PM ? PM.loadLocalProfile(localStorage, PLAN_CAT, PM.PUBLIC_DEFAULT_ESTIMATES) : { plans: {}, use: 1, fableCap: 'shared', estimate: true };
   let subClockOverride = undefined, subLegacyNotice = null, subPopOpen = false, subTasksOpen = false, subTasksChartOpen = true;
-  let subFeeErrors = {}, lastSubRender = null, lastLabelAudit = null, subPubDefaultEstOverride = null;
+  let subFeeErrors = {}, lastSubRender = null, lastLabelAudit = null, subPubDefaultEstOverride = null, exportCtx = null;
   const saveSubProfile = () => {
     if (!PM) return;
     subProfile = PM.sanitizeProfile(subProfile, PLAN_CAT, PM.PUBLIC_DEFAULT_ESTIMATES);
@@ -3587,11 +3627,12 @@
   function snapshot() {
     return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, price: S.price, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, ladderAt: S.ladderAt, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, basis: S.basis, basisFill: S.basisFill, customWeights: knownMixWeights(S.customWeights), customCover: S.customCover, rowLayout: S.rowLayout, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor, nameAt: S.nameAt, tallRatio: S.tallRatio, valueAsX: S.valueAsX, valueAsY: S.valueAsY, valueVsX: S.valueVsX, valueVsY: S.valueVsY, smallCaps: S.smallCaps, smallCapsOff: S.smallCapsOff, smallCapsAuto: S.smallCapsAuto, subPlans: S.subPlans, autoPts: S.autoPts, autoBest: S.autoBest, autoBestPct: S.autoBestPct, autoBase: S.autoBase, autoBasePts: S.autoBasePts };
   }
-  function applySet(snap) {
+  function applySet(snap, isBuiltin = false) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
     for (const k of ['x', 'y', 'price', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor', 'nameAt', 'tallRatio', 'valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'smallCaps', 'smallCapsOff', 'smallCapsAuto', 'subPlans', 'autoPts', 'autoBest', 'autoBestPct', 'autoBase', 'autoBasePts']) if (snap[k] != null) S[k] = snap[k];
+    if (!isBuiltin && snap.price == null) S.price = 'api';
     if (snap.shortEffort != null && snap.shortEffortTouched == null) S.shortEffortTouched = true;
     for (const key of ['basis', 'basisFill', 'customWeights', 'customCover', 'rowLayout', 'rowMetric', 'rowScale']) S[key] = snap[key] ?? DEFAULT_STATE[key];
     subLegacyNotice = null;
@@ -3615,7 +3656,7 @@
   const persistSets = () => { store(SETS_KEY, JSON.stringify(sets)); setSync(); };
   $('setSelect').addEventListener('change', (e) => {
     const n = e.target.value; S.activeSet = n; dirty = false;
-    if (sets[n]) applySet(sets[n]); else if (BUILTIN_SETS[n]) applySet(BUILTIN_SETS[n]());
+    if (sets[n]) applySet(sets[n], false); else if (BUILTIN_SETS[n]) applySet(BUILTIN_SETS[n](), true);
     renderSetSelect(); save();
   });
   $('setSave').addEventListener('click', () => {
@@ -4059,7 +4100,18 @@
   // The phone sheet also serves as a left drawer while the desktop chart is full width.
   const phoneLayout = matchMedia('(max-width: 860px)');
   let sheetOpener = null;
+  function syncPlansModalInert() {
+    if (!subPopOpen) {
+      for (const el of document.body.children) el.inert = false;
+      syncDrawerInert();
+      return;
+    }
+    for (const el of document.body.children) {
+      el.inert = (el.id !== 'plansPop' && el.id !== 'popBackdrop');
+    }
+  }
   function syncDrawerInert() {
+    if (subPopOpen) { syncPlansModalInert(); return; }
     const open = document.body.classList.contains('sheet-open');
     const drawer = phoneLayout.matches || S.wide;
     $('sidebar').inert = drawer && !open;
@@ -4096,6 +4148,7 @@
   $('closeSheet').addEventListener('click', () => setSheet(false));
   $('scrim').addEventListener('click', () => setSheet(false));
   document.addEventListener('focusin', (e) => {
+    if (subPopOpen && !$('plansPop').contains(e.target)) { $('popClose')?.focus({ preventScroll: true }); return; }
     if (document.body.classList.contains('sheet-open') && !$('sidebar').contains(e.target) && !$('ctxMenu').contains(e.target)) $('closeSheet').focus();
   });
   function applyWide() {
@@ -4109,6 +4162,17 @@
   $('wideToggle').addEventListener('click', toggleWide);
   phoneLayout.addEventListener('change', () => { if (document.body.classList.contains('sheet-open')) setSheet(false); syncDrawerInert(); });
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && subPopOpen) {
+      const pop = $('plansPop');
+      const focusable = [...pop.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => !el.disabled && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+      if (focusable.length) {
+        const first = focusable[0], last = focusable.at(-1);
+        if (e.shiftKey && (document.activeElement === first || !pop.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && (document.activeElement === last || !pop.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+      }
+      return;
+    }
     if (e.key === 'Escape' && document.body.classList.contains('sheet-open')) { e.preventDefault(); setSheet(false); }
     if (e.key === 'Tab' && document.body.classList.contains('sheet-open')) {
       const focusable = [...$('sidebar').querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
@@ -4119,9 +4183,9 @@
         else if (!e.shiftKey && (document.activeElement === last || !$('sidebar').contains(document.activeElement))) { e.preventDefault(); first.focus(); }
       }
     }
-    if (e.key.toLowerCase() === 'f' && !e.repeat && !e.altKey && !e.ctrlKey && !e.metaKey && !phoneLayout.matches && !document.body.classList.contains('sheet-open') && !menuKind && !e.target.closest?.('input, select, textarea, [contenteditable="true"]')) { e.preventDefault(); toggleWide(); }
+    if (e.key.toLowerCase() === 'f' && !e.repeat && !e.altKey && !e.ctrlKey && !e.metaKey && !phoneLayout.matches && !document.body.classList.contains('sheet-open') && !subPopOpen && !menuKind && !e.target.closest?.('input, select, textarea, [contenteditable="true"]')) { e.preventDefault(); toggleWide(); }
     // "/" jumps to the model search (as on slopalytics.com), opening the drawer or the Models section if they're closed
-    if (e.key === '/' && !e.altKey && !e.ctrlKey && !e.metaKey && !menuKind && ctx.hidden && !e.target.closest?.('input, select, textarea, [contenteditable="true"]')) {
+    if (e.key === '/' && !e.altKey && !e.ctrlKey && !e.metaKey && !menuKind && !subPopOpen && ctx.hidden && !e.target.closest?.('input, select, textarea, [contenteditable="true"]')) {
       e.preventDefault();
       if ((phoneLayout.matches || S.wide) && !document.body.classList.contains('sheet-open')) setSheet(true);
       const t = document.querySelector('.side-section[data-section="models"] .section-toggle'); if (t.getAttribute('aria-expanded') !== 'true') t.click();
@@ -4228,9 +4292,9 @@
     let moved = '';
     if (memo?.sig === sig && memo.when !== when) {
       const before = new Set(memo.ids), joined = out.extra.filter((m) => !before.has(m.id)).map((m) => m.label), left = memo.ids.filter((id) => !out.ids.has(id)).map(labelOf);
-      if (joined.length || left.length) { moved = [...joined.map((n) => '+ ' + n), ...left.map((n) => '− ' + n)].join(', '); try { localStorage.setItem(AUTO_MEMO_KEY, JSON.stringify({ sig, when, ids: [...out.ids], moved, movedWhen: when })); } catch {} }
+      if (joined.length || left.length) { moved = [...joined.map((n) => '+ ' + n), ...left.map((n) => '− ' + n)].join(', '); if (!exportCtx?.active) try { localStorage.setItem(AUTO_MEMO_KEY, JSON.stringify({ sig, when, ids: [...out.ids], moved, movedWhen: when })); } catch {} }
     } else if (memo?.sig === sig && memo.moved && memo.movedWhen === when) moved = memo.moved;
-    if (memo?.sig !== sig || memo.when !== when) { try { if (!moved) localStorage.setItem(AUTO_MEMO_KEY, JSON.stringify({ sig, when, ids: [...out.ids] })); } catch {} }
+    if (memo?.sig !== sig || memo.when !== when) { if (!exportCtx?.active) try { if (!moved) localStorage.setItem(AUTO_MEMO_KEY, JSON.stringify({ sig, when, ids: [...out.ids] })); } catch {} }
     out.moved = moved;
     const rel = refKeyOf(S.xRel) !== 'off' || refKeyOf(S.yRel) !== 'off';
     const n = out.extra.length, names = n && n <= 4 ? out.extra.map((m) => `<button type="button" class="linkish" data-tick="${esc(m.id)}" title="Select ${esc(m.label)} in the list">${esc(m.label)}</button>`).join(', ') : `${n} model-effort${n === 1 ? '' : 's'}`;
@@ -4278,6 +4342,28 @@
       better: 'low',
       scale: 'linear',
     };
+  }
+  function effectiveDescOf(k, active = subLensActive(), mode = S.price) {
+    if (active && subAxisKey(k)) {
+      if (mode === 'plan') {
+        return k === 'myCost'
+          ? 'Estimated share of your monthly subscription fee per task on the benchmarks you picked, allocated across four weeks per month at your selected utilization.'
+          : 'Estimated share of your monthly subscription fee per Intelligence Index task, allocated across four weeks per month at your selected utilization.';
+      }
+      return k === 'myCost'
+        ? 'Estimated percentage of your plan\'s weekly allowance consumed by one task on the benchmarks you picked.'
+        : 'Estimated percentage of your plan\'s weekly allowance consumed by one Intelligence Index task.';
+    }
+    return descOf(k);
+  }
+  function subCatalogAttributionHtml() {
+    return `${esc(PM.DISCLOSURES.fourWeeks)} Catalog ${esc(PLAN_CAT.catalogDate || '')} (<a href="https://github.com/Fei2411/real-api-pricing" target="_blank" rel="noopener">Real API Pricing</a>, ${esc(PLAN_CAT.license || 'MIT')}, Copyright © 2026 Fei2411).`;
+  }
+  function profileMatchesPreset(prof, presetName) {
+    if (!PM) return false;
+    const def = PM.getExampleProfile(PLAN_CAT, presetName, prof.estimate);
+    return PM.LAB_ORDER.every((lab) => prof.plans?.[lab]?.id === def.plans[lab].id && prof.plans?.[lab]?.fee == null)
+      && prof.use === 1 && prof.fableCap === 'shared';
   }
   function subProfileSummary(prof = subProfile) {
     if (!PM) return 'Example entry';
@@ -4411,6 +4497,7 @@
     renderSubPopover();
     $('plansPop').classList.add('open');
     $('popBackdrop').classList.add('open');
+    syncPlansModalInert();
     positionPlansPop();
     $('plansBtn').setAttribute('aria-expanded', 'true');
     $('plansBtn').classList.add('active-pop');
@@ -4422,12 +4509,19 @@
     subPopOpen = false;
     $('plansPop').classList.remove('open');
     $('popBackdrop').classList.remove('open');
+    syncPlansModalInert();
     $('plansBtn').setAttribute('aria-expanded', 'false');
     $('plansBtn').classList.remove('active-pop');
     if (restoreFocus) $('plansBtn')?.focus({ preventScroll: true });
   }
   function renderSubPopover() {
     if (!PM || !$('plansPop')) return;
+    const isEntry = profileMatchesPreset(subProfile, 'entry');
+    const isHeavy = profileMatchesPreset(subProfile, 'heavy');
+    $('presetEntryBtn').setAttribute('aria-pressed', String(isEntry));
+    $('presetEntryBtn').classList.toggle('sub-primary', isEntry);
+    $('presetHeavyBtn').setAttribute('aria-pressed', String(isHeavy));
+    $('presetHeavyBtn').classList.toggle('sub-primary', isHeavy);
     const nodes = ensureSubLabRows();
     if (nodes) {
       for (const l of SUB_LAB_DEFS) {
@@ -4467,7 +4561,7 @@
     const lineOpus = opusRes ? `<div class="lr-sub">Opus 5.5 xhigh: ${opusRes.omitted ? esc(opusRes.shortReason) : `${PM.fmtPlanUsd(opusRes.planCost, opusRes.isLane2)} / task (${PM.fmtPct(opusRes.pctSelected, opusRes.isLane2)} of wk · capacity ${PM.fmtTasksWk(opusRes.tasksPerWeek, opusRes.isLane2)} tasks/wk)`}</div>` : '';
     const lineFable = fableRes ? `<div class="lr-sub">Fable 5.2 max: ${fableRes.omitted ? esc(fableRes.shortReason) : `${PM.fmtPlanUsd(fableRes.planCost, fableRes.isLane2)} / task (${PM.fmtPct(fableRes.pctSelected, fableRes.isLane2)} of wk · capacity ${PM.fmtTasksWk(fableRes.tasksPerWeek, fableRes.isLane2)} tasks/wk${fableRes.hasSubCap ? `, 50% cap · ${subProfile.fableCap === 'own' ? 'Fable-only' : 'Shared limit'}` : ''})`}</div>` : '';
     $('liveReadout').innerHTML = `<div class="lr-title">Live cost at ${Math.round(subProfile.use * 100)}% use (plan capacity stays fixed)</div>${lineOpus}${lineFable}`;
-    $('popMeta').textContent = `${PM.DISCLOSURES.fourWeeks} Catalog ${PLAN_CAT.catalogDate || ''} (${PLAN_CAT.attribution || 'Real API Pricing'}, ${PLAN_CAT.license || 'MIT'}).`;
+    $('popMeta').innerHTML = subCatalogAttributionHtml();
   }
   function renderTasksPanel(chosenModels) {
     const panel = $('tasksPanel');
@@ -4501,7 +4595,9 @@
       const pr = d.price, isEst = pr.lane === 2;
       const capTagD = pr.hasSubCap ? ' <span class="d-only" style="color:var(--ink-2);font-size:11px">(50% cap)</span>' : '';
       const capTagM = pr.hasSubCap ? '<span class="m-sub">(50% cap)</span>' : '';
-      const srcSub = esc(pr.sourceLabel).replace(' (≈)', '&nbsp;(≈)');
+      const srcSub = esc(pr.sourceLabel)
+        .replace(' (≈)', '&nbsp;<span style="white-space:nowrap">(≈)</span>')
+        .replace('(low conf., ≈)', '<span style="white-space:nowrap">(low conf., ≈)</span>');
       return `<tr>
         <td class="col-model"><strong>${esc(subShortName(d.m, true))}</strong> <span style="color:var(--ink-2)">${esc(d.m.effort === 'default' ? '' : d.m.effort)}</span><span class="m-sub">${esc(pr.poolLabel)} · ${srcSub}</span></td>
         <td class="col-plan">${esc(pr.poolLabel)}</td>
@@ -4513,7 +4609,7 @@
     }).join('');
     if (!subTasksChartOpen) { chartEl.innerHTML = ''; return; }
     const maxT = Math.max(...rows.map((r) => r.price.tasksPerWeek || 1));
-    chartEl.innerHTML = rows.slice(0, 8).map((d) => {
+    chartEl.innerHTML = rows.map((d) => {
       const wPct = Math.max(2, Math.round(((d.price.tasksPerWeek || 0) / maxT) * 100));
       const col = familyColor(d.m);
       return `<div style="display:grid;grid-template-columns:138px 1fr 54px;gap:8px;align-items:center;margin-bottom:5px;font-size:11.5px">
@@ -4539,12 +4635,16 @@
   }
 
   function render() {
+    const isExport = !!exportCtx?.active;
+    const subActive = subLensActive(), legActive = legacyAxisActive();
     // the ramp picker and Lab/Effort dual control show only when coloring by value (synced first, so an empty chart doesn't leave them stale)
     const byVal = VALUE_BY.has(S.colorBy);
-    $('rampSel').hidden = !byVal; $('rampSel').value = RAMP_NAMES.includes(S.ramp) ? S.ramp : 'viridis';
-    $('dualWrap').hidden = !byVal; $('dualLabel').textContent = S.idColor === 'effort' ? 'Effort' : 'Lab';
+    if (!isExport) {
+      $('rampSel').hidden = !byVal; $('rampSel').value = RAMP_NAMES.includes(S.ramp) ? S.ramp : 'viridis';
+      $('dualWrap').hidden = !byVal; $('dualLabel').textContent = S.idColor === 'effort' ? 'Effort' : 'Lab';
+    }
     const card = $('chartCard'), cs = getComputedStyle(card);
-    const availW = Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
+    const availW = isExport ? exportCtx.width : Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
     let W = availW;
     // Narrow (phone): a taller-than-wide plot that fits the screen, tighter margins, horizontal y title.
     const narrow = W < 560, diamond = S.shape === 'diamond', tall = S.shape === 'tall';
@@ -4557,27 +4657,31 @@
       const note = $('autoNote'); return view - (bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0) - (note && !note.hidden ? note.offsetHeight + 4 : 0) - 12; })();
     const tallPH = tall && !narrow ? Math.max(480, Math.min(1040, visH)) - 74 : 0;
     const tallPW = tall && !narrow ? Math.min(Math.max(220, Math.round(tallPH / S.tallRatio)), Math.max(220, availW - 70 - 150)) : 0;
-    let H = tall ? Math.round((narrow ? W - 58 : tallPW) * S.tallRatio) + (narrow ? 70 : 74) : narrow ? Math.round(Math.max(subLensActive() ? 420 : 340, Math.min(W * (diamond ? 1.15 : subLensActive() ? 1.52 : 1.35), innerHeight * (subLensActive() ? 0.74 : 0.66)))) : Math.round(Math.min(diamond ? (S.wide ? 900 : 820) : (S.wide ? 880 : 760), Math.max(diamond ? 500 : 440, W * (diamond ? 0.66 : 0.6))));
+    let H = tall ? Math.round((narrow ? W - 58 : tallPW) * S.tallRatio) + (narrow ? 70 : 74)
+      : narrow ? (subActive
+        ? Math.round(Math.max(540, Math.min(W * (diamond ? 1.15 : 1.92), Math.max(540, innerHeight * 0.85))))
+        : Math.round(Math.max(340, Math.min(W * (diamond ? 1.15 : 1.35), innerHeight * 0.66))))
+      : Math.round(Math.min(diamond ? (S.wide ? 900 : 820) : (S.wide ? 880 : 760), Math.max(diamond ? 500 : 440, W * (diamond ? 0.66 : 0.6))));
     // Diamond: tick labels and axis titles sit outside the rhombus, in the corners of the plot rectangle, so margins are small.
     const M = diamond ? (narrow ? { top: 22, right: 6, bottom: 40, left: 6 } : { top: 30, right: 24, bottom: 40, left: 24 })
-      : narrow ? { top: 26, right: 12, bottom: 44, left: subLensActive() ? 30 : 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
+      : narrow ? { top: subActive ? 34 : 26, right: 12, bottom: 44, left: subActive ? 30 : 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
     if (tall && !narrow) { M.right = 150; W = Math.min(availW, M.left + tallPW + M.right); } // the right margin takes labels
     let PW = W - M.left - M.right;
     let PH = H - M.top - M.bottom;
-    const subActive = subLensActive(), legActive = legacyAxisActive();
     const subX = subActive && subAxisKey(S.x), subY = subActive && subAxisKey(S.y);
     let X = effectiveMetric(S.x, subActive, S.price), Y = effectiveMetric(S.y, subActive, S.price);
-    const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
-    syncPriceBar();
-
-    $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && !(usesYourIndex() && k === 'myIndex') && (i === 0 || S.x !== S.y))
-      .map((k) => { const c = reportCard(k), mk = effectiveMetric(k, subActive, S.price); return `<b>${esc(mk.label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(descOf(k))}${c ? ` <span class="upd" title="${esc(c.reason)}">Grading v2 <b>${gradeText(c)}</b></span>` : ''}`; }).join('<br>');
+    const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis'), accent: css('--accent') };
+    if (!isExport) {
+      syncPriceBar();
+      $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => effectiveDescOf(k, subActive, S.price) && !(usesYourIndex() && k === 'myIndex') && (i === 0 || S.x !== S.y))
+        .map((k) => { const c = reportCard(k), mk = effectiveMetric(k, subActive, S.price); return `<b>${esc(mk.label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(effectiveDescOf(k, subActive, S.price))}${c ? ` <span class="upd" title="${esc(c.reason)}">Grading v2 <b>${gradeText(c)}</b></span>` : ''}`; }).join('<br>');
+    }
     const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
     svg.replaceChildren();
 
     const ladder = S.labels === 'ladder' && !diamond;
-    $('ladderAtWrap').hidden = !ladder; $('ladderAtSel').value = S.ladderAt;
+    if (!isExport) { $('ladderAtWrap').hidden = !ladder; $('ladderAtSel').value = S.ladderAt; }
     const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort) && !superseded(m));
     const subPriceMap = new Map();
     const getAxisVal = (m, k) => {
@@ -4601,10 +4705,12 @@
     const manualFront = paretoFront(subActive ? manualPts.filter((p) => p.subPrice?.lane !== 2) : manualPts), yKey = refKeyOf(S.yRel);
     const yPick = yKey !== 'off' && REF_DEFS[yKey] ? REF_DEFS[yKey].pick(manualPts, 'y', { front: manualFront, knee: kneeOf(manualFront), notes: [], ghosts: [] }) : null;
     const yBase = Number.isFinite(yPick?.value) && yPick.value > 0 ? { value: yPick.value, label: `${yPick.model ? refName(yPick.model) : yPick.point ? yPick.point.m.label : REF_DEFS[yKey].label.toLowerCase()}, Y's 1.0` } : null;
-    const auto = autoIncluded(chosen, yBase); lastAutoIds = [...auto.ids];
+    const auto = autoIncluded(chosen, yBase); if (!isExport) lastAutoIds = [...auto.ids];
     chosen.push(...auto.extra);
-    $('autoBaseRef').textContent = auto.baseLabel; $('autoBaseUnit').textContent = auto.unitWord;
-    if (document.activeElement !== $('autoBasePts')) $('autoBasePts').value = S.autoBasePts;
+    if (!isExport) {
+      $('autoBaseRef').textContent = auto.baseLabel; $('autoBaseUnit').textContent = auto.unitWord;
+      if (document.activeElement !== $('autoBasePts')) $('autoBasePts').value = S.autoBasePts;
+    }
     const missing = [], subOmitted = [];
     let points = [];
     for (const m of chosen) {
@@ -4623,6 +4729,7 @@
       if (okX && okY) points.push({ m, xv, yv, auto: auto.ids.has(m.id), subPrice: pr, isLane2: !!(subActive && pr?.lane === 2) });
       else missing.push(m);
     }
+    if (isExport && exportCtx.extraOmitted?.length) subOmitted.push(...exportCtx.extraOmitted);
     const anchors = [];
     // Ladder at an effort the effort filter hides: a selected model's result at that effort is drawn hollow, so its
     // ladder row still shows that effort. Only the filter hides it: a variant that isn't selected stays off the chart,
@@ -4635,7 +4742,16 @@
       const xv = getAxisVal(m, S.x), yv = getAxisVal(m, S.y);
       if (scaleOk(S.xScale, xv) && scaleOk(S.yScale, yv)) anchors.push({ m, xv, yv, anchorOnly: true, subPrice: pr, isLane2: !!(subActive && pr?.lane === 2) });
     }
-    lastAnchors = anchors;
+    if (!isExport) lastAnchors = anchors;
+    // Build full-frontier ghost candidates BEFORE checking weekly pool comparability so ?price=pct&fullFrontier=1
+    // suppresses incompatible cross-pool frontiers across ghosts too.
+    let ghostCandidates = [];
+    if (points.length && S.pareto !== 'off' && S.fullFrontier) {
+      const shown = new Set(points.map((p) => p.m.id));
+      ghostCandidates = ALL.filter((m) => !shown.has(m.id) && !superseded(m) && (S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights) && S.efforts.has(m.effort))
+        .map((m) => { const pr = getSubPrice(m); return { m, xv: getAxisVal(m, S.x), yv: getAxisVal(m, S.y), ghost: true, subPrice: pr, isLane2: !!(subActive && pr?.lane === 2) }; })
+        .filter((p) => (!subActive || (p.subPrice && !p.subPrice.omitted && !p.isLane2)) && scaleOk(S.xScale, p.xv) && scaleOk(S.yScale, p.yv));
+    }
     // Evaluate subscription lanes, truthful frontier key, and weekly pool comparability.
     let subEval = null;
     if (subActive) {
@@ -4646,8 +4762,45 @@
       subEval = PM.evaluateComparison(evalInput, {
         mode: S.price, xField: 'xv', yField: 'yv', xBetter: X.better, yBetter: Y.better,
       });
+      if (S.price === 'pct' && S.fullFrontier && ghostCandidates.length) {
+        const fullEvalInput = evalInput.concat(ghostCandidates.map((p) => ({
+          id: p.m.id, m: p.m, name: p.m.familyName, short: subShortName(p.m, true), effort: p.m.effort,
+          xv: p.xv, yv: p.yv, price: p.subPrice,
+        })));
+        const fullEval = PM.evaluateComparison(fullEvalInput, {
+          mode: S.price, xField: 'xv', yField: 'yv', xBetter: X.better, yBetter: Y.better,
+        });
+        if (!fullEval.comparable) {
+          subEval = { ...subEval, comparable: false, suppressReason: fullEval.suppressReason, frontierSteps: [], beatenSteps: [], beyondLane2: [] };
+        }
+      }
     }
-    lastSubRender = subActive ? { evalRes: subEval, mode: S.price, profileSummary: subProfileSummary(subProfile), catalogDate: PLAN_CAT.catalogDate, sourceRevision: PLAN_CAT.sourceRevision } : null;
+    if (!isExport) lastSubRender = subActive ? { evalRes: subEval, mode: S.price, profileSummary: subProfileSummary(subProfile), catalogDate: PLAN_CAT.catalogDate, sourceRevision: PLAN_CAT.sourceRevision } : null;
+    // Export header & footer sizing (reuses the live host render pipeline with 100% live public chart settings fidelity).
+    let expTop = 0, expBot = 0, expCaption = '', expShowKey = false, expHasLane2 = false, expFooterRes = null;
+    if (isExport) {
+      expCaption = legActive
+        ? (S.x === 'planTasks' || S.y === 'planTasks' ? PM.DISCLOSURES.legacyExportTitleTasks : PM.DISCLOSURES.legacyExportTitleCost)
+        : (S.price === 'pct' ? '% of week · Example entry plans' : 'Plan $ · Example entry plans');
+      expHasLane2 = !!(subActive && subEval && subEval.lane2.length > 0);
+      expShowKey = !!(subActive && subEval && (expHasLane2 || (S.pareto !== 'off' && subEval.comparable && subEval.frontierSteps.length >= 2)));
+      expFooterRes = (subActive && subOmitted.length)
+        ? PM.formatOmissionFooter(subOmitted, W - 20, (t) => measureSvgText(t, narrow ? 8.5 : 10, 400), { useShortNames: narrow })
+        : null;
+      expTop = expShowKey ? (narrow && expHasLane2 ? 64 : 50) : 34;
+      expBot = expFooterRes?.text ? 20 : 0;
+      M.top += expTop;
+      M.bottom += expBot;
+      if (exportCtx.height) H = exportCtx.height;
+      else {
+        H += expTop + expBot;
+        if (narrow && subActive && !tall) H = Math.max(H, M.top + M.bottom + 440);
+      }
+      PH = H - M.top - M.bottom;
+      exportCtx.caption = expCaption;
+      exportCtx.showEstKey = expShowKey;
+      exportCtx.footerRes = expFooterRes;
+    }
     // Frontier membership and the sweet spot are decided before any division, using only shown models for references.
     const rawFrontPool = subActive ? (subEval.comparable ? points.filter((p) => !p.isLane2) : []) : points;
     const rawFront = paretoFront(rawFrontPool), refCtx = { front: rawFront, knee: kneeOf(rawFront), notes: [], ghosts: [] };
@@ -4655,10 +4808,7 @@
     let front = [], ghosts = [], inScale = [];
     if (points.length && S.pareto !== 'off' && (!subActive || subEval.comparable)) {
       if (S.fullFrontier) {
-        const shown = new Set(points.map((p) => p.m.id));
-        const pool = (subActive ? points.filter((p) => !p.isLane2) : points).concat(ALL.filter((m) => !shown.has(m.id) && !superseded(m) && (S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights) && S.efforts.has(m.effort))
-          .map((m) => { const pr = getSubPrice(m); return { m, xv: getAxisVal(m, S.x), yv: getAxisVal(m, S.y), ghost: true, subPrice: pr, isLane2: !!(subActive && pr?.lane === 2) }; })
-          .filter((p) => (!subActive || (p.subPrice && !p.subPrice.omitted && !p.isLane2)) && scaleOk(S.xScale, p.xv) && scaleOk(S.yScale, p.yv)));
+        const pool = (subActive ? points.filter((p) => !p.isLane2) : points).concat(ghostCandidates);
         front = paretoFront(pool); ghosts = front.filter((p) => p.ghost);
         const ys = points.map((p) => p.yv), yLow = Y.better === 'low';
         inScale = ghosts.filter((p) => yLow ? p.yv <= Math.max(...ys) : p.yv >= Math.min(...ys));
@@ -4677,50 +4827,52 @@
     const FORM_NAME = { auto: 'match axis', value: 'value', rel: '×', vr: 'value (×)', rv: '× (value)', delta: '±', vd: 'value (±)' };
     const exYLow = METRICS[S.y].better === 'low', bothOf = (all) => points.filter((p) => (all || !p.auto) && Number.isFinite(p.rawX) && Number.isFinite(p.rawY) && p.rawX !== labelBase.x && p.rawY !== labelBase.y)
       .sort((p, q) => exYLow ? p.rawY - q.rawY : q.rawY - p.rawY)[0], exBoth = bothOf(false) || bothOf(true);
-    for (const a of ['x', 'y']) {
-      const T = a === 'x' ? X : Y, raw = a === 'x' ? 'rawX' : 'rawY', low = METRICS[S[a]].better === 'low', base = labelBase[a];
-      const exOf = (all) => points.filter((p) => (all || !p.auto) && Number.isFinite(p[raw]) && p[raw] !== base).sort((p, q) => low ? p[raw] - q[raw] : q[raw] - p[raw])[0];
-      const ex = exBoth || exOf(false) || exOf(true);
-      const sel = $(a === 'x' ? 'valueAsX' : 'valueAsY'), vs = $(a === 'x' ? 'valueVsX' : 'valueVsY'), hasRef = !!T.ref;
-      let og = sel.querySelector('optgroup'); if (!og) { og = document.createElement('optgroup'); og.append(...sel.querySelectorAll('option')); sel.append(og); }
-      og.label = ex ? `Examples: ${ex.m.label}` : 'Write each value as'; sel.value = S[a === 'x' ? 'valueAsX' : 'valueAsY'] || 'auto';
-      for (const o of sel.options) o.textContent = ex ? `${axisValue(ex, a, T, o.value)} · ${FORM_NAME[o.value]}` : FORM_NAME[o.value];
-      sel.title = ex ? `How each dot's ${a.toUpperCase()} value is written. The examples are ${ex.m.label}.` : sel.title;
-      vs.options[0].disabled = !hasRef; vs.value = hasRef ? S[a === 'x' ? 'valueVsX' : 'valueVsY'] : 'best';
-      vs.hidden = ['auto', 'value'].includes(S[a === 'x' ? 'valueAsX' : 'valueAsY']);
+    if (!isExport) {
+      for (const a of ['x', 'y']) {
+        const T = a === 'x' ? X : Y, raw = a === 'x' ? 'rawX' : 'rawY', low = METRICS[S[a]].better === 'low', base = labelBase[a];
+        const exOf = (all) => points.filter((p) => (all || !p.auto) && Number.isFinite(p[raw]) && p[raw] !== base).sort((p, q) => low ? p[raw] - q[raw] : q[raw] - p[raw])[0];
+        const ex = exBoth || exOf(false) || exOf(true);
+        const sel = $(a === 'x' ? 'valueAsX' : 'valueAsY'), vs = $(a === 'x' ? 'valueVsX' : 'valueVsY'), hasRef = !!T.ref;
+        let og = sel.querySelector('optgroup'); if (!og) { og = document.createElement('optgroup'); og.append(...sel.querySelectorAll('option')); sel.append(og); }
+        og.label = ex ? `Examples: ${ex.m.label}` : 'Write each value as'; sel.value = S[a === 'x' ? 'valueAsX' : 'valueAsY'] || 'auto';
+        for (const o of sel.options) o.textContent = ex ? `${axisValue(ex, a, T, o.value)} · ${FORM_NAME[o.value]}` : FORM_NAME[o.value];
+        sel.title = ex ? `How each dot's ${a.toUpperCase()} value is written. The examples are ${ex.m.label}.` : sel.title;
+        vs.options[0].disabled = !hasRef; vs.value = hasRef ? S[a === 'x' ? 'valueVsX' : 'valueVsY'] : 'best';
+        vs.hidden = ['auto', 'value'].includes(S[a === 'x' ? 'valueAsX' : 'valueAsY']);
+      }
+      let baseNotes = ['x', 'y'].filter((a) => (S.valueLabels === 'both' || S.valueLabels === a || (a === 'y' && ladder)) && !['auto', 'value'].includes(S[a === 'x' ? 'valueAsX' : 'valueAsY']) && !(a === 'x' ? X : Y).ref)
+        .map((a) => `${a.toUpperCase()} values by the dots: × and ± compare with the best shown, ${effectiveMetric(S[a], subActive, S.price).fmt(labelBase[a])}.`);
+      if ([S.x, S.y].includes('planCost')) {
+        const api = [...new Set(chosen.filter((m) => m.planInfo?.startsWith('No plan data')).map((m) => m.familyName))];
+        const thin = [...new Set(points.filter((p) => p.m.planThin).map((p) => p.m.familyName))];
+        const subs = new Map(); for (const p of points) if (p.m.planSub) subs.set(p.m.planSub, (subs.get(p.m.planSub) || new Set()).add(p.m.familyName));
+        const subText = [...subs].map(([plan, fams]) => ` ${plan} has no data for ${[...fams].join(', ')}, so ${fams.size === 1 ? 'it uses' : 'they use'} the median of that lab's other plans.`).join('');
+        baseNotes.push(`Plan cost per task (estimated, at full plan use): plans' real token prices from Real API Pricing (MIT, snapshot ${PSH.snapshot || ''}); each lab at the median of its plans with data, unless you pick one under Subscription math.${subText}${thin.length ? ` Thin estimate (one plan, low confidence): ${thin.join(', ')}.` : ''}${api.length ? ` No plan data, so not drawn: ${api.join(', ')}.` : ''}`);
+      }
+      $('relativeNote').hidden = !refCtx.notes.length && !baseNotes.length;
+      $('relativeNote').textContent = refCtx.notes.concat(baseNotes).join(' ');
+      const noteEl = $('autoNote'), noteHBefore = noteEl.hidden ? 0 : noteEl.offsetHeight;
+      noteEl.hidden = !auto.note; noteEl.innerHTML = auto.note;
+      if (tall && !narrow && !render.refit && (noteEl.hidden ? 0 : noteEl.offsetHeight) !== noteHBefore) { render.refit = true; queueMicrotask(() => { try { render(); } finally { render.refit = false; } }); }
+      const basisTag = ` (${BASIS_SHORT[BASIS]})`, sharedBasis = usesYourIndex() && Y.label.includes(basisTag) && X.label.includes(basisTag);
+      $('chartTitle').textContent = sharedBasis ? `${Y.label.replace(basisTag, '')} vs. ${X.label.replace(basisTag, '')}, ${BASIS_PHRASE[BASIS]}` : `${Y.label} vs. ${X.label}`;
+      const subtitleText = (k, T, lower) => {
+        const c = BASIS_KEYS.filter(([key]) => indexW()[key] != null).length, n = BASIS_KEYS.length;
+        let text = k === 'myIndex' ? `${n} benchmarks averaged, 0–100` : (k === 'myCost' && !subActive) ? !c ? 'no AA cost for any of them' : c === n ? 'cost per task on them, USD' : `cost per task on the ${c} of them with an AA cost, USD` : T.long;
+        if (['myIndex','myCost'].includes(k) && T.ref) text += T.long.match(/ \([^()]*\)$/)?.[0] || '';
+        return lower && /^[A-Z][a-z]/.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text;
+      };
+      const cap = (t) => t.replace(/^./, (c) => c.toUpperCase());
+      const scales = S.xScale === S.yScale ? `${cap(word[S.xScale])} scales` : `${cap(word[S.xScale])} x, ${word[S.yScale]} y`;
+      $('chartSub').textContent = `Y: ${subtitleText(S.y,Y,false)} (${dir(Y)}). X: ${subtitleText(S.x,X,true)} (${dir(X)}). ${scales}.`;
+      renderAAII();
+      renderExplain();
+      svg.setAttribute('aria-label', $('chartTitle').textContent);
     }
-    let baseNotes = ['x', 'y'].filter((a) => (S.valueLabels === 'both' || S.valueLabels === a || (a === 'y' && ladder)) && !['auto', 'value'].includes(S[a === 'x' ? 'valueAsX' : 'valueAsY']) && !(a === 'x' ? X : Y).ref)
-      .map((a) => `${a.toUpperCase()} values by the dots: × and ± compare with the best shown, ${METRICS[S[a]].fmt(labelBase[a])}.`);
-    if ([S.x, S.y].includes('planCost')) {
-      const api = [...new Set(chosen.filter((m) => m.planInfo?.startsWith('No plan data')).map((m) => m.familyName))];
-      const thin = [...new Set(points.filter((p) => p.m.planThin).map((p) => p.m.familyName))];
-      const subs = new Map(); for (const p of points) if (p.m.planSub) subs.set(p.m.planSub, (subs.get(p.m.planSub) || new Set()).add(p.m.familyName));
-      const subText = [...subs].map(([plan, fams]) => ` ${plan} has no data for ${[...fams].join(', ')}, so ${fams.size === 1 ? 'it uses' : 'they use'} the median of that lab's other plans.`).join('');
-      baseNotes.push(`Plan cost per task (estimated, at full plan use): plans' real token prices from Real API Pricing (MIT, snapshot ${PSH.snapshot || ''}); each lab at the median of its plans with data, unless you pick one under Subscription math.${subText}${thin.length ? ` Thin estimate (one plan, low confidence): ${thin.join(', ')}.` : ''}${api.length ? ` No plan data, so not drawn: ${api.join(', ')}.` : ''}`);
-    }
-    $('relativeNote').hidden = !refCtx.notes.length && !baseNotes.length;
-    $('relativeNote').textContent = refCtx.notes.concat(baseNotes).join(' ');
-    const noteEl = $('autoNote'), noteHBefore = noteEl.hidden ? 0 : noteEl.offsetHeight;
-    noteEl.hidden = !auto.note; noteEl.innerHTML = auto.note;
-    if (tall && !narrow && !render.refit && (noteEl.hidden ? 0 : noteEl.offsetHeight) !== noteHBefore) { render.refit = true; queueMicrotask(() => { try { render(); } finally { render.refit = false; } }); }
-    const basisTag = ` (${BASIS_SHORT[BASIS]})`, sharedBasis = usesYourIndex() && Y.label.includes(basisTag) && X.label.includes(basisTag);
-    $('chartTitle').textContent = sharedBasis ? `${Y.label.replace(basisTag, '')} vs. ${X.label.replace(basisTag, '')}, ${BASIS_PHRASE[BASIS]}` : `${Y.label} vs. ${X.label}`;
-    const subtitleText = (k, T, lower) => {
-      const c = BASIS_KEYS.filter(([key]) => indexW()[key] != null).length, n = BASIS_KEYS.length;
-      let text = k === 'myIndex' ? `${n} benchmarks averaged, 0–100` : k === 'myCost' ? !c ? 'no AA cost for any of them' : c === n ? 'cost per task on them, USD' : `cost per task on the ${c} of them with an AA cost, USD` : T.long;
-      if (['myIndex','myCost'].includes(k) && T.ref) text += T.long.match(/ \([^()]*\)$/)?.[0] || '';
-      return lower && /^[A-Z][a-z]/.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text;
-    };
-    const cap = (t) => t.replace(/^./, (c) => c.toUpperCase());
-    const scales = S.xScale === S.yScale ? `${cap(word[S.xScale])} scales` : `${cap(word[S.xScale])} x, ${word[S.yScale]} y`;
-    $('chartSub').textContent = `Y: ${subtitleText(S.y,Y,false)} (${dir(Y)}). X: ${subtitleText(S.x,X,true)} (${dir(X)}). ${scales}.`;
-    renderAAII();
-    renderExplain();
-    svg.setAttribute('aria-label', $('chartTitle').textContent);
     // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
-    if (!diamond) {
-      const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700)));
-      const needLeft = narrow ? Math.ceil(yw + 16) : Math.ceil(yw + 44);
+    if (!diamond && (!narrow || subActive)) {
+      const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), narrow ? 11 : 12, narrow ? 400 : 700)));
+      const needLeft = narrow ? Math.ceil(yw + 10) : Math.ceil(yw + 44);
       if (needLeft > M.left) { M.left = needLeft; if (tall && !narrow) W = Math.min(availW, M.left + tallPW + M.right); PW = W - M.left - M.right; }
     }
     // "Ladder" labels: model names in a column to the right of the plot, so they never sit on the data
@@ -4740,59 +4892,134 @@
       PW = W - M.left - M.right;
     }
     if (tall && !narrow) { H = Math.round(PW * S.tallRatio) + M.top + M.bottom; PH = H - M.top - M.bottom; }
-    if (tall) $('tallRatioOut').textContent = (+S.tallRatio).toFixed(1) + '×' + (narrow ? ` · ${H} px tall` : H > Math.max(480, Math.min(1040, visH)) + 2 ? ' · taller than the window' : '');
-    if (tall) { svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H); }
-    svg.classList.toggle('tall', tall && !narrow);
+    if (!isExport && tall) $('tallRatioOut').textContent = (+S.tallRatio).toFixed(1) + '×' + (narrow ? ` · ${H} px tall` : H > Math.max(480, Math.min(1040, visH)) + 2 ? ' · taller than the window' : '');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+    if (!isExport) svg.classList.toggle('tall', tall && !narrow);
     const shownIds = new Set(chosen.concat(anchors.map((p) => p.m)).map((m) => m.id));
     const hiddenByEffort = [...S.selected].filter((id) => !shownIds.has(id)).length;
-    let note = [];
-    const planNamed = (m) => [S.x, S.y].includes('planCost') && m.planInfo?.startsWith('No plan data') && m[S.x === 'planCost' ? S.y : S.x] != null;
-    const missNote = missing.filter((m) => !planNamed(m));
-    if (missNote.length) note.push(`${missNote.length} selected model-effort variant${missNote.length > 1 ? 's have' : ' has'} no ${!missNote.every((m) => m[S.x] != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missNote.slice(0, 6).map((m) => m.label).join(', ')}${missNote.length > 6 ? '…' : ''}`);
-    if (hiddenByEffort) note.push(`${hiddenByEffort} hidden by the effort filter.`);
-    $('chartNote').textContent = note.join(' · ');
-    const olderShown = S.connect && points.some((p) => FAMILY.get(p.m.family)?.older);
-    $('chartFoot').innerHTML = `Each dot is one reasoning effort level, low to max${S.markStyle !== 'none' ? `; the ${S.markStyle} marks ${EFFORT_LABEL[S.markEffort]}` : ''}. A lone dot has one setting only.${olderShown ? ` ${LOOK_WORD[lineLook(true)]} lines are older versions.` : ''} ${matchMedia('(hover: none)').matches ? 'Tap a dot for its values; tap again to pin it, then tap another to compare the two.' : 'Hover a dot for its values; click to pin it, then hover another to compare the two. Right-click a dot or a model in the list for more.'}${ladder ? ` ${matchMedia('(hover: none)').matches ? 'Tap' : 'Click'} names in the ladder to highlight those models.` : ''}${ladder && S.ladderAt !== 'top' ? ` Ladder names join each model's ${EFFORT_LABEL[S.ladderAt]} dot. A hollow dot is that effort where your effort filter hides it; a value marked with another effort means the model has no ${EFFORT_LABEL[S.ladderAt]} result.` : ''}<br>Data: <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">Artificial Analysis</a>, ${esc(new Date(DATA.scrapedAt).toISOString().slice(0, 10))}` +
-      [...new Set([X.ext, Y.ext].filter(Boolean))].map((e) => ` · ${esc(e.label)}: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.by)}</a>, ${esc((e.updated || e.fetchedAt || '').slice(0, 10))}${e.stale ? ' (couldn\'t refresh; last good copy)' : ''}. Matched to Artificial Analysis models by name; where the source doesn't say which effort it ran, it's shown on the model's default one.`).join('');
+    if (!isExport) {
+      let note = [];
+      const planNamed = (m) => [S.x, S.y].includes('planCost') && m.planInfo?.startsWith('No plan data') && m[S.x === 'planCost' ? S.y : S.x] != null;
+      const missNote = missing.filter((m) => !planNamed(m));
+      if (missNote.length) {
+        const zeroOnLogX = S.xScale === 'log' && missNote.some((m) => { const v = getAxisVal(m, S.x); return Number.isFinite(v) && v <= 0; });
+        const zeroOnLogY = S.yScale === 'log' && missNote.some((m) => { const v = getAxisVal(m, S.y); return Number.isFinite(v) && v <= 0; });
+        if (zeroOnLogX || zeroOnLogY) {
+          const zLbl = zeroOnLogX ? X.label : Y.label;
+          note.push(`${missNote.length} selected model-effort variant${missNote.length > 1 ? 's are' : ' is'} hidden on a log scale because ${zLbl} is $0.00 (switch to a linear scale to show $0 plans): ${missNote.slice(0, 6).map((m) => m.label).join(', ')}${missNote.length > 6 ? '…' : ''}`);
+        } else {
+          note.push(`${missNote.length} selected model-effort variant${missNote.length > 1 ? 's have' : ' has'} no ${!missNote.every((m) => getAxisVal(m, S.x) != null) ? X.label : Y.label} data${S.xScale !== 'linear' || S.yScale !== 'linear' ? ' (or a value outside what the scale can show)' : ''}: ${missNote.slice(0, 6).map((m) => m.label).join(', ')}${missNote.length > 6 ? '…' : ''}`);
+        }
+      }
+      if (hiddenByEffort) note.push(`${hiddenByEffort} hidden by the effort filter.`);
+      $('chartNote').textContent = note.join(' · ');
+      const olderShown = S.connect && points.some((p) => FAMILY.get(p.m.family)?.older);
+      $('chartFoot').innerHTML = `Each dot is one reasoning effort level, low to max${S.markStyle !== 'none' ? `; the ${S.markStyle} marks ${EFFORT_LABEL[S.markEffort]}` : ''}. A lone dot has one setting only.${olderShown ? ` ${LOOK_WORD[lineLook(true)]} lines are older versions.` : ''} ${matchMedia('(hover: none)').matches ? 'Tap a dot for its values; tap again to pin it, then tap another to compare the two.' : 'Hover a dot for its values; click to pin it, then hover another to compare the two. Right-click a dot or a model in the list for more.'}${ladder ? ` ${matchMedia('(hover: none)').matches ? 'Tap' : 'Click'} names in the ladder to highlight those models.` : ''}${ladder && S.ladderAt !== 'top' ? ` Ladder names join each model's ${EFFORT_LABEL[S.ladderAt]} dot. A hollow dot is that effort where your effort filter hides it; a value marked with another effort means the model has no ${EFFORT_LABEL[S.ladderAt]} result.` : ''}<br>Data: <a href="https://artificialanalysis.ai" target="_blank" rel="noopener">Artificial Analysis</a>, ${esc(new Date(DATA.scrapedAt).toISOString().slice(0, 10))}` +
+        [...new Set([X.ext, Y.ext].filter(Boolean))].map((e) => ` · ${esc(e.label)}: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.by)}</a>, ${esc((e.updated || e.fetchedAt || '').slice(0, 10))}${e.stale ? ' (couldn\'t refresh; last good copy)' : ''}. Matched to Artificial Analysis models by name; where the source doesn't say which effort it ran, it's shown on the model's default one.`).join('');
 
-    // background
-    const noticeMsg = subLegacyNotice || (subActive && S.price === 'pct' && subEval && !subEval.comparable ? subEval.suppressReason : null);
-    $('priceNotice').hidden = !noticeMsg;
-    if (noticeMsg) $('priceNotice').textContent = noticeMsg;
-    const showSubFoot = (subActive || legActive) && !!PM;
-    $('subExportNote').hidden = !showSubFoot;
-    if (showSubFoot) {
-      $('subFourWeeksNote').textContent = `${PM.DISCLOSURES.fourWeeks} Catalog ${PLAN_CAT.catalogDate || ''} (${PLAN_CAT.attribution || 'Real API Pricing'}, ${PLAN_CAT.license || 'MIT'}).`;
-      $('subDownloadNote').textContent = PM.DISCLOSURES.download;
+      const noticeMsg = subLegacyNotice || (subActive && S.price === 'pct' && subEval && !subEval.comparable ? subEval.suppressReason : null);
+      $('priceNotice').hidden = !noticeMsg;
+      $('priceNotice').textContent = noticeMsg || '';
+      const showSubFoot = (subActive || legActive) && !!PM;
+      $('subExportNote').hidden = !showSubFoot;
+      if (showSubFoot) {
+        $('subFourWeeksNote').innerHTML = subCatalogAttributionHtml();
+        $('subDownloadNote').textContent = PM.DISCLOSURES.download;
+      }
     }
     const subZero = subActive && !points.length && !anchors.length && subOmitted.length > 0;
-    $('zeroBox').hidden = !subZero;
-    svg.hidden = subZero;
-    if (subZero) {
-      $('zeroDesc').textContent = `${subOmitted.length} selected model-effort${subOmitted.length === 1 ? '' : 's'} omitted from ${S.price === 'pct' ? '% of week' : 'Plan $'} view. Choose plans in Your plans or switch back to API $.`;
-      $('zeroNames').innerHTML = groupSubOmissionsHtml(subOmitted);
-      $('omissionsBox').hidden = true;
-      $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; lastLabelAudit = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); renderTasksPanel(chosen); syncHighlights(new Set(), narrow); return;
-    }
-    if (subActive && subOmitted.length > 0) {
-      $('omissionsBox').hidden = false;
-      $('omissionsList').innerHTML = groupSubOmissionsHtml(subOmitted, 'Omitted — ');
-    } else {
-      $('omissionsBox').hidden = true;
+    if (!isExport) {
+      $('zeroBox').hidden = !subZero;
+      svg.hidden = subZero;
+      if (subZero) {
+        $('zeroDesc').textContent = `${subOmitted.length} selected model-effort${subOmitted.length === 1 ? '' : 's'} omitted from ${S.price === 'pct' ? '% of week' : 'Plan $'} view. Choose plans in Your plans or switch back to API $.`;
+        $('zeroNames').innerHTML = groupSubOmissionsHtml(subOmitted);
+        $('omissionsBox').hidden = true;
+        $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; lastLabelAudit = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); renderTasksPanel(chosen); syncHighlights(new Set(), narrow); return;
+      }
+      if (subActive && subOmitted.length > 0) {
+        $('omissionsBox').hidden = false;
+        $('omissionsList').innerHTML = groupSubOmissionsHtml(subOmitted, 'Omitted — ');
+      } else {
+        $('omissionsBox').hidden = true;
+      }
     }
     svg.append(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: C.surface }));
+    const appendExportChrome = () => {
+      if (!isExport) return;
+      const titleX = narrow ? 10 : M.left;
+      let titleSize = narrow ? 12 : 14;
+      while (titleSize > 8 && measureSvgText(expCaption, titleSize, 700) > W - titleX - 8) titleSize -= 0.5;
+      svg.append(svgEl('text', { id: 'exportCaption', x: titleX, y: 19, fill: C.ink, 'font-size': titleSize, 'font-weight': 700 }, expCaption));
+      if (expShowKey) {
+        const fTxt = (S.pareto !== 'off' && subEval.comparable) ? subEval.frontierKeyLabel : '';
+        let kFont = narrow ? 8.5 : 10.2;
+        if (narrow) {
+          let ky = 34;
+          if (fTxt) {
+            let ff = kFont;
+            while (ff > 7 && measureSvgText(fTxt, ff, 400) > W - titleX - 24) ff -= 0.4;
+            svg.append(svgEl('line', { x1: titleX, y1: ky - 3, x2: titleX + 12, y2: ky - 3, stroke: C.ink, 'stroke-width': 1.5, 'stroke-opacity': 0.55, 'stroke-linecap': 'round' }));
+            svg.append(svgEl('text', { x: titleX + 16, y: ky, fill: C.ink2, 'font-size': ff }, fTxt));
+            ky += 14;
+          }
+          if (expHasLane2) {
+            let lf = kFont;
+            while (lf > 7 && measureSvgText(PM.DISCLOSURES.lane2Key, lf, 400) > W - titleX - 24) lf -= 0.4;
+            const bx = titleX + 6;
+            for (let i = 0; i < 10; i++) {
+              const a = (i * 36 - 90) * Math.PI / 180;
+              svg.append(svgEl('circle', { cx: (bx + Math.cos(a) * 4.6).toFixed(2), cy: (ky - 3 + Math.sin(a) * 4.6).toFixed(2), r: 0.8, fill: C.ink, stroke: C.surface, 'stroke-width': 1.1, 'paint-order': 'stroke fill' }));
+            }
+            svg.append(svgEl('circle', { cx: bx, cy: ky - 3, r: 2.2, fill: C.accent }));
+            svg.append(svgEl('text', { x: bx + 9, y: ky, fill: C.ink2, 'font-size': lf }, PM.DISCLOSURES.lane2Key));
+          }
+        } else {
+          const ky = 34;
+          let curX = titleX;
+          if (fTxt) {
+            svg.append(svgEl('line', { x1: curX, y1: ky - 3, x2: curX + 13, y2: ky - 3, stroke: C.ink, 'stroke-width': 1.5, 'stroke-opacity': 0.55, 'stroke-linecap': 'round' }));
+            svg.append(svgEl('text', { x: curX + 17, y: ky, fill: C.ink2, 'font-size': kFont }, fTxt));
+            curX += 17 + measureSvgText(fTxt, kFont, 400) + 18;
+          }
+          if (expHasLane2) {
+            const bx = curX;
+            for (let i = 0; i < 10; i++) {
+              const a = (i * 36 - 90) * Math.PI / 180;
+              svg.append(svgEl('circle', { cx: (bx + Math.cos(a) * 5).toFixed(2), cy: (ky - 3 + Math.sin(a) * 5).toFixed(2), r: 0.85, fill: C.ink, stroke: C.surface, 'stroke-width': 1.2, 'paint-order': 'stroke fill' }));
+            }
+            svg.append(svgEl('circle', { cx: bx, cy: ky - 3, r: 2.4, fill: C.accent }));
+            svg.append(svgEl('text', { x: bx + 10, y: ky, fill: C.ink2, 'font-size': kFont }, PM.DISCLOSURES.lane2Key));
+          }
+        }
+      }
+      if (expFooterRes && expFooterRes.text) {
+        let footFont = narrow ? 8.5 : 10;
+        while (footFont > 7 && measureSvgText(expFooterRes.text, footFont, 400) > W - 16) footFont -= 0.4;
+        svg.append(svgEl('text', { id: 'omissionFooter', x: 10, y: H - 7, fill: C.ink2, 'font-size': footFont }, expFooterRes.text));
+      }
+    };
+    appendExportChrome();
     if (!points.length && !anchors.length) {
       const emptyCurrent = [S.x, S.y].filter((k) => !ALL.some((m) => !m.deprecated && Number.isFinite(m[k])));
-      const why = emptyCurrent.length ? `No current model has this measure in the data right now: ${emptyCurrent.map((k) => METRICS[k].label).join(' or ')}.` : !chosen.length ? 'Select models in the sidebar to plot them.' : `None of the selected models have ${[S.x, S.y].filter((k) => chosen.every((m) => !scaleOk(k === S.x ? S.xScale : S.yScale, m[k]))).map((k) => METRICS[k].label).join(' or ') || `both ${X.label} and ${Y.label}`} data — add some that do.`;
+      const why = subZero ? `${subOmitted.length} selected model-effort${subOmitted.length === 1 ? '' : 's'} omitted on Example entry plans.`
+        : emptyCurrent.length ? `No current model has this measure in the data right now: ${emptyCurrent.map((k) => METRICS[k].label).join(' or ')}.`
+        : !chosen.length ? 'Select models in the sidebar to plot them.'
+        : `None of the selected models have ${[S.x, S.y].filter((k) => chosen.every((m) => !scaleOk(k === S.x ? S.xScale : S.yScale, m[k]))).map((k) => METRICS[k].label).join(' or ') || `both ${X.label} and ${Y.label}`} data — add some that do.`;
       const lines = [''], maxWidth = Math.max(1, W - 32);
       for (const word of why.split(' ')) {
         const joined = lines.at(-1) ? lines.at(-1) + ' ' + word : word;
         if (lines.at(-1) && textW(joined, 14) > maxWidth) lines.push(word);
         else lines[lines.length - 1] = joined;
       }
-      const message = svgEl('text', { x: W / 2, y: H / 2 - (lines.length - 1) * 10, 'text-anchor': 'middle', fill: C.muted, 'font-size': 14 });
+      const message = svgEl('text', { x: W / 2, y: M.top + PH / 2 - (lines.length - 1) * 10, 'text-anchor': 'middle', fill: C.muted, 'font-size': 14 });
       lines.forEach((line, i) => message.append(svgEl('tspan', { x: W / 2, dy: i ? 20 : 0 }, line + (i < lines.length - 1 ? ' ' : ''))));
       svg.append(message);
+      if (isExport) {
+        exportCtx.labelAudit = { overlaps: 0, dotOverlaps: 0, misattached: 0, sameRowHits: 0, leaderThroughOtherMark: 0, leaderThroughOtherLabel: 0, leaderCrossLeader: 0, maxLeaderLenRaw: 0, maxLeaderLen: 0, drawn: 0, drawnMeasuredIds: [], drawnEstimateIds: [], droppedFrontierCount: 0, droppedMeasuredCount: 0 };
+        colorKey = null;
+        return;
+      }
       svg.setAttribute('aria-label', why);
       $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; lastLabelAudit = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); renderTasksPanel(chosen); syncHighlights(new Set(), narrow); return;
     }
@@ -4801,7 +5028,7 @@
     const sy = makeScale(points.concat(inScale, anchors).map((p) => p.yv), S.yScale, [M.top + PH, M.top], !!Y.ref, tall ? Math.max(7, Math.round(PH / 85)) : 7);
     // a model that isn't on the chart can be 1.0 outside what's shown: the scales aren't stretched to reach it, the note says so
     const offScale = [['X', X, sx, M.left, M.left + PW], ['Y', Y, sy, M.top, M.top + PH]].filter(([, metric, sc, a, b]) => metric.ref?.offChart && !(sc.f(1) >= a - 0.5 && sc.f(1) <= b + 0.5)).map(([axis]) => axis);
-    if (offScale.length) { $('relativeNote').hidden = false; $('relativeNote').textContent += ` ${offScale.join(' and ')}: 1.0 is beyond the edge of the chart.`; }
+    if (!isExport && offScale.length) { $('relativeNote').hidden = false; $('relativeNote').textContent += ` ${offScale.join(' and ')}: 1.0 is beyond the edge of the chart.`; }
     // Everything is laid out in the plot rectangle (vx, vy) and then passed through T to the screen (px, py). In the standard
     // shape T changes nothing. In the diamond, T maps the rectangle onto a rhombus with "better on both" at the top, best X
     // at the left and best Y at the right (like dunksandthrees' EPM charts). T is affine, so straight lines stay straight.
@@ -4827,8 +5054,10 @@
     }
     const visibleGhosts = inScale;
     lastPoints = points; lastGhosts = visibleGhosts; lastGeom = { M, PW, PH, sx, sy, W, H, T, diamond, xWorse, yWorse, xBest, yBest, X, Y };
-    fillRelativeOptions(points.concat(visibleGhosts));
-    if (visibleGhosts.length) $('chartNote').textContent = [`${visibleGhosts.length} frontier model${visibleGhosts.length > 1 ? 's' : ''} you haven't selected ${visibleGhosts.length > 1 ? 'are' : 'is'} shown faint — click one to add it.`, $('chartNote').textContent].filter(Boolean).join(' · ');
+    if (!isExport) {
+      fillRelativeOptions(points.concat(visibleGhosts));
+      if (visibleGhosts.length) $('chartNote').textContent = [`${visibleGhosts.length} frontier model${visibleGhosts.length > 1 ? 's' : ''} you haven't selected ${visibleGhosts.length > 1 ? 'are' : 'is'} shown faint — click one to add it.`, $('chartNote').textContent].filter(Boolean).join(' · ');
+    }
 
     // grid + ticks (dropping any that would crowd their neighbours on a narrow chart)
     // Diamond: X ticks along the lower-left edge, Y ticks along the lower-right edge, each label beside its gridline's end.
@@ -4857,7 +5086,7 @@
       if (S.grid !== 'off') g.append(seg(T(x, M.top), T(x, M.top + PH), gridAttrs));
       const [qx, qy] = diamond ? T(x, yWorse) : [x, M.top + PH];
       let tx = qx, anchor = 'middle';
-      if (!diamond) {
+      if (!diamond && (subActive || isExport)) {
         if (qx + tw / 2 > W - 2) { tx = Math.min(qx, W - 2); anchor = 'end'; }
         else if (qx - tw / 2 < 2) { tx = Math.max(qx, 2); anchor = 'start'; }
       }
@@ -4866,18 +5095,27 @@
     }
     const scaleTag = (s) => s === 'linear' ? '' : narrow ? ` (${word[s]})` : ` · ${SCALE_NOTE[s]}`, yLow = Y.better === 'low';
     const titleFont = { ...axisText, fill: C.ink2, 'font-size': narrow ? 10.5 : 12, 'font-weight': 500 };
+    const legAxisText = (k) => k === 'planTasks' ? PM.DISCLOSURES.legacyExportAxisTasks : k === 'planCost' ? PM.DISCLOSURES.legacyExportAxisCost : null;
+    const fitAxisFont = (txt, startSize, maxW) => {
+      let sz = startSize;
+      while (sz > 7.2 && measureSvgText(txt, sz, 500) > maxW) sz -= 0.5;
+      return sz;
+    };
+    let quadHintEl = null;
     if (diamond) {
       g.append(svgEl('polygon', { points: pts(corners), fill: 'none', stroke: C.axis }));
       // axis titles run along the two lower edges, outside the tick labels
       // (on a phone there's no room beside the edges: the titles go flat in the bottom corners)
       const ang = Math.atan2(PH, Dw) * 180 / Math.PI, len = Math.hypot(Dw, PH), off = 42;
       const [ax, ay] = T((xBest + xWorse) / 2, yWorse), [bx, by] = T(xWorse, (yBest + yWorse) / 2);
+      const xLabelDia = (isExport && legActive && legAxisText(S.x)) || (narrow ? `↖ ${X.label}${scaleTag(S.xScale)}` : `← better  ${X.long}${scaleTag(S.xScale)}`);
+      const yLabelDia = (isExport && legActive && legAxisText(S.y)) || (narrow ? `${Y.label}${scaleTag(S.yScale)} ↗` : `${Y.long}${scaleTag(S.yScale)}  better →`);
       if (narrow) {
-        g.append(svgEl('text', { ...titleFont, x: 2, y: H - 4 }, `↖ ${X.label}${scaleTag(S.xScale)}`));
-        g.append(svgEl('text', { ...titleFont, x: W - 2, y: H - 4, 'text-anchor': 'end' }, `${Y.label}${scaleTag(S.yScale)} ↗`));
+        g.append(svgEl('text', { ...titleFont, x: 2, y: H - expBot - 4, 'font-size': fitAxisFont(xLabelDia, 10.5, W / 2 - 4) }, xLabelDia));
+        g.append(svgEl('text', { ...titleFont, x: W - 2, y: H - expBot - 4, 'text-anchor': 'end', 'font-size': fitAxisFont(yLabelDia, 10.5, W / 2 - 4) }, yLabelDia));
       } else {
-        g.append(svgEl('text', { ...titleFont, x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(${ax - PH / len * off} ${ay + Dw / len * off}) rotate(${ang})` }, `← better  ${X.long}${scaleTag(S.xScale)}`));
-        g.append(svgEl('text', { ...titleFont, x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(${bx + PH / len * off} ${by + Dw / len * off}) rotate(${-ang})` }, `${Y.long}${scaleTag(S.yScale)}  better →`));
+        g.append(svgEl('text', { ...titleFont, x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(${ax - PH / len * off} ${ay + Dw / len * off}) rotate(${ang})` }, xLabelDia));
+        g.append(svgEl('text', { ...titleFont, x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(${bx + PH / len * off} ${by + Dw / len * off}) rotate(${-ang})` }, yLabelDia));
       }
       const vFont = { ...axisText, fill: C.muted, 'font-size': 11 };
       g.append(svgEl('text', { ...vFont, x: cx, y: M.top - 10, 'text-anchor': 'middle', 'font-weight': 600, fill: C.ink2 }, '▲ Better on both'));
@@ -4889,12 +5127,26 @@
     } else {
       g.append(svgEl('line', { x1: M.left, x2: M.left + PW, y1: M.top + PH, y2: M.top + PH, stroke: C.axis }));
       g.append(svgEl('line', { x1: M.left, x2: M.left, y1: M.top, y2: M.top + PH, stroke: C.axis }));
-      g.append(svgEl('text', { ...titleFont, x: M.left + PW / 2, y: H - (narrow ? 8 : 12), 'text-anchor': 'middle', 'font-size': narrow ? 11 : 12 }, `${narrow ? X.label : X.long}${scaleTag(S.xScale)}  ${X.better === 'low' ? '← better' : 'better →'}`));
-      if (narrow) g.append(svgEl('text', { ...titleFont, x: 4, y: 12, 'font-size': 11 }, `${Y.label}${scaleTag(S.yScale)}  ${yLow ? '↓' : '↑'} better`));
-      else g.append(svgEl('text', { ...titleFont, x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(18 ${M.top + PH / 2}) rotate(-90)` }, `${Y.long}${scaleTag(S.yScale)}  ${yLow ? '← better' : 'better →'}`));
+      const xLeg = isExport && legActive ? legAxisText(S.x) : null;
+      const yLeg = isExport && legActive ? legAxisText(S.y) : null;
+      const xAxisTxt = xLeg || `${narrow ? X.label : X.long}${scaleTag(S.xScale)}  ${X.better === 'low' ? '← better' : 'better →'}`;
+      const xAxisFont = (isExport || subActive) ? fitAxisFont(xAxisTxt, narrow ? 11 : 12, W - 12) : (narrow ? 11 : 12);
+      g.append(svgEl('text', { ...titleFont, class: isExport ? 'export-x-axis' : null, x: M.left + PW / 2, y: H - expBot - (narrow ? 8 : 12), 'text-anchor': 'middle', 'font-size': xAxisFont }, xAxisTxt));
+      if (narrow) {
+        const yAxisTxt = yLeg || `${Y.label}${scaleTag(S.yScale)}  ${yLow ? '↓' : '↑'} better`;
+        const yAxisFont = (isExport || subActive) ? fitAxisFont(yAxisTxt, 11, W - 8) : 11;
+        g.append(svgEl('text', { ...titleFont, class: isExport ? 'export-y-axis' : null, x: 4, y: expTop + 12, 'font-size': yAxisFont }, yAxisTxt));
+      } else {
+        const yAxisTxt = yLeg || `${Y.long}${scaleTag(S.yScale)}  ${yLow ? '← better' : 'better →'}`;
+        const yAxisFont = yLeg ? fitAxisFont(yAxisTxt, 12, PH - 8) : 12;
+        g.append(svgEl('text', { ...titleFont, class: isExport ? 'export-y-axis' : null, x: 0, y: 0, 'text-anchor': 'middle', 'font-size': yAxisFont, transform: `translate(18 ${M.top + PH / 2}) rotate(-90)` }, yAxisTxt));
+      }
       // "most attractive quadrant" hint (a good zone labels itself instead)
       const qx = X.better === 'low' ? M.left + 10 : M.left + PW - 10;
-      if (!narrow && S.zone === 'off') g.append(svgEl('text', { ...axisText, x: qx, y: yLow ? M.top + PH - 8 : M.top + 14, 'text-anchor': X.better === 'low' ? 'start' : 'end', fill: C.muted, 'font-size': 11 }, 'Most attractive quadrant'));
+      if (!narrow && S.zone === 'off') {
+        quadHintEl = svgEl('text', { ...axisText, class: 'quad-hint', x: qx, y: yLow ? M.top + PH - 8 : M.top + 14, 'text-anchor': X.better === 'low' ? 'start' : 'end', fill: C.muted, 'font-size': 11 }, 'Most attractive quadrant');
+        g.append(quadHintEl);
+      }
     }
     svg.append(g);
 
@@ -4922,7 +5174,7 @@
     if (ramp && dual === 'field') { const fl = svgEl('g', { 'clip-path': `url(#${clipId})` }); fl.append(valueField(ramp, defs, { M, PW, PH, T, xWorse, xBest, yWorse, yBest })); plot.append(fl); }
     const zoneLayer = svgEl('g', { class: 'zone-layer', 'clip-path': `url(#${clipId})` }); plot.append(zoneLayer);
     const zone = S.zone === 'off' ? null : drawZone({ points, front, rawFront, knee, kneeNote: sweetRef?.note, kneeGap: sweetRef?.gap, X, Y, sx, sy, T, pts, M, PW, PH, xBest, xWorse, yBest, yWorse, defs, layer: zoneLayer, C });
-    if (zone?.note) $('chartNote').textContent = [zone.note, $('chartNote').textContent].filter(Boolean).join(' · ');
+    if (!isExport && zone?.note) $('chartNote').textContent = [zone.note, $('chartNote').textContent].filter(Boolean).join(' · ');
     const refLayer = svgEl('g', { 'clip-path': `url(#${clipId})`, 'pointer-events': 'none' }); plot.append(refLayer);
     for (const [axis, metric, sc] of [['x', X, sx], ['y', Y, sy]]) {
       if (!metric.ref) continue;
@@ -4966,7 +5218,7 @@
     const hlFams = new Set(points.filter((p) => highlight.has(p.m.family)).map((p) => p.m.family)), hlOn = hlFams.size > 0;
     const hlDim = (fam) => hlOn && !hlFams.has(fam), dimTo = hlOn ? 0.2 : 0.3;
     const dimmed = (p) => hlDim(p.m.family) || (spot ? !focusFams.has(p.m.family) : fade && !frontSet.has(p.m.id) && !S.pinned.has(p.m.id));
-    if (S.focus === 'pinned' && !spot) $('chartNote').textContent = ['Spotlight: click a dot to pin a model and dim the rest.', $('chartNote').textContent].filter(Boolean).join(' · ');
+    if (!isExport && S.focus === 'pinned' && !spot) $('chartNote').textContent = ['Spotlight: click a dot to pin a model and dim the rest.', $('chartNote').textContent].filter(Boolean).join(' · ');
 
     // one line per model: its reasoning effort levels, low -> max (non-reasoning stays a lone dot)
     const series = new Map();
@@ -5059,10 +5311,11 @@
     const labelLayer = svgEl('g'); plot.append(labelLayer);
     // "frontier only" values follow the frontier that's drawn, or with Pareto off the frontier of the models shown
     const valueIds = S.valueFront ? (S.pareto !== 'off' ? frontSet : new Set(rawFront.map((p) => p.m.id))) : null;
-    lastLabelAudit = null;
+    let curLabelAudit = null;
     if (S.labels !== 'none' || S.valueLabels !== 'off') {
       if (subActive && !ladder) {
-        lastLabelAudit = placeSubLabels(points, frontSet, labelLayer, { M, PW, PH, W, C, X, Y, segs, dimmed, narrow, dual, subEval, valueIds });
+        const tickBoxes = tickEls.map(([, b]) => ({ x1: b.x0 - 1, y1: b.y0, x2: b.x1 + 2, y2: b.y1 }));
+        curLabelAudit = placeSubLabels(points, frontSet, labelLayer, { M, PW, PH, W, C, X, Y, segs, dimmed, narrow, dual, subEval, isExport, valueIds, quadHintEl, tickBoxes });
       } else {
         placeLabels(points, frontSet, labelLayer, { M, PW, PH, C, X, Y, segs, ghosts: visibleGhosts, dimmed, ladder, narrow, anchors, rings: new Set(references.keys()), valueIds });
       }
@@ -5074,6 +5327,21 @@
       else tags.push({ point, text, radius: 22, class: 'reference-tag' });
     }
     placePlotTags(tags, labelLayer, plot, points.concat(visibleGhosts), { M, PW, PH, C });
+
+    if (isExport) {
+      exportCtx.labelAudit = curLabelAudit || { overlaps: 0, dotOverlaps: 0, misattached: 0, sameRowHits: 0, leaderThroughOtherMark: 0, leaderThroughOtherLabel: 0, leaderCrossLeader: 0, maxLeaderLenRaw: 0, maxLeaderLen: 0, drawn: 0, drawnMeasuredIds: [], drawnEstimateIds: [], droppedFrontierCount: 0, droppedMeasuredCount: 0 };
+      if (ramp) {
+        const stops = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1].map(ramp.f), Mt = S.colorBy === 'x' ? X : Y, both = S.colorBy === 'both';
+        const idWord = S.idColor === 'effort' ? 'effort' : 'lab';
+        const how = { off: 'Color', lines: `Dots (${idWord}: lines & names)`, ring: `Center (${idWord}: outer ring)`, field: `Background field (dots: ${idWord})`, split: `Right half (left: ${idWord})` }[dual];
+        const dirStr = diamond ? 'to top' : `to ${Y.better === 'low' ? 'bottom' : 'top'} ${X.better === 'low' ? 'left' : 'right'}`;
+        colorKey = { stops, both, dir: dirStr, text: `${how}: ${both ? 'closeness to the better-on-both corner' : Mt.label}, ${ramp.name === 'diverge' ? 'worse than the median dot (grey) → better' : both ? 'least → most of the dots shown' : 'worse → better'}` };
+      } else {
+        colorKey = null;
+      }
+      return;
+    }
+    lastLabelAudit = curLabelAudit;
 
     // hover layer
     const hoverLayer = svgEl('g', { id: 'hoverLayer', 'pointer-events': 'none' }); svg.append(hoverLayer);
@@ -5211,16 +5479,28 @@
     const value = axisValue(p, 'y', Y); return { prefix, value, fallback, text: [prefix, value].filter(Boolean).join(' ') };
   }
   // AT-01 strict subscription label engine: enforces (i)-(v), zero overlaps, zero clips, measured-priority superset, and >=4.5:1 ≈ contrast.
-  function placeSubLabels(points, frontSet, layer, { M, PW, PH, W, C, X, Y, segs = [], dimmed = () => false, narrow = false, dual = dualMode(), subEval = null, isExport = false, valueIds = null }) {
+  function placeSubLabels(points, frontSet, layer, { M, PW, PH, W, C, X, Y, segs = [], dimmed = () => false, narrow = false, dual = dualMode(), subEval = null, isExport = false, valueIds = null, quadHintEl = null, tickBoxes = [] }) {
     const leaderLayer = svgEl('g', { class: 'sub-leader-layer' });
     const textLayer = svgEl('g', { class: 'sub-label-layer' });
     const faded = svgEl('g', { class: 'sub-label-faded', opacity: points.some((p) => highlight.has(p.m.family)) ? 0.28 : 0.38 });
     layer.append(leaderLayer, textLayer, faded);
 
+    let quadHintBox = null;
+    if (quadHintEl) {
+      try {
+        const qb = quadHintEl.getBBox();
+        if (qb && qb.width > 0 && qb.height > 0) quadHintBox = { x1: qb.x - 3, y1: qb.y - 3, x2: qb.x + qb.width + 3, y2: qb.y + qb.height + 3, id: '__quadHint__' };
+      } catch {}
+    }
+
     const markOuterR = (o) => dotOuter(S.pinned.has(o.m.id) ? 6.5 : o.isEnd ? 5.5 : 4.25, dual, o);
     const markPaintedR = (o) => o.isLane2 ? markOuterR(o) : (markOuterR(o) + 1.0);
     const dotBoxes = points.map((d) => {
-      const rr = markOuterR(d) + 3.5;
+      const rr = markPaintedR(d) + 1.5;
+      return { id: d.m.id, px: d.px, py: d.py, x1: d.px - rr, y1: d.py - rr, x2: d.px + rr, y2: d.py + rr };
+    });
+    const dotBoxesStrict = points.map((d) => {
+      const rr = markPaintedR(d) + 1.85;
       return { id: d.m.id, px: d.px, py: d.py, x1: d.px - rr, y1: d.py - rr, x2: d.px + rr, y2: d.py + rr };
     });
     const boxHit = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
@@ -5288,15 +5568,14 @@
     const lblFont = W < 340 ? 8.2 : narrow ? 8.8 : 10.5;
     const subX = subAxisKey(S.x);
     const labelTextOf = (p) => {
-      let nm = subShortName(p.m, narrow);
-      if (W < 340) nm = nm.replace(/^GPT-6\.1 /, 'GPT 6.1 ').replace(/^GPT-6 /, 'GPT 6 ');
+      const nm = subShortName(p.m, narrow);
       const showEff = p.m.effort && p.m.effort !== 'default' && p.m.effort !== 'non-reasoning' && (!p.isEnd || p.m.effort !== 'max');
       const costVal = subX ? (p.rawX ?? p.xv) : (p.rawY ?? p.yv);
       const valStr = S.price === 'pct' ? PM.fmtPct(costVal, p.isLane2) : PM.fmtPlanUsd(costVal, p.isLane2);
       const poolSuffix = (S.price === 'pct' && subEval?.hasOtherPoolLane2 && p.isLane2 && p.subPrice?.poolLabel)
         ? ` · ${p.subPrice.poolLabel.split('·')[1]?.trim() || ''}` : '';
       const core = `${nm}${showEff ? ' ' + p.m.effort : ''}`;
-      if (!isExport && S.valueLabels !== 'off') {
+      if (S.valueLabels !== 'off') {
         if (!valueIds || valueIds.has(p.m.id)) {
           const yTxt = axisValue(p, 'y', Y), xTxt = subX ? (X.ref ? axisValue(p, 'x', X) : valStr) : axisValue(p, 'x', X);
           const vTxt = S.valueLabels === 'y' ? yTxt : S.valueLabels === 'x' ? xTxt : `${xTxt} · ${yTxt}`;
@@ -5309,20 +5588,93 @@
       return includeVal ? `${core} (${valStr}${poolSuffix})` : core;
     };
 
-    const runPlacement = (queue) => {
-      const placedBoxes = [], drawnLeaders = [], drawnLabels = [], droppedLabels = [], droppedFrontierLabels = [], droppedMeasuredLabels = [], placedItems = [];
-      let runMaxLeader = 0;
+    const topMarginAllow = isExport ? 4 : (M.top >= 70 ? 14 : M.top >= 54 ? 10 : 4);
+    const minTopY = Math.max(4, M.top - topMarginAllow);
 
-      for (let qi = 0; qi < queue.length; qi++) {
-        const p = queue[qi];
-        const isFront = !p.isLane2 && effFront(p.m.id);
-        const unplacedFrontier = queue.slice(qi + 1).filter((u) => !u.isLane2 && effFront(u.m.id));
-        const txt = labelTextOf(p);
-        const weight = isFront ? 600 : 500;
-        const tw = measureSvgText(txt, lblFont, weight) + 4;
-        const th = lblFont + 3.5;
-        const off = markPaintedR(p) + 4.5;
+    const findBestPlacementFor = (p, txt, weight, placedBoxes, drawnLeaders, unplacedFrontier = [], allowNear = true) => {
+      const tw = measureSvgText(txt, lblFont, weight) + 4;
+      const th = lblFont + 2.2;
+      const off = markPaintedR(p) + 4.5;
+      const ownDotR = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25;
+      const others = points.filter((o) => o.m.id !== p.m.id);
+      const ownR = markPaintedR(p) + 1.5;
+      const ownOb = { x1: p.px - ownR, y1: p.py - ownR, x2: p.px + ownR, y2: p.py + ownR };
+      const leaderSeg = (ax, ay) => {
+        const dx = ax - p.px, dy = ay - p.py, len = Math.hypot(dx, dy) || 1;
+        let sr = p.isLane2 ? markOuterR(p) - 0.5 : ownDotR + 1.5;
+        if (!p.isLane2) {
+          const ux = dx / len, uy = dy / len;
+          for (const o of others) {
+            const dOp = Math.hypot(o.px - p.px, o.py - p.py);
+            const need = markPaintedR(o) + 2.3;
+            if (dOp < need + sr && ((p.px - o.px) * ux + (p.py - o.py) * uy) > 0) {
+              sr = Math.max(sr, Math.min(ownDotR + 3.8, len * 0.45));
+            }
+          }
+        }
+        sr = Math.min(sr, len * 0.45);
+        return { x1: p.px + (dx / len) * sr, y1: p.py + (dy / len) * sr, x2: ax, y2: ay };
+      };
+      const boxBasePen = (box) => {
+        if (box.x1 < 4 || box.x2 > W - 4 || box.y1 < minTopY || box.y2 > M.top + PH) return 20000;
+        let pen = 0;
+        if (box.x1 < M.left && box.y2 > M.top - 5) {
+          if (!narrow || tickBoxes.some((tb) => boxHit(box, tb))) return 20000;
+          pen += 2200;
+        }
+        for (const pb of placedBoxes) if (boxHit(box, pb)) return 30000;
+        if (boxHit(box, ownOb)) return 25000;
+        for (const db of dotBoxesStrict) if (db.id !== p.m.id && boxHit(box, db)) return 25000;
+        const cy = (box.y1 + box.y2) / 2;
+        for (const o of others) {
+          if (Math.abs(cy - o.py) < 10) {
+            const dx = Math.min(Math.abs(box.x1 - o.px), Math.abs(box.x2 - o.px));
+            if (dx < 19.5) return 15000;
+            if (dx < markPaintedR(o) + 10.5) pen += 650;
+          }
+        }
+        const boxPad = { x1: box.x1 - 1.5, y1: box.y1 - 1.5, x2: box.x2 + 1.5, y2: box.y2 + 1.5 };
+        for (const dl of drawnLeaders) if (segHitsBox(dl.x1, dl.y1, dl.x2, dl.y2, boxPad)) return 25000;
+        for (const fs of segs) if (segHitsBox(fs[0], fs[1], fs[2], fs[3], box)) pen += 300;
+        if (narrow && unplacedFrontier.length) {
+          for (const uf of unplacedFrontier) if (distPointToBox(uf.px, uf.py, box) < 22) pen += 450;
+        }
+        return pen;
+      };
+      const evalCand = (c, preBox = null, prePen = null) => {
+        const box = preBox || { x1: c.bx1 - 1, y1: c.by1 - 1, x2: c.bx1 + tw + 1, y2: c.by1 + th + 1 };
+        let pen = prePen != null ? prePen : boxBasePen(box);
+        if (pen >= 10000) return { ...c, box, pen, seg: null };
+        const seg = c.far ? leaderSeg(c.ax, c.ay) : null;
+        const lDist = seg ? Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1) : 0;
+        if (c.far && lDist > 79.5) return { ...c, box, pen: pen + 25000, seg };
+        const ownBoxD = distPointToBox(p.px, p.py, box);
+        if (c.far) pen += 22 + lDist * 0.42 + Math.abs((box.x1 + box.x2) / 2 - p.px) * 0.22;
+        if (!c.far) {
+          for (const o of others) if (distPointToBox(o.px, o.py, box) < ownBoxD + 7.5) return { ...c, box, pen: pen + 15000, seg };
+        } else {
+          for (const o of others) if (segDist(o.px, o.py, seg.x1, seg.y1, seg.x2, seg.y2) <= markPaintedR(o) + 2.2) return { ...c, box, pen: pen + 25000, seg };
+          for (const pb of placedBoxes) {
+            const pbPad = { x1: pb.x1 - 1.5, y1: pb.y1 - 1.5, x2: pb.x2 + 1.5, y2: pb.y2 + 1.5 };
+            if (segHitsBox(seg.x1, seg.y1, seg.x2, seg.y2, pbPad)) return { ...c, box, pen: pen + 25000, seg };
+          }
+          for (const dl of drawnLeaders) if (segsCross(seg, dl)) return { ...c, box, pen: pen + 25000, seg };
+          if (others.length) {
+            let minOtherD = Infinity;
+            const ownStartD = Math.hypot(p.px - seg.x1, p.py - seg.y1);
+            for (const o of others) {
+              if (Math.hypot(o.px - seg.x1, o.py - seg.y1) <= ownStartD + 0.2) return { ...c, box, pen: pen + 25000, seg };
+              const od = distPointToBox(o.px, o.py, box);
+              if (od < minOtherD) minOtherD = od;
+            }
+            if (ownBoxD > minOtherD) pen += 18 + (ownBoxD - minOtherD) * 0.4;
+          }
+        }
+        return { ...c, box, pen, seg };
+      };
 
+      let best = null, bestPen = Infinity;
+      if (allowNear) {
         const nearCands = [
           { lx: p.px + off, ly: p.py + 3.5, anchor: 'start', bx1: p.px + off, by1: p.py - th / 2, ax: p.px + off, ay: p.py, far: false },
           { lx: p.px - off, ly: p.py + 3.5, anchor: 'end', bx1: p.px - off - tw, by1: p.py - th / 2, ax: p.px - off, ay: p.py, far: false },
@@ -5333,106 +5685,58 @@
           { lx: p.px - off, ly: p.py - off - 1, anchor: 'end', bx1: p.px - off - tw, by1: p.py - off - th + 1, ax: p.px - off, ay: p.py - off + 2, far: false },
           { lx: p.px - off, ly: p.py + off + 9, anchor: 'end', bx1: p.px - off - tw, by1: p.py + off + 9 - th + 2, ax: p.px - off, ay: p.py + off, far: false },
         ];
-
-        const ownDotR = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25;
-        const others = points.filter((o) => o.m.id !== p.m.id);
-        const ownR = markPaintedR(p) + 1.5;
-        const ownOb = { x1: p.px - ownR, y1: p.py - ownR, x2: p.px + ownR, y2: p.py + ownR };
-        const leaderSeg = (ax, ay) => {
-          const dx = ax - p.px, dy = ay - p.py, len = Math.hypot(dx, dy) || 1;
-          const sr = Math.min(p.isLane2 ? markOuterR(p) - 0.5 : ownDotR + 1.5, len * 0.45);
-          return { x1: p.px + (dx / len) * sr, y1: p.py + (dy / len) * sr, x2: ax, y2: ay };
-        };
-        const topMarginAllow = M.top >= 70 ? 14 : M.top >= 54 ? 10 : 4;
-        const minTopY = Math.max(4, M.top - topMarginAllow);
-        const boxBasePen = (box) => {
-          if (box.x1 < 4 || box.x2 > W - 4 || box.y1 < minTopY || box.y2 > M.top + PH) return 20000;
-          if (box.x1 < M.left && box.y2 > M.top - 5) return 20000;
-          for (const pb of placedBoxes) if (boxHit(box, pb)) return 30000;
-          if (boxHit(box, ownOb)) return 25000;
-          for (const db of dotBoxes) if (db.id !== p.m.id && boxHit(box, db)) return 25000;
-          const cy = (box.y1 + box.y2) / 2;
-          for (const o of others) {
-            if (Math.abs(cy - o.py) < 10 && Math.min(Math.abs(box.x1 - o.px), Math.abs(box.x2 - o.px)) < 19.5) return 15000;
-          }
-          const boxPad = { x1: box.x1 - 1.5, y1: box.y1 - 1.5, x2: box.x2 + 1.5, y2: box.y2 + 1.5 };
-          for (const dl of drawnLeaders) if (segHitsBox(dl.x1, dl.y1, dl.x2, dl.y2, boxPad)) return 25000;
-          let pen = 0;
-          for (const fs of segs) if (segHitsBox(fs[0], fs[1], fs[2], fs[3], box)) pen += 300;
-          if (narrow && unplacedFrontier.length) {
-            for (const uf of unplacedFrontier) if (distPointToBox(uf.px, uf.py, box) < 22) pen += 450;
-          }
-          return pen;
-        };
-        const evalCand = (c, preBox = null, prePen = null) => {
-          const box = preBox || { x1: c.bx1 - 1, y1: c.by1 - 1, x2: c.bx1 + tw + 1, y2: c.by1 + th + 1 };
-          let pen = prePen != null ? prePen : boxBasePen(box);
-          if (pen >= 10000) return { ...c, box, pen, seg: null };
-          const seg = c.far ? leaderSeg(c.ax, c.ay) : null;
-          const lDist = seg ? Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1) : 0;
-          if (c.far && lDist > 79.5) return { ...c, box, pen: pen + 25000, seg };
-          const ownBoxD = distPointToBox(p.px, p.py, box);
-          if (c.far) pen += 22 + lDist * 0.42 + Math.abs((box.x1 + box.x2) / 2 - p.px) * 0.22;
-          if (!c.far) {
-            for (const o of others) if (distPointToBox(o.px, o.py, box) < ownBoxD + 5) return { ...c, box, pen: pen + 15000, seg };
-          } else {
-            for (const o of others) if (segDist(o.px, o.py, seg.x1, seg.y1, seg.x2, seg.y2) <= markPaintedR(o) + 2.2) return { ...c, box, pen: pen + 25000, seg };
-            for (const pb of placedBoxes) {
-              const pbPad = { x1: pb.x1 - 1.5, y1: pb.y1 - 1.5, x2: pb.x2 + 1.5, y2: pb.y2 + 1.5 };
-              if (segHitsBox(seg.x1, seg.y1, seg.x2, seg.y2, pbPad)) return { ...c, box, pen: pen + 25000, seg };
-            }
-            for (const dl of drawnLeaders) if (segsCross(seg, dl)) return { ...c, box, pen: pen + 25000, seg };
-            if (others.length) {
-              let minOtherD = Infinity;
-              const ownStartD = Math.hypot(p.px - seg.x1, p.py - seg.y1);
-              for (const o of others) {
-                if (Math.hypot(o.px - seg.x1, o.py - seg.y1) <= ownStartD + 0.2) return { ...c, box, pen: pen + 25000, seg };
-                const od = distPointToBox(o.px, o.py, box);
-                if (od < minOtherD) minOtherD = od;
-              }
-              if (ownBoxD > minOtherD) pen += 18 + (ownBoxD - minOtherD) * 0.4;
-            }
-          }
-          return { ...c, box, pen, seg };
-        };
-
-        let best = null, bestPen = Infinity;
         for (const c of nearCands) {
           const r = evalCand(c);
           if (r.pen < bestPen) { bestPen = r.pen; best = r; if (r.pen === 0) break; }
         }
-        if (!best || bestPen >= 10000) {
-          const yMin = Math.max(Math.ceil(th) + 4, M.top + Math.ceil(th) - (topMarginAllow + 1));
-          const yMax = M.top + PH - 4;
-          const stepX = narrow ? 3 : 10, stepY = narrow ? 3 : 7;
-          const yLo = Math.max(yMin, yMin + Math.max(0, Math.floor((p.py - 84 - yMin) / stepY)) * stepY);
-          const yHi = Math.min(yMax, Math.ceil(p.py + th + 84));
-          for (let ly = yLo; ly <= yHi; ly += stepY) {
-            const by1 = ly - th + 2;
-            const xMin = (narrow && by1 + th + 1 <= M.top - 5) ? 10 : Math.max(6, M.left + 2);
-            const xMax = Math.max(xMin, W - 6 - tw);
-            const xLo = Math.max(xMin, xMin + Math.max(0, Math.floor((p.px - tw - 84 - xMin) / stepX)) * stepX);
-            const xHi = Math.min(xMax, Math.ceil(p.px + 84));
-            for (let lx = xLo; lx <= xHi; lx += stepX) {
-              const b = { x1: lx - 1, y1: by1 - 1, x2: lx + tw + 1, y2: by1 + th + 1 };
-              if (distPointToBox(p.px, p.py, b) > 84) continue;
-              const bp = boxBasePen(b);
-              if (bp >= 10000 || bp >= bestPen) continue;
-              const cx = Math.max(b.x1, Math.min(b.x2, p.px)), cy = Math.max(b.y1, Math.min(b.y2, p.py));
-              const candAnchors = [[cx, cy]];
-              if (p.py < b.y1 || p.py > b.y2) {
-                candAnchors.push([b.x1 + 2, cy], [b.x2 - 2, cy], [Math.max(b.x1, Math.min(b.x2, p.px - 14)), cy], [Math.max(b.x1, Math.min(b.x2, p.px + 14)), cy]);
-              }
-              if (p.px <= b.x1) candAnchors.push([b.x1, b.y1], [b.x1, b.y2]);
-              else if (p.px >= b.x2) candAnchors.push([b.x2, b.y1], [b.x2, b.y2]);
-              for (const [ax, ay] of candAnchors) {
-                const r = evalCand({ lx, ly, anchor: 'start', bx1: lx, by1, ax, ay, far: true }, b, bp);
-                if (r.pen < bestPen) { bestPen = r.pen; best = r; }
-              }
+      }
+      if (!best || bestPen >= 10000) {
+        const yMin = Math.max(Math.ceil(th) + 4, minTopY + Math.ceil(th) - 1);
+        const yMax = M.top + PH - 4;
+        const stepX = narrow ? 3 : 8, stepY = narrow ? 2 : 6;
+        const yLo = Math.max(yMin, yMin + Math.max(0, Math.floor((p.py - 84 - yMin) / stepY)) * stepY);
+        const yHi = Math.min(yMax, Math.ceil(p.py + th + 84));
+        for (let ly = yLo; ly <= yHi; ly += stepY) {
+          const by1 = ly - th + 2;
+          const xMin = narrow ? 6 : Math.max(6, M.left + 2);
+          const xMax = Math.max(xMin, W - 6 - tw);
+          const xLo = Math.max(xMin, xMin + Math.max(0, Math.floor((p.px - tw - 84 - xMin) / stepX)) * stepX);
+          const xHi = Math.min(xMax, Math.ceil(p.px + 84));
+          for (let lx = xLo; lx <= xHi; lx += stepX) {
+            const b = { x1: lx - 1, y1: by1 - 0.5, x2: lx + tw + 1, y2: by1 + th + 0.5 };
+            if (distPointToBox(p.px, p.py, b) > 84) continue;
+            const bp = boxBasePen(b);
+            if (bp >= 10000 || bp >= bestPen) continue;
+            const cx = Math.max(b.x1, Math.min(b.x2, p.px)), cy = Math.max(b.y1, Math.min(b.y2, p.py));
+            const candAnchors = [[cx, cy]];
+            if (p.py < b.y1 || p.py > b.y2) {
+              candAnchors.push([b.x1 + 2, cy], [b.x2 - 2, cy], [Math.max(b.x1, Math.min(b.x2, p.px - 14)), cy], [Math.max(b.x1, Math.min(b.x2, p.px + 14)), cy]);
+            }
+            if (p.px <= b.x1) candAnchors.push([b.x1, b.y1], [b.x1, b.y2]);
+            else if (p.px >= b.x2) candAnchors.push([b.x2, b.y1], [b.x2, b.y2]);
+            for (const [ax, ay] of candAnchors) {
+              const r = evalCand({ lx, ly, anchor: 'start', bx1: lx, by1, ax, ay, far: true }, b, bp);
+              if (r.pen < bestPen) { bestPen = r.pen; best = r; }
             }
           }
         }
-        if (!best || bestPen >= 10000) {
+      }
+      return best && bestPen < 10000 ? best : null;
+    };
+
+    const runPlacement = (queue) => {
+      const placedBoxes = quadHintBox ? [quadHintBox] : [];
+      const drawnLeaders = [], drawnLabels = [], droppedLabels = [], droppedFrontierLabels = [], droppedMeasuredLabels = [], placedItems = [];
+      let runMaxLeader = 0;
+
+      for (let qi = 0; qi < queue.length; qi++) {
+        const p = queue[qi];
+        const isFront = !p.isLane2 && effFront(p.m.id);
+        const unplacedFrontier = queue.slice(qi + 1).filter((u) => !u.isLane2 && effFront(u.m.id));
+        const txt = labelTextOf(p);
+        const weight = isFront ? 600 : 500;
+        const best = findBestPlacementFor(p, txt, weight, placedBoxes, drawnLeaders, unplacedFrontier, true);
+        if (!best) {
           droppedLabels.push(txt);
           if (isFront) droppedFrontierLabels.push(txt);
           if (!p.isLane2) droppedMeasuredLabels.push(txt);
@@ -5474,7 +5778,7 @@
         ))
       ) bestRun = cand;
     };
-    if ((bestRun.droppedFrontierLabels.length > 0 || bestRun.droppedMeasuredLabels.length > 0) && baseQueue.length <= 35) {
+    if ((bestRun.droppedFrontierLabels.length > 0 || bestRun.droppedMeasuredLabels.length > 0) && baseQueue.length <= 60) {
       const dropIdx = baseFront.findIndex((f) => !bestRun.placedItems.some((pi) => pi.p.m.id === f.m.id));
       if (dropIdx > 0) {
         for (let pos = dropIdx - 1; pos >= 0; pos--) {
@@ -5487,7 +5791,7 @@
         const allMeasured = [...baseFront, ...measuredNonFront];
         considerRun(allMeasured.slice().sort((a, b) => (nearestMarkDist.get(a.m.id) - nearestMarkDist.get(b.m.id)) || b.yv - a.yv), estItems);
         let curOrder = allMeasured.slice();
-        for (let pass = 0; pass < 2 && bestRun.droppedMeasuredLabels.length > 0; pass++) {
+        for (let pass = 0; pass < 3 && bestRun.droppedMeasuredLabels.length > 0; pass++) {
           const dropSet = new Set(curOrder.filter((m) => !bestRun.placedItems.some((pi) => pi.p.m.id === m.m.id)).map((m) => m.m.id));
           if (!dropSet.size) break;
           const promoted = [...curOrder.filter((m) => dropSet.has(m.m.id)), ...curOrder.filter((m) => !dropSet.has(m.m.id))];
@@ -5498,10 +5802,19 @@
     }
 
     const drawnMeta = [];
-    for (const item of bestRun.placedItems) {
-      const { p, txt, best, leaderCoords, weight } = item;
-      const isDim = dimmed(p);
-      const into = isDim ? faded : textLayer;
+    const checkRealBboxBad = (p, realBox, far, leaderCoords) => {
+      const cy = (realBox.y1 + realBox.y2) / 2, ownD = distPointToBox(p.px, p.py, realBox);
+      return realBox.x1 < 0 || realBox.x2 > W ||
+        (quadHintBox && boxHit(realBox, quadHintBox)) ||
+        drawnMeta.some((d) => boxHit(realBox, d.realBox)) ||
+        dotBoxes.some((db) => db.id !== p.m.id && boxHit(realBox, db)) ||
+        points.some((o) => o.m.id !== p.m.id && Math.abs(cy - o.py) < 9 && Math.min(Math.abs(realBox.x1 - o.px), Math.abs(realBox.x2 - o.px)) < 18) ||
+        (!far && points.some((o) => o.m.id !== p.m.id && distPointToBox(o.px, o.py, realBox) < ownD + 4.2)) ||
+        drawnMeta.some((d) => d.leader && segHitsBox(d.leader.x1, d.leader.y1, d.leader.x2, d.leader.y2, realBox)) ||
+        (leaderCoords && drawnMeta.some((d) => segHitsBox(leaderCoords.x1, leaderCoords.y1, leaderCoords.x2, leaderCoords.y2, d.realBox)));
+    };
+    const renderOneLabel = (p, txt, best, leaderCoords, weight) => {
+      const isDim = dimmed(p), into = isDim ? faded : textLayer;
       let leadEl = null;
       if (leaderCoords) {
         leadEl = svgEl('line', {
@@ -5524,17 +5837,27 @@
         const bb = lblEl.getBBox();
         if (bb && bb.width > 0 && bb.height > 0) realBox = { x1: bb.x, y1: bb.y, x2: bb.x + bb.width, y2: bb.y + bb.height };
       } catch {}
-      // Cross-engine (WebKit/Chromium) real-bbox guard: drop a secondary estimate label if font metrics push it into a violation
-      if (p.isLane2) {
-        const cy = (realBox.y1 + realBox.y2) / 2, ownD = distPointToBox(p.px, p.py, realBox);
-        const badBbox = realBox.x1 < 0 || realBox.x2 > W ||
-          drawnMeta.some((d) => boxHit(realBox, d.realBox)) ||
-          dotBoxes.some((db) => db.id !== p.m.id && boxHit(realBox, db)) ||
-          points.some((o) => o.m.id !== p.m.id && Math.abs(cy - o.py) < 9 && Math.min(Math.abs(realBox.x1 - o.px), Math.abs(realBox.x2 - o.px)) < 18) ||
-          (!best.far && points.some((o) => o.m.id !== p.m.id && distPointToBox(o.px, o.py, realBox) < ownD + 4)) ||
-          drawnMeta.some((d) => d.leader && segHitsBox(d.leader.x1, d.leader.y1, d.leader.x2, d.leader.y2, realBox)) ||
-          (leaderCoords && drawnMeta.some((d) => segHitsBox(leaderCoords.x1, leaderCoords.y1, leaderCoords.x2, leaderCoords.y2, d.realBox)));
-        if (badBbox) { lblEl.remove(); leadEl?.remove(); continue; }
+      return { lblEl, leadEl, realBox };
+    };
+    for (const item of bestRun.placedItems) {
+      let { p, txt, best, leaderCoords, weight } = item;
+      let { lblEl, leadEl, realBox } = renderOneLabel(p, txt, best, leaderCoords, weight);
+      // Cross-engine (WebKit/Chromium) real-bbox guard: repair any near-label violation via leader fallback; drop bad Lane-2 labels.
+      if (checkRealBboxBad(p, realBox, best.far, leaderCoords)) {
+        if (!p.isLane2) {
+          lblEl.remove(); leadEl?.remove();
+          const curBoxes = (quadHintBox ? [quadHintBox] : []).concat(drawnMeta.map((d) => d.realBox));
+          const curLeaders = drawnMeta.filter((d) => d.leader).map((d) => d.leader);
+          const repaired = findBestPlacementFor(p, txt, weight, curBoxes, curLeaders, [], false);
+          if (repaired) {
+            best = repaired; leaderCoords = repaired.seg;
+            ({ lblEl, leadEl, realBox } = renderOneLabel(p, txt, best, leaderCoords, weight));
+          } else {
+            ({ lblEl, leadEl, realBox } = renderOneLabel(p, txt, item.best, item.leaderCoords, weight));
+          }
+        } else {
+          lblEl.remove(); leadEl?.remove(); continue;
+        }
       }
       drawnMeta.push({ p, el: lblEl, leadEl, far: best.far, leader: leaderCoords, realBox });
     }
@@ -7377,7 +7700,20 @@
   // good/bad ratio colours use readable() (see textColor): the theme's green and red, deepened until they read as text
   function compareBlock(ref, p, several) {
     const a = ref.m, b = p.m, subOn = subLensActive();
-    const valOf = (pt, k) => (subOn && subAxisKey(k)) ? (k === S.x ? (pt.rawX ?? pt.xv) : k === S.y ? (pt.rawY ?? pt.yv) : pt.m[k]) : pt.m[k];
+    const prCache = new Map();
+    const subInfoOf = (pt, k) => {
+      if (!subOn || !subAxisKey(k)) return null;
+      const ck = `${pt.m.id}::${k}`;
+      if (!prCache.has(ck)) prCache.set(ck, subPriceOf(pt.m, k, subProfile, S.price));
+      return prCache.get(ck);
+    };
+    const valOf = (pt, k) => {
+      if (subOn && subAxisKey(k)) {
+        const prK = subInfoOf(pt, k);
+        return prK && !prK.omitted ? prK.val : null;
+      }
+      return pt.m[k];
+    };
     const keys = [...new Set([S.y, S.x, ...CMP_KEYS])].filter((k) => METRICS[k] && valOf(ref, k) != null && valOf(p, k) != null);
     if (!keys.length) return { keys, html: '' };
     const good = readable(css('--s3')), bad = readable(css('--s8'));
@@ -7385,8 +7721,9 @@
       const M = effectiveMetric(k, subOn, S.price), av = valOf(ref, k), bv = valOf(p, k), r = bv / av, ok = r > 0 && Number.isFinite(r);
       const better = ok && Math.abs(r - 1) >= 0.005 ? (r < 1) === (M.better === 'low') : null;
       const title = !ok ? 'No ratio: a value is zero or below' : `This ÷ pinned: ${+r.toPrecision(3)}×` + (better == null ? '' : ` (${better ? 'better' : 'worse'}: ${M.better === 'low' ? 'lower' : 'higher'} is better)`);
-      const fmtA = (subOn && subAxisKey(k) && ref.isLane2) ? (S.price === 'pct' ? PM.fmtPct(av, true) : PM.fmtPlanUsd(av, true)) : M.fmt(av);
-      const fmtB = (subOn && subAxisKey(k) && p.isLane2) ? (S.price === 'pct' ? PM.fmtPct(bv, true) : PM.fmtPlanUsd(bv, true)) : M.fmt(bv);
+      const prA = subInfoOf(ref, k), prB = subInfoOf(p, k);
+      const fmtA = (subOn && subAxisKey(k) && prA) ? (S.price === 'pct' ? PM.fmtPct(av, prA.lane === 2) : PM.fmtPlanUsd(av, prA.lane === 2)) : M.fmt(av);
+      const fmtB = (subOn && subAxisKey(k) && prB) ? (S.price === 'pct' ? PM.fmtPct(bv, prB.lane === 2) : PM.fmtPlanUsd(bv, prB.lane === 2)) : M.fmt(bv);
       return `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${esc(M.label)}</td><td class="pin">${fmtA}</td><td>${fmtB}</td><td class="x"${better == null ? '' : ` style="color:${better ? good : bad}"`} title="${esc(title)}">${times(r)}</td></tr>`;
     }).join('');
     return { keys, html: `<div class="t-cmp"><div class="t-cmp-head"><i style="background:${ref.color}"></i><span>vs <b>${esc(a.label)}</b>${several ? ', the last pinned' : ''}${isEst(a) ? ' · estimated' : ''}</span></div>
@@ -7452,8 +7789,9 @@
       .filter((k) => m[k] != null && !cmp.keys.includes(k))
       .map((k) => {
         const relative = relOf(k), mk = effectiveMetric(k, subOn, S.price);
-        const val = (subOn && subAxisKey(k) && pr && !pr.omitted)
-          ? (S.price === 'pct' ? PM.fmtPct(pr.pctSelected, pr.lane === 2) : PM.fmtPlanUsd(pr.planCost, pr.lane === 2))
+        const prK = (subOn && subAxisKey(k)) ? subPriceOf(m, k, subProfile, S.price) : null;
+        const val = (prK && !prK.omitted)
+          ? (S.price === 'pct' ? PM.fmtPct(prK.pctSelected, prK.lane === 2) : PM.fmtPlanUsd(prK.planCost, prK.lane === 2))
           : mk.fmt(m[k]);
         return `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${esc(mk.label)}</td><td>${val}${relative ? `<br><span class="note">${esc(relative)}</span>` : ''}</td></tr>${k === 'planCost' && m.planInfo ? `<tr class="plan-info"><td colspan="2" class="note">${esc(m.planInfo).replace(/\n/g, '<br>')}</td></tr>` : ''}`;
       }).join('');
@@ -7619,211 +7957,57 @@
     lines.forEach((t, i) => g.append(svgEl('text', { x: x0 + sw + 8, y: cy + 4 + (i - (lines.length - 1) / 2) * 15, fill: css('--ink-2'), 'font-size': size }, t)));
     clone.append(g);
   }
-  function renderIsolatedExportSvg(opts = {}) {
-    const isSub = subLensActive(), isLeg = legacyAxisActive();
-    const expW = opts.width || Math.max(320, Math.round(+svg.getAttribute('width') || $('chartCard').clientWidth || 780));
-    const narrow = expW < 460;
-    const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis'), accent: css('--accent') };
-    const dual = dualMode();
-    const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort) && !superseded(m));
-    const pubEst = opts.pubEst !== undefined ? !!opts.pubEst : (subPubDefaultEstOverride !== null ? subPubDefaultEstOverride : PM.PUBLIC_DEFAULT_ESTIMATES);
-    const pubProfile = PM.getExampleProfile(PLAN_CAT, 'entry', pubEst);
-
-    let prevSubPlans = SUB_PLANS, prevPlanFee = PLAN_FEE;
-    const hostDiv = document.createElement('div');
-    hostDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none';
-    const isoSvg = svgEl('svg', { xmlns: 'http://www.w3.org/2000/svg', 'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif' });
-    hostDiv.append(isoSvg);
-    document.body.append(hostDiv);
-
-    try {
-      if (isLeg) { SUB_PLANS = {}; PLAN_FEE = 20; derive(); }
-      const X = effectiveMetric(S.x, isSub, S.price), Y = effectiveMetric(S.y, isSub, S.price);
-      const subX = isSub && subAxisKey(S.x), subY = isSub && subAxisKey(S.y);
-      const valOf = (m, k) => {
-        if (!isSub || !subAxisKey(k)) return m[k];
-        const pr = subPriceOf(m, k, pubProfile, S.price);
-        return pr && !pr.omitted ? pr.val : null;
-      };
-      const pts = [], omitted = [];
-      for (const m of chosen) {
-        const pr = isSub ? subPriceOf(m, subX ? S.x : S.y, pubProfile, S.price) : null;
-        if (isSub && pr?.omitted) {
-          const otherOk = subX ? scaleOk(S.yScale, m[S.y]) : scaleOk(S.xScale, m[S.x]);
-          if (otherOk && (pr.reasonCode !== 'unavailable_cost' || (BASIS !== 'aa' && m.costPerTask > 0))) {
-            omitted.push({ id: m.id, m, name: m.familyName, short: subShortName(m, true), effort: m.effort, price: pr });
-          }
-          continue;
-        }
-        const xv = valOf(m, S.x), yv = valOf(m, S.y);
-        if (scaleOk(S.xScale, xv) && scaleOk(S.yScale, yv)) {
-          pts.push({ m, xv, yv, rawX: xv, rawY: yv, subPrice: pr, isLane2: !!(isSub && pr?.lane === 2), lab: idColorOf(m), val: idColorOf(m), color: colorOf(m) });
-        }
-      }
-      if (opts.extraOmitted?.length) omitted.push(...opts.extraOmitted);
-
-      const expEval = isSub ? PM.evaluateComparison(
-        pts.map((p) => ({ id: p.m.id, m: p.m, name: p.m.familyName, short: subShortName(p.m, true), effort: p.m.effort, xv: p.xv, yv: p.yv, price: p.subPrice })).concat(omitted),
-        { mode: S.price, xField: 'xv', yField: 'yv', xBetter: X.better, yBetter: Y.better }
-      ) : null;
-
-      const caption = isLeg
-        ? (S.x === 'planTasks' || S.y === 'planTasks' ? PM.DISCLOSURES.legacyExportTitleTasks : PM.DISCLOSURES.legacyExportTitleCost)
-        : (S.price === 'pct' ? '% of week · Example entry plans' : 'Plan $ · Example entry plans');
-      const showEstKey = isSub && expEval && (expEval.lane2.length > 0 || (expEval.comparable && expEval.frontierSteps.length >= 2));
-      const hasLane2 = !!(isSub && expEval && expEval.lane2.length > 0);
-      const footerRes = (isSub && omitted.length)
-        ? PM.formatOmissionFooter(omitted, expW - 20, (t) => measureSvgText(t, narrow ? 8.5 : 10, 400), { useShortNames: narrow })
-        : null;
-
-      const topPad = showEstKey ? (narrow && hasLane2 ? 68 : 54) : 38;
-      const botPad = footerRes ? 64 : 46;
-      const M = { top: topPad, right: narrow ? 16 : 28, bottom: botPad, left: narrow ? 42 : 56 };
-      const expH = opts.height || (narrow ? 390 : 440);
-      const PW = expW - M.left - M.right, PH = expH - M.top - M.bottom;
-
-      isoSvg.setAttribute('width', expW); isoSvg.setAttribute('height', expH); isoSvg.setAttribute('viewBox', `0 0 ${expW} ${expH}`);
-      isoSvg.append(svgEl('rect', { x: 0, y: 0, width: expW, height: expH, fill: C.surface }));
-
-      // Export caption + inline frontier & bead-ring key (2-line stack on narrow widths so 0 text clips at 320px!)
-      const titleX = narrow ? 10 : M.left;
-      const titleSize = narrow ? 12 : 14;
-      isoSvg.append(svgEl('text', { id: 'exportCaption', x: titleX, y: 20, fill: C.ink, 'font-size': titleSize, 'font-weight': 700 }, caption));
-      if (showEstKey) {
-        const fTxt = expEval.comparable ? expEval.frontierKeyLabel : '';
-        const kFont = narrow ? 8.5 : 10.2;
-        if (narrow) {
-          let ky = 35;
-          if (fTxt) {
-            isoSvg.append(svgEl('line', { x1: titleX, y1: ky - 3, x2: titleX + 12, y2: ky - 3, stroke: C.ink, 'stroke-width': 1.5, 'stroke-opacity': 0.55, 'stroke-linecap': 'round' }));
-            isoSvg.append(svgEl('text', { x: titleX + 16, y: ky, fill: C.ink2, 'font-size': kFont }, fTxt));
-            ky += 14;
-          }
-          if (hasLane2) {
-            const bx = titleX + 6;
-            for (let i = 0; i < 10; i++) {
-              const a = (i * 36 - 90) * Math.PI / 180;
-              isoSvg.append(svgEl('circle', { cx: (bx + Math.cos(a) * 4.6).toFixed(2), cy: (ky - 3 + Math.sin(a) * 4.6).toFixed(2), r: 0.8, fill: C.ink, stroke: C.surface, 'stroke-width': 1.1, 'paint-order': 'stroke fill' }));
-            }
-            isoSvg.append(svgEl('circle', { cx: bx, cy: ky - 3, r: 2.2, fill: C.accent }));
-            isoSvg.append(svgEl('text', { x: bx + 9, y: ky, fill: C.ink2, 'font-size': kFont }, PM.DISCLOSURES.lane2Key));
-          }
-        } else {
-          const ky = 35;
-          let curX = titleX;
-          if (fTxt) {
-            isoSvg.append(svgEl('line', { x1: curX, y1: ky - 3, x2: curX + 13, y2: ky - 3, stroke: C.ink, 'stroke-width': 1.5, 'stroke-opacity': 0.55, 'stroke-linecap': 'round' }));
-            isoSvg.append(svgEl('text', { x: curX + 17, y: ky, fill: C.ink2, 'font-size': kFont }, fTxt));
-            curX += 17 + measureSvgText(fTxt, kFont, 400) + 18;
-          }
-          if (hasLane2) {
-            const bx = curX;
-            for (let i = 0; i < 10; i++) {
-              const a = (i * 36 - 90) * Math.PI / 180;
-              isoSvg.append(svgEl('circle', { cx: (bx + Math.cos(a) * 5).toFixed(2), cy: (ky - 3 + Math.sin(a) * 5).toFixed(2), r: 0.85, fill: C.ink, stroke: C.surface, 'stroke-width': 1.2, 'paint-order': 'stroke fill' }));
-            }
-            isoSvg.append(svgEl('circle', { cx: bx, cy: ky - 3, r: 2.4, fill: C.accent }));
-            isoSvg.append(svgEl('text', { x: bx + 10, y: ky, fill: C.ink2, 'font-size': kFont }, PM.DISCLOSURES.lane2Key));
-          }
-        }
-      }
-
-      let labelAudit = { overlaps: 0, dotOverlaps: 0, misattached: 0, sameRowHits: 0, leaderThroughOtherMark: 0, leaderThroughOtherLabel: 0, leaderCrossLeader: 0, maxLeaderLenRaw: 0, drawn: 0, drawnMeasuredIds: [], drawnEstimateIds: [], droppedFrontierCount: 0, droppedMeasuredCount: 0 };
-      if (pts.length) {
-        const sx = makeScale(pts.map((p) => p.xv), S.xScale, [M.left, M.left + PW], false, narrow ? 4 : 6);
-        const sy = makeScale(pts.map((p) => p.yv), S.yScale, [M.top + PH, M.top], false, 5);
-        for (const p of pts) { p.vx = sx.f(p.xv); p.vy = sy.f(p.yv); p.px = p.vx; p.py = p.vy; }
-
-        // Grid + ticks (anti-clipped)
-        const g = svgEl('g');
-        const thinT = (ticks, f, gap) => { const out = []; for (const t of ticks) if (out.every((v) => Math.abs(f(t) - f(v)) >= gap)) out.push(t); return out.sort((a, b) => a - b); };
-        sx.ticks = thinT(sx.ticks, sx.f, Math.max(...sx.ticks.map((t) => measureSvgText(X.fmt(t), 10.5, 400))) + 10);
-        sy.ticks = thinT(sy.ticks.slice().reverse(), sy.f, 20);
-        for (const t of sy.ticks) {
-          const y = sy.f(t);
-          g.append(svgEl('line', { x1: M.left, x2: M.left + PW, y1: y, y2: y, stroke: C.grid, 'stroke-width': 1 }));
-          g.append(svgEl('text', { x: M.left - 6, y: y + 4, 'text-anchor': 'end', fill: C.muted, 'font-size': 10.5 }, Y.fmt(t)));
-        }
-        for (const t of sx.ticks) {
-          const x = sx.f(t), txt = X.fmt(t), tw = measureSvgText(txt, 10.5, 400);
-          g.append(svgEl('line', { x1: x, x2: x, y1: M.top, y2: M.top + PH, stroke: C.grid, 'stroke-width': 1 }));
-          let tx = x, anchor = 'middle';
-          if (x + tw / 2 > expW - 2) { tx = Math.min(x, expW - 2); anchor = 'end'; }
-          else if (x - tw / 2 < 2) { tx = Math.max(x, 2); anchor = 'start'; }
-          g.append(svgEl('text', { x: tx, y: M.top + PH + 16, 'text-anchor': anchor, fill: C.muted, 'font-size': 10.5 }, txt));
-        }
-        g.append(svgEl('line', { x1: M.left, x2: M.left + PW, y1: M.top + PH, y2: M.top + PH, stroke: C.axis }));
-        g.append(svgEl('line', { x1: M.left, x2: M.left, y1: M.top, y2: M.top + PH, stroke: C.axis }));
-        const xTitle = isLeg
-          ? (S.x === 'planTasks' ? PM.DISCLOSURES.legacyExportAxisTasks : S.x === 'planCost' ? PM.DISCLOSURES.legacyExportAxisCost : X.label)
-          : `${X.label}  ${X.better === 'low' ? '← better' : 'better →'}`;
-        let xFont = narrow ? 10 : 11.5;
-        while (xFont > 7.5 && measureSvgText(xTitle, xFont, 500) > expW - 12) xFont -= 0.5;
-        g.append(svgEl('text', { class: 'export-x-axis', x: M.left + PW / 2, y: M.top + PH + 33, 'text-anchor': 'middle', fill: C.ink2, 'font-size': xFont, 'font-weight': 500 }, xTitle));
-        isoSvg.append(g);
-
-        // Series & frontier
-        const bySeries = new Map();
-        for (const p of pts) {
-          const k = p.m.family + (p.m.effort === 'non-reasoning' ? ':nr' : '');
-          (bySeries.get(k) || bySeries.set(k, []).get(k)).push(p);
-        }
-        const segs = [];
-        const lineLayer = svgEl('g'); isoSvg.append(lineLayer);
-        const front = (!isSub || expEval.comparable) && S.pareto !== 'off' ? paretoFront(isSub ? pts.filter((p) => !p.isLane2) : pts) : [];
-        const frontSet = new Set(front.map((p) => p.m.id));
-        if (front.length) {
-          const vs = [[front[0].px, front[0].py]];
-          for (let i = 1; i < front.length; i++) {
-            if (S.pareto === 'step') vs.push([front[i].px, front[i - 1].py]);
-            vs.push([front[i].px, front[i].py]);
-          }
-          for (let i = 1; i < vs.length; i++) segs.push([...vs[i - 1], ...vs[i]]);
-          if (S.frontStyle === 'shade') {
-            const xWorse = X.better === 'low' ? M.left + PW : M.left, yWorse = Y.better === 'low' ? M.top : M.top + PH;
-            lineLayer.append(svgEl('polygon', { points: [[front[0].px, yWorse], ...vs, [xWorse, front.at(-1).py], [xWorse, yWorse]].map((q) => q.join(',')).join(' '), fill: C.ink, 'fill-opacity': 0.045 }));
-          }
-          lineLayer.append(svgEl('polyline', { points: vs.map((q) => q.join(',')).join(' '), fill: 'none', stroke: C.ink, 'stroke-width': 1.5, 'stroke-opacity': 0.5, 'stroke-linejoin': 'round' }));
-        }
-        for (const ps of bySeries.values()) {
-          ps.sort((a, b) => a.m.effortLevel - b.m.effortLevel || a.xv - b.xv);
-          const endP = ps.at(-1);
-          ps.forEach((p) => { p.series = ps; p.isEnd = p === endP; });
-          if (S.connect && ps.length >= 2) {
-            for (let i = 1; i < ps.length; i++) segs.push([ps[i - 1].px, ps[i - 1].py, ps[i].px, ps[i].py]);
-            lineLayer.append(svgEl('polyline', { points: ps.map((p) => `${p.px},${p.py}`).join(' '), fill: 'none', stroke: familyColor(ps[0].m), 'stroke-width': 1.6, 'stroke-opacity': 0.75 }));
-          }
-        }
-        const dotLayer = svgEl('g'); isoSvg.append(dotLayer);
-        for (const p of pts) {
-          const r = p.isEnd ? 5.5 : 4.25;
-          if (p.isLane2) appendBeadRing(dotLayer, p, r, C.surface, C.ink, dual);
-          dotLayer.append(dotMark(p, r, C.surface, { 'data-id': p.m.id, 'data-fam': p.m.family }, dual));
-        }
-        const lblLayer = svgEl('g'); isoSvg.append(lblLayer);
-        labelAudit = placeSubLabels(pts, frontSet, lblLayer, { M, PW, PH, W: expW, C, X, Y, segs, dimmed: () => false, narrow, dual, subEval: expEval, isExport: true });
-      }
-      if (footerRes && footerRes.text) {
-        isoSvg.append(svgEl('text', { id: 'omissionFooter', x: 10, y: expH - 10, fill: C.ink2, 'font-size': narrow ? 8.5 : 10 }, footerRes.text));
-      }
-      const clippedTexts = [];
-      for (const t of isoSvg.querySelectorAll('text')) {
-        try {
-          const bb = t.getBBox();
-          if (bb.width > 0 && (bb.x < -0.5 || bb.x + bb.width > expW + 0.5)) {
-            clippedTexts.push({ text: t.textContent, x: +bb.x.toFixed(1), x2: +(bb.x + bb.width).toFixed(1), svgW: expW });
-          }
-        } catch {}
-      }
-      labelAudit.clippedTexts = clippedTexts;
-      return { text: new XMLSerializer().serializeToString(isoSvg), width: expW, height: expH, footerRes, caption, showEstKey, labelAudit };
-    } finally {
-      hostDiv.remove();
-      if (isLeg) { SUB_PLANS = prevSubPlans; PLAN_FEE = prevPlanFee; derive(); }
-    }
-  }
   function svgString(opts = {}) {
-    if (PM && (subLensActive() || legacyAxisActive())) return renderIsolatedExportSvg(opts);
+    if (PM && (subLensActive() || legacyAxisActive())) {
+      const isSub = subLensActive(), isLeg = legacyAxisActive();
+      const card = $('chartCard'), cs = getComputedStyle(card);
+      const liveW = Math.round(+svg.getAttribute('width') || Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))));
+      const expW = opts.width || liveW;
+      const pubEst = opts.pubEst !== undefined ? !!opts.pubEst : (subPubDefaultEstOverride !== null ? subPubDefaultEstOverride : PM.PUBLIC_DEFAULT_ESTIMATES);
+      const prevSubProfile = subProfile, prevSubPlans = SUB_PLANS, prevPlanFee = PLAN_FEE, prevExportCtx = exportCtx;
+      const prevSvgHidden = svg.hidden;
+      try {
+        if (isSub) subProfile = PM.getExampleProfile(PLAN_CAT, 'entry', pubEst);
+        if (isLeg) { SUB_PLANS = {}; PLAN_FEE = DEFAULT_STATE.planPrice; derive(); }
+        svg.hidden = false;
+        exportCtx = { active: true, width: expW, height: opts.height || null, extraOmitted: opts.extraOmitted || [], isSub, isLeg, caption: '', showEstKey: false, footerRes: null, labelAudit: null };
+        render();
+        const clippedTexts = [];
+        const sr = svg.getBoundingClientRect();
+        for (const t of svg.querySelectorAll('text')) {
+          try {
+            const tr = t.getBoundingClientRect();
+            if (tr.width > 0 && tr.height > 0 && sr.width > 0) {
+              const left = tr.left - sr.left, right = tr.right - sr.left, top = tr.top - sr.top, bottom = tr.bottom - sr.top;
+              if (left < -0.8 || right > sr.width + 0.8 || top < -0.8 || bottom > sr.height + 0.8) {
+                clippedTexts.push({ text: t.textContent, left: +left.toFixed(1), right: +right.toFixed(1), top: +top.toFixed(1), bottom: +bottom.toFixed(1), svgW: +sr.width.toFixed(1), svgH: +sr.height.toFixed(1) });
+              }
+            }
+          } catch {}
+        }
+        const clone = svg.cloneNode(true);
+        clone.querySelector('#hoverLayer')?.remove(); clone.querySelector('#hit')?.remove();
+        addColorKey(clone);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clone.setAttribute('font-family', 'system-ui, -apple-system, Segoe UI, sans-serif');
+        const labelAudit = { ...(exportCtx.labelAudit || {}), clippedTexts };
+        return {
+          text: new XMLSerializer().serializeToString(clone),
+          width: +clone.getAttribute('width'),
+          height: +clone.getAttribute('height'),
+          footerRes: exportCtx.footerRes,
+          caption: exportCtx.caption,
+          showEstKey: exportCtx.showEstKey,
+          labelAudit,
+        };
+      } finally {
+        exportCtx = prevExportCtx;
+        subProfile = prevSubProfile;
+        if (isLeg) { SUB_PLANS = prevSubPlans; PLAN_FEE = prevPlanFee; derive(); }
+        svg.hidden = prevSvgHidden;
+        render();
+      }
+    }
     const clone = svg.cloneNode(true);
     clone.querySelector('#hoverLayer')?.remove(); clone.querySelector('#hit')?.remove();
     addColorKey(clone);
@@ -8090,8 +8274,6 @@
       urlY: qp.get('y'),
       urlPrice: qp.get('price'),
     });
-    const rawNow = qp.get('now');
-    if (rawNow && Number.isFinite(Date.parse(rawNow))) subClockOverride = rawNow;
   }
   if (qp.has('mix')) S.customWeights = PriorsFit.parseMix(qp.get('mix'), mixKeys());
   if (qp.has('mixCover')) S.customCover = mixCover(qp.get('mixCover'));
@@ -8176,21 +8358,6 @@
     $('zeroApiBtn').addEventListener('click', () => { S.price = 'api'; subLegacyNotice = null; markDirty(); syncControls(); save(); render(); });
     addEventListener('resize', () => { if (subPopOpen) positionPlansPop(); });
   }
-  window.__AIMF_SUB = {
-    getState: () => ({ x: S.x, y: S.y, price: S.price, basis: BASIS, activeSet: S.activeSet, selected: [...S.selected] }),
-    getProfile: () => JSON.parse(JSON.stringify(subProfile)),
-    setProfile: (next) => { subProfile = PM.sanitizeProfile(next, PLAN_CAT, PM.PUBLIC_DEFAULT_ESTIMATES); saveSubProfile(); render(); },
-    setSelection: (ids) => { S.selected = new Set(ids.filter((id) => BY_ID.has(id))); save(); renderList(); render(); },
-    setPrice: (mode) => { const sw = PM.switchFromLegacyAxes({ x: S.x, y: S.y, targetPrice: mode }); S.x = sw.x; S.y = sw.y; S.price = sw.price; subLegacyNotice = sw.switched ? sw.notice : null; syncControls(); save(); render(); },
-    setClock: (iso) => { subClockOverride = iso || undefined; render(); },
-    setPublicDefaultEst: (v) => { subPubDefaultEstOverride = v === null ? null : !!v; },
-    getCatalogMeta: () => ({ catalogDate: PLAN_CAT.catalogDate, sourceRevision: PLAN_CAT.sourceRevision, totalRows: PLAN_CAT.accounting?.totalCompiledRows || 0 }),
-    getLastRender: () => lastSubRender,
-    getLastLabelAudit: () => lastLabelAudit,
-    getSetsRaw: () => ({ local: JSON.parse(JSON.stringify(sets)), wire: publicSets(sets), unsynced: unsynced() }),
-    mergeTest: (remote) => merge(remote),
-    svgString: (opts) => svgString(opts),
-  };
   fixAxes(); fixMarks(); syncControls(); applyWide(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
   checkNews(qp.has('celebrate')); // ?celebrate previews the celebration (the latest feed entries and benchmark updates)
   sync(false);

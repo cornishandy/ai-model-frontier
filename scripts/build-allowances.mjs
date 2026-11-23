@@ -738,6 +738,12 @@ export function compileAllowances(rapPoints, aaModels = [], meta = {}) {
 
 export function serializeCatalog(built) {
   const { _cliWarnings, ...shipped } = built;
+  if (!/^[0-9a-f]{7,40}$/i.test(String(shipped.sourceRevision || ''))) {
+    throw new Error(`Invalid sourceRevision (expected 7-40 hex chars): ${JSON.stringify(shipped.sourceRevision)}`);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(shipped.catalogDate || ''))) {
+    throw new Error(`Invalid catalogDate (expected YYYY-MM-DD): ${JSON.stringify(shipped.catalogDate)}`);
+  }
   return [
     `// ${shipped.attribution}`,
     `// Compiled Approach B allowance catalog · schema v${shipped.schemaVersion} · catalog ${shipped.catalogDate} · rev ${shipped.sourceRevision.slice(0, 8)}`,

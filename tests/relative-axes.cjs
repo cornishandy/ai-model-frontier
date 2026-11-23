@@ -143,11 +143,11 @@ async function assertSweetSpot(page) {
 }
 
 async function round2(c,w,desktop) {
-  await scenario(c,'round2-default-linear-values',desktop,'?xRel=sweet',null,async p=>{
+  await scenario(c,'round2-default-linear-values',desktop,'?xRel=sweet&price=api',null,async p=>{
     if(await assertSweetSpot(p)){
       const note=await p.locator('#relativeNote').innerText();
       assert.match(note,/on this linear scale/);
-      assert.match(note,/\(\$\d+\.\d{2,4}, Intelligence Index \d+\.\d\)/,'Cost in dollars and cents, the index to one decimal');
+      assert.match(note,/\(\$\d+\.\d\d, Intelligence Index \d+\.\d\)/,'Cost in dollars and cents, the index to one decimal');
     }
     assert.match(await p.locator('#zoneSeg [data-v="knee"]').getAttribute('title'),/returns diminish/);
     await snapshot(p,'round2-default-linear-zone');

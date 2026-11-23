@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { compileAllowances } from '../scripts/build-allowances.mjs';
+import { compileAllowances, serializeCatalog } from '../scripts/build-allowances.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -381,6 +381,39 @@ test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed
   }, { validIds: new Set(['claude-opus-5-5']), validMetrics: new Set(['costPerTask', 'intelligence']), validBenchKeys: new Set(['gpqa']), validAutoKeys: new Set(['intelligence']) });
   assert.deepEqual(Object.keys(coll), ['My legacy view']);
   assert.equal('subPlans' in coll['My legacy view'], false);
+
+  // Shape-only projection (ctx = {}) preserves cross-catalog model IDs/ext metrics and >120-char set names, while stripping private fields
+  const longName = 'A'.repeat(121);
+  const tooLongName = 'B'.repeat(1001);
+  const futureSet = {
+    x: 'ext:futureBench2027',
+    y: 'intelligence',
+    price: 'plan',
+    selected: ['future-model-2027-max'],
+    pinned: ['future-model-2027-max'],
+    customWeights: { 'ext:futureBench2027': 3 },
+    subPlans: { anthropic: 'Claude Max 20x' },
+    planPrice: 200,
+    estimate: false,
+    evilExtra: 'DROP',
+  };
+  const crossCat = PM.scrubSetCollection({ [longName]: futureSet, [tooLongName]: futureSet }, {});
+  assert.deepEqual(Object.keys(crossCat), [longName]);
+  assert.equal(crossCat[longName].x, 'ext:futureBench2027');
+  assert.deepEqual(crossCat[longName].selected, ['future-model-2027-max']);
+  assert.deepEqual(crossCat[longName].pinned, ['future-model-2027-max']);
+  assert.deepEqual(crossCat[longName].customWeights, { 'ext:futureBench2027': 3 });
+  assert.equal('subPlans' in crossCat[longName], false);
+  assert.equal('planPrice' in crossCat[longName], false);
+  assert.equal('estimate' in crossCat[longName], false);
+  assert.equal('evilExtra' in crossCat[longName], false);
+
+  // Decision 5 exact source label for predecessor estimates
+  assert.equal(PM.formatSourceLabel('predecessor'), 'Estimated from similar model (≈)');
+
+  // serializeCatalog rejects malformed sourceRevision or catalogDate before comment interpolation
+  assert.throws(() => serializeCatalog({ ...CAT, sourceRevision: 'bad\nwindow.X=1;' }), /Invalid sourceRevision/);
+  assert.throws(() => serializeCatalog({ ...CAT, catalogDate: '2026-11-21\n//injected' }), /Invalid catalogDate/);
 });
 
 test('10. Local profile persistence, sanitization & malformed-storage recovery', () => {

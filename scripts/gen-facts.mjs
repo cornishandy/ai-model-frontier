@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Portable read-only verifier (--check) for catalog integrity, 63-key snapshot() coverage,
-// 29-theme token contrast, rendered 2x PNG pixel contrast, geometry clearances, and 320px SI-28 footers.
+// 29-theme token contrast, real annular 2x PNG pixel contrast (surface + shaded zone),
+// geometry clearances, and 320px SI-28 footers.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -25,6 +26,14 @@ if (!CHECK_MODE) {
 
 const CLOCK = '2026-11-23T05:00:00Z';
 const EXPECTED_CAT_SHA_PREFIX = '4af5bdbd';
+const TEST_HOOK = `
+  subClockOverride = ${JSON.stringify(CLOCK)};
+  window.__AIMF_TEST = {
+    svgString: (opts) => svgString(opts),
+    setSelection: (ids) => { S.selected = new Set(ids.filter((id) => BY_ID.has(id))); save(); renderList(); render(); },
+    setProfile: (next) => { subProfile = PM.sanitizeProfile(next, PLAN_CAT, PM.PUBLIC_DEFAULT_ESTIMATES); saveSubProfile(); render(); },
+  };
+`;
 
 function resolvePlaywright() {
   const candidates = [];
@@ -90,16 +99,11 @@ function decodePng(buf) {
 
 function rgbLum(r, g, b) {
   const lin = (c) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.7152 * 0 + 0.0722 * lin(b);
 }
 function contrastRgb(a, b) {
   const l1 = rgbLum(a[0], a[1], a[2]), l2 = rgbLum(b[0], b[1], b[2]);
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-}
-function parseCssColor(str) {
-  const m = String(str || '').match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[\s,/]+([\d.]+))?\s*\)/i);
-  if (!m) return null;
-  return [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]];
 }
 function compositeOver(fg, bg) {
   const a = fg[3] ?? 1;
@@ -124,6 +128,27 @@ function bestContrastInRect(png, rect, bgRgb, dpr = 2) {
   }
   return best;
 }
+// Per-bead rendered pixel contrast: samples a 3x3 device-pixel core at EACH individual <circle> bead center
+// in .lane2-bead-ring and requires >= 80% of beads to hit >= minCr independently. Because a connecting line or
+// effort hash can intersect at most 2 beads, hiding .lane2-bead-ring (opacity: 0) is guaranteed to FAIL.
+function checkBeadRingContrast(png, beads, bgRgb, minCr = 3.0, dpr = 2) {
+  assert.ok(Array.isArray(beads) && beads.length >= 10, `Expected >=10 beads, got ${beads?.length}`);
+  const crs = beads.map((b) => {
+    const cx = Math.round(b.x * dpr), cy = Math.round(b.y * dpr);
+    let best = 1;
+    for (let y = Math.max(0, cy - 1); y <= Math.min(png.height - 1, cy + 1); y++) {
+      for (let x = Math.max(0, cx - 1); x <= Math.min(png.width - 1, cx + 1); x++) {
+        const i = (y * png.width + x) * png.bpp;
+        const cr = contrastRgb([png.px[i], png.px[i + 1], png.px[i + 2]], bgRgb);
+        if (cr > best) best = cr;
+      }
+    }
+    return best;
+  });
+  const passing = crs.filter((c) => c >= minCr).length;
+  const sorted = crs.slice().sort((a, b) => a - b);
+  return { passing, total: crs.length, ratio: passing / crs.length, p20: sorted[Math.floor(sorted.length * 0.2)] };
+}
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 function startServer(rootDir) {
@@ -142,7 +167,18 @@ function startServer(rootDir) {
   });
 }
 
+async function injectHook(page) {
+  await page.route('https://api.github.com/gists/**', (r) => r.abort());
+  await page.route('**/index.html*', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace('  // ---------- boot ----------', TEST_HOOK + '\n  // ---------- boot ----------');
+    await route.fulfill({ response, body });
+  });
+}
+
 async function main() {
+  let passed = 0;
+
   // 1. Catalog SHA & schema v3 check (strictly read-only)
   const catPath = path.join(ROOT, 'data/plan-allowances.js');
   const catBuf = fs.readFileSync(catPath);
@@ -153,26 +189,30 @@ async function main() {
   const CAT = sbCat.window.PLAN_ALLOWANCES;
   assert.equal(CAT.schemaVersion, 3);
   assert.equal(CAT.accounting.totalCompiledRows, 58);
+  passed++;
 
-  // 2. Live index.html snapshot() 63-key coverage check
+  // 2. Live index.html snapshot() 63-key coverage check + zero production test hooks
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const snapMatch = html.match(/function snapshot\(\)\s*\{\s*return\s*\{([\s\S]*?)\};\s*\}/);
   assert.ok(snapMatch, 'Missing snapshot() in index.html');
   const liveKeys = [...snapMatch[1].matchAll(/([a-zA-Z0-9_]+)\s*:/g)].map(x => x[1]);
   const cov = PM.validateSnapshotCoverage(liveKeys);
   assert.deepEqual(cov, { totalTyped: 63, publicCount: 62, localCount: 1 });
+  assert.equal(/window\.__AIMF_SUB\b/.test(html), false, 'Production index.html must not expose window.__AIMF_SUB');
+  assert.equal(/qp\.get\(['"]now['"]\)/.test(html), false, 'Production index.html must not accept ?now= clock override');
+  passed++;
 
-  // 3. Browser token contrast (29 theme states), 2x PNG pixel contrast, geometry clearances, & 320px SI-28 footers
+  // 3. Browser token contrast (29 theme states), real annular 2x PNG pixel contrast (surface + shaded zone),
+  //    geometry clearances, & 320px SI-28 footers
   const { chromium } = resolvePlaywright();
   const { srv, url } = await startServer(ROOT);
   const browser = await chromium.launch({ headless: true });
-  let passed = 0;
 
   try {
     // 3a. All 29 theme states token & pill/chip contrast
     const pTheme = await browser.newPage({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 2 });
-    await pTheme.route('https://api.github.com/gists/**', (r) => r.abort());
-    await pTheme.goto(`${url}/index.html?noAutoUpdate=1&now=${encodeURIComponent(CLOCK)}`, { waitUntil: 'networkidle' });
+    await injectHook(pTheme);
+    await pTheme.goto(`${url}/index.html?noAutoUpdate=1`, { waitUntil: 'networkidle' });
     await pTheme.click('#plansBtn');
     const explicitThemes = await pTheme.evaluate(() => [...document.querySelectorAll('#themeSel option')].map(o => o.value).filter(v => v !== 'system'));
     assert.equal(explicitThemes.length, 27, `Expected 27 explicit host themes, got ${explicitThemes.length}`);
@@ -242,12 +282,12 @@ async function main() {
     await pTheme.close();
     passed++;
 
-    // 3b. Real 2x PNG pixel contrast across Light, Dark, Everforest, Dawn (active pill, bead ring, ≈ label)
+    // 3b. Real 2x PNG pixel contrast across Light, Dark, Everforest, Dawn:
+    //     active pill, ANNULAR bead ring (excluding inner dot!), and ≈ label against BOTH --surface and shaded zone (0.045 --ink)
     for (const th of ['light', 'dark', 'everforest', 'dawn']) {
       const pPix = await browser.newPage({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 2 });
-      await pPix.route('https://api.github.com/gists/**', (r) => r.abort());
-      await pPix.goto(`${url}/index.html?noAutoUpdate=1&theme=${th}&now=${encodeURIComponent(CLOCK)}`, { waitUntil: 'networkidle' });
-      // Select AA default selection so Lane-2 bead rings and ≈ labels are present on screen
+      await injectHook(pPix);
+      await pPix.goto(`${url}/index.html?noAutoUpdate=1&theme=${th}`, { waitUntil: 'networkidle' });
       await pPix.evaluate(() => {
         const sel = document.getElementById('setSelect');
         sel.value = '★ AA default selection';
@@ -265,32 +305,42 @@ async function main() {
         const pill = document.querySelector('#priceSeg button[aria-pressed="true"]');
         const ring = document.querySelector('#chart .lane2-bead-ring');
         const lbl = document.querySelector('#chart text.lbl-lane2');
+        const beads = ring ? [...ring.querySelectorAll('circle')].map((c) => {
+          const br = c.getBoundingClientRect();
+          return { x: (br.left + br.right) / 2 - cr.x, y: (br.top + br.bottom) / 2 - cr.y };
+        }) : null;
         return {
           surfaceRgb: probe('var(--surface)'),
+          inkRgb: probe('var(--ink)'),
           pillBgRgb: toRgba(getComputedStyle(pill).backgroundColor),
           pillRect: rel(pill.getBoundingClientRect()),
-          ringRect: rel(ring?.getBoundingClientRect()),
+          beads,
           lblRect: rel(lbl?.getBoundingClientRect()),
         };
       });
-      assert.ok(geom.ringRect && geom.lblRect, `Expected Lane-2 bead ring & label on ${th}`);
+      assert.ok(geom.beads && geom.beads.length >= 10 && geom.lblRect, `Expected Lane-2 bead ring & label on ${th}`);
       const png = decodePng(await pPix.locator('#chartCard').screenshot({ type: 'png' }));
       const surfRgb = geom.surfaceRgb;
+      const shadedRgb = compositeOver([geom.inkRgb[0], geom.inkRgb[1], geom.inkRgb[2], 0.045], surfRgb);
       const pillBg = compositeOver(geom.pillBgRgb, surfRgb);
       const pillCr = bestContrastInRect(png, geom.pillRect, pillBg, 2);
-      const ringCr = bestContrastInRect(png, geom.ringRect, surfRgb, 2);
-      const lblCr = bestContrastInRect(png, geom.lblRect, surfRgb, 2);
+      const ringSurf = checkBeadRingContrast(png, geom.beads, surfRgb, 3.0, 2);
+      const ringShade = checkBeadRingContrast(png, geom.beads, shadedRgb, 3.0, 2);
+      const lblCrSurf = bestContrastInRect(png, geom.lblRect, surfRgb, 2);
+      const lblCrShade = bestContrastInRect(png, geom.lblRect, shadedRgb, 2);
       assert.ok(pillCr >= 4.5, `${th} rendered Plan $ pill contrast ${pillCr.toFixed(2)} < 4.5`);
-      assert.ok(ringCr >= 3.0, `${th} rendered bead ring contrast ${ringCr.toFixed(2)} < 3.0`);
-      assert.ok(lblCr >= 4.5, `${th} rendered ≈ label contrast ${lblCr.toFixed(2)} < 4.5`);
+      assert.ok(ringSurf.ratio >= 0.8, `${th} rendered bead ring contrast (surface): only ${ringSurf.passing}/${ringSurf.total} beads >= 3.0 (p20=${ringSurf.p20.toFixed(2)})`);
+      assert.ok(ringShade.ratio >= 0.8, `${th} rendered bead ring contrast (shaded zone): only ${ringShade.passing}/${ringShade.total} beads >= 3.0 (p20=${ringShade.p20.toFixed(2)})`);
+      assert.ok(lblCrSurf >= 4.5, `${th} rendered ≈ label contrast (surface) ${lblCrSurf.toFixed(2)} < 4.5`);
+      assert.ok(lblCrShade >= 4.5, `${th} rendered ≈ label contrast (shaded zone) ${lblCrShade.toFixed(2)} < 4.5`);
       await pPix.close();
+      passed++;
     }
-    passed++;
 
-    // 3c. Geometry clearances & DOM ordering + 320px SI-28 export checks (2, 3, and 4 reasons)
+    // 3c. Geometry clearances & DOM ordering (asserting sqs.length > 0!) + 320px SI-28 export checks (2, 3, and 4 reasons)
     const pGeom = await browser.newPage({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 2 });
-    await pGeom.route('https://api.github.com/gists/**', (r) => r.abort());
-    await pGeom.goto(`${url}/index.html?noAutoUpdate=1&colorBy=x&dual=ring&markStyle=square&markEffort=high&now=${encodeURIComponent(CLOCK)}`, { waitUntil: 'networkidle' });
+    await injectHook(pGeom);
+    await pGeom.goto(`${url}/index.html?noAutoUpdate=1&colorBy=x&dual=ring&markStyle=square&markEffort=high`, { waitUntil: 'networkidle' });
     await pGeom.evaluate(() => {
       const sel = document.getElementById('setSelect');
       sel.value = '★ AA default selection';
@@ -301,14 +351,14 @@ async function main() {
       const rings = [...document.querySelectorAll('#chart g.lane2-bead-ring')];
       const firstRing = rings[0];
       const firstSq = sqs[0];
-      const sqBeforeRing = firstSq && firstRing ? !!(firstSq.compareDocumentPosition(firstRing) & Node.DOCUMENT_POSITION_FOLLOWING) : true;
-      const exp320On = window.__AIMF_SUB.svgString({ width: 320, pubEst: true });
-      const exp320Off = window.__AIMF_SUB.svgString({ width: 320, pubEst: false });
-      const exp320R3 = window.__AIMF_SUB.svgString({
+      const sqBeforeRing = Boolean(firstSq && firstRing && (firstSq.compareDocumentPosition(firstRing) & Node.DOCUMENT_POSITION_FOLLOWING));
+      const exp320On = window.__AIMF_TEST.svgString({ width: 320, pubEst: true });
+      const exp320Off = window.__AIMF_TEST.svgString({ width: 320, pubEst: false });
+      const exp320R3 = window.__AIMF_TEST.svgString({
         width: 320, pubEst: false,
         extraOmitted: [{ id: 'kimi', name: 'Kimi K3', short: 'Kimi K3', effort: 'high', price: { reasonCode: 'no_plan', shortReason: 'No Kimi plan selected', reason: 'No Kimi plan selected' } }],
       });
-      const exp320R4 = window.__AIMF_SUB.svgString({
+      const exp320R4 = window.__AIMF_TEST.svgString({
         width: 320, pubEst: false,
         extraOmitted: [
           { id: 'kimi', name: 'Kimi K3', short: 'Kimi K3', effort: 'high', price: { reasonCode: 'no_plan', shortReason: 'No Kimi plan selected', reason: 'No Kimi plan selected' } },
@@ -316,6 +366,7 @@ async function main() {
         ],
       });
       return {
+        sqCount: sqs.length,
         ringCount: rings.length,
         sqBeforeRing,
         onClips: exp320On.labelAudit.clippedTexts.length,
@@ -327,6 +378,7 @@ async function main() {
         r4Text: exp320R4.footerRes.text,
       };
     });
+    assert.ok(geomCheck.sqCount > 0, 'Expected effort-square marks on ★ AA default selection');
     assert.ok(geomCheck.ringCount > 0, 'Expected Lane-2 bead rings on ★ AA default selection');
     assert.equal(geomCheck.sqBeforeRing, true, 'Effort marks must DOM-precede bead rings');
     assert.equal(geomCheck.onClips, 0, '320px export (est ON) clipped text');
