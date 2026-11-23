@@ -78,7 +78,7 @@ async function setSynthetic(page, xs, ys, extra = {}) {
     const t=window.__bundleC;
     const models=t.ALL.filter(m=>m.effort!=='non-reasoning').slice(0,xs.length);
     models.forEach((m,i)=>{m.costPerTask=xs[i];m.intelligence=ys[i];m.label='Synthetic '+String.fromCharCode(65+i);});
-    Object.assign(t.S,{selected:new Set(models.map(m=>m.id)),efforts:new Set(models.map(m=>m.effort)),pinned:new Set(),x:'costPerTask',y:'intelligence',xScale:'linear',yScale:'linear',xRel:'sweet',yRel:'off',hideOlder:false,fullFrontier:false,zone:'knee',...extra});
+    Object.assign(t.S,{selected:new Set(models.map(m=>m.id)),efforts:new Set(models.map(m=>m.effort)),pinned:new Set(),x:'costPerTask',y:'intelligence',price:'api',xScale:'linear',yScale:'linear',xRel:'sweet',yRel:'off',hideOlder:false,fullFrontier:false,zone:'knee',...extra});
     t.fixAxes(); t.render();
   },{xs,ys,extra});
 }
@@ -113,7 +113,7 @@ async function checkTags(page) {
 async function assertSweetSpot(page) {
   const {knee,ref}=await page.evaluate(()=>{
     const {geom,points,kneeOf,paretoFront,METRICS,S}=window.__bundleC;
-    const k=kneeOf(paretoFront(points.map(p=>({...p,xv:p.rawX,yv:p.rawY})))), r=geom?.X.ref;
+    const k=kneeOf(paretoFront(points.filter(p=>!p.isLane2).map(p=>({...p,xv:p.rawX,yv:p.rawY})))), r=geom?.X.ref;
     // the note must print the reference's own raw values, in each metric's format
     const X=METRICS[S.x],Y=METRICS[S.y];
     return {knee:k&&{id:k.point.m.id,gap:k.gap},ref:r&&{id:r.point?.m.id,label:r.point?.m.label,value:r.value,rawX:r.point?.rawX,
@@ -147,7 +147,7 @@ async function round2(c,w,desktop) {
     if(await assertSweetSpot(p)){
       const note=await p.locator('#relativeNote').innerText();
       assert.match(note,/on this linear scale/);
-      assert.match(note,/\(\$\d+\.\d\d, Intelligence Index \d+\.\d\)/,'Cost in dollars and cents, the index to one decimal');
+      assert.match(note,/\(\$\d+\.\d{2,4}, Intelligence Index \d+\.\d\)/,'Cost in dollars and cents, the index to one decimal');
     }
     assert.match(await p.locator('#zoneSeg [data-v="knee"]').getAttribute('title'),/returns diminish/);
     await snapshot(p,'round2-default-linear-zone');
@@ -217,7 +217,7 @@ async function round2(c,w,desktop) {
     const single=await p.evaluate(()=>window.__bundleC.makeScale([1,1],'log',[0,100],true));
     assert.equal(single.lo,1);assert.ok(single.hi>1);
   });
-  await scenario(c,'round2-zero-reference-axis-formatter',desktop,'?xRel=best',null,async p=>{
+  await scenario(c,'round2-zero-reference-axis-formatter',desktop,'?xRel=best&price=api',null,async p=>{
     await currentCatalog(p);assert.match(await p.locator('#relativeNote').innerText(),/reference is \$0/);
     await setSynthetic(p,[1,2,3],[10,20,30],{x:'timePerTask',xRel:'best'});
     await p.evaluate(()=>{const t=window.__bundleC;t.ALL.filter(m=>t.S.selected.has(m.id)).forEach((m,i)=>m.timePerTask=i);t.render();});

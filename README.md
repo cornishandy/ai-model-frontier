@@ -22,8 +22,8 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   site's own copy, if that's newer, and says so. The deploy's scraper runs in Node, which has no CORS rule,
   so it reads the pages directly.
 - `node scrape.mjs` refreshes the built-in data (`data/models.js`, `data/external.js`) and builds `AI Model Frontier.html`,
-  a single self-contained copy that works offline. The Artificial Analysis scraper lives in `aa-data.js` (shared with the
-  page), the independent benchmarks in `external.mjs`.
+  a single self-contained copy that works offline (via `scripts/build-standalone.mjs`, which can also be run directly offline).
+  The Artificial Analysis scraper lives in `aa-data.js` (shared with the page), the independent benchmarks in `external.mjs`.
 - **Publishing**: commit and push to `main`. `node publish.mjs` does it in one step, with fresh built-in data.
 - To preview locally, open `index.html` directly or run `python3 -m http.server` here.
 - `?celebrate` on the URL previews the celebration toast and confetti (the latest feed entries and benchmark updates).
@@ -222,7 +222,19 @@ Interactive charts built from the [Artificial Analysis](https://artificialanalys
   result from the same model at the nearest effort level, scaled by their Intelligence Index, and draws those dots faded.
   The metrics **Your index** and **Cost per task (…)** go on either axis; Tasks per dollar, Index points per dollar,
   Tasks a month on your plan and the subscription table all use them.
-- **Subscription math** (under that): pick the plan you pay for (ChatGPT, Claude, Google AI, SuperGrok, Copilot, Cursor,
+- **Subscription price lens (`Price: API $ · Plan $ · % of week`)**: sits above the chart whenever `Cost per task` or
+  `Cost per task, your benchmarks` is on either axis. First visit opens on **Plan $** using Example entry plans
+  (Claude Pro, ChatGPT Plus, Google AI Pro, SuperGrok) and the static MIT-attributed weekly allowance catalog
+  (`data/plan-allowances.js`, compiled from [Real API Pricing](https://github.com/Fei2411/real-api-pricing) via
+  `scripts/build-allowances.mjs`, engine in `plan-math.js`). Monthly plan fees are allocated over four weeks per month
+  at your chosen utilization. Measured and scaled allowances drive the Pareto frontier; low-confidence and proxy
+  estimates show an outer bead ring (`≈`) and never move the frontier. **Your plans** edits per-lab plans, monthly fee
+  overrides, utilization, the Claude Max Fable 5.2 meter (Shared limit vs. Fable-only 50% cap), and estimate visibility;
+  changes stay strictly in this browser (`localStorage['aa-charts:plans-v1']`) and never sync or enter exported sets.
+  **Tasks / week** compares fixed weekly plan capacity across selected models. Subscription SVG/PNG downloads always
+  render reproducibly from Example entry plans and the default estimate setting; legacy `planCost` and `planTasks`
+  axes keep API-fee math untouched under **Legacy API-fee math · Subscription math**.
+- **Legacy API-fee math · Subscription math** (under that): pick the plan you pay for (ChatGPT, Claude, Google AI, SuperGrok, Copilot, Cursor,
   T3 Chat, Perplexity, or a custom fee) and see, model by model, how many tasks a month the same money buys at API list
   prices. A chart plots the score against tasks a month (log scale, with the frontier: the best score at each budget,
   and guides at 1, 10 and 100 a day), or shows ranked rows; models from your plan's provider are solid, the rest faded.

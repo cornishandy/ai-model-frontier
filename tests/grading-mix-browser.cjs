@@ -18,7 +18,7 @@ async function scenario(browser, name, options) {
   const context = await browser.newContext(options);
   const errors = [];
   const requestLog = [];
-  const files = new Set(['/aa-data.js', '/scoring.js', '/priors-fit.js', '/data/models.js', '/data/external.js', '/data/plan-shares.js']);
+  const files = new Set(['/aa-data.js', '/scoring.js', '/priors-fit.js', '/plan-math.js', '/data/models.js', '/data/external.js', '/data/plan-shares.js', '/data/plan-allowances.js']);
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin) {

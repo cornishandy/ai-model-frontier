@@ -923,6 +923,210 @@
       background: var(--surface); padding: 12px 0 10px; margin-bottom: -6px; border-bottom: 1px solid var(--border); font-weight: 600;
     }
   }
+
+  /* ---------- subscription price lens, Your plans sheet, omissions & Tasks / week ---------- */
+  :root {
+    --sub-track: color-mix(in srgb, var(--ink) 5%, transparent);
+    --sub-pill: var(--surface);
+    --sub-elev: color-mix(in srgb, var(--surface) 92%, var(--ink) 0%);
+    --sub-input: color-mix(in srgb, var(--page) 75%, var(--surface));
+    --sub-shadow: 0 12px 32px rgba(0, 0, 0, .18), 0 2px 6px rgba(0, 0, 0, .09);
+  }
+  @supports (color: light-dark(red, red)) {
+    :root {
+      --sub-track: light-dark(color-mix(in srgb, var(--ink) 5%, transparent), color-mix(in srgb, #000 24%, var(--surface)));
+      --sub-pill: light-dark(var(--surface), color-mix(in srgb, var(--ink) 10%, var(--surface)));
+      --sub-elev: light-dark(var(--surface), color-mix(in srgb, var(--ink) 5%, var(--surface)));
+      --sub-input: light-dark(color-mix(in srgb, var(--page) 80%, var(--surface)), color-mix(in srgb, #000 22%, var(--surface)));
+      --sub-shadow: light-dark(0 12px 32px rgba(11, 11, 11, .14), 0 16px 40px rgba(0, 0, 0, .52));
+    }
+  }
+  .sub-price-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px 10px; flex-wrap: wrap;
+    margin: 0 0 10px; padding-bottom: 9px; border-bottom: 1px solid var(--border);
+  }
+  .sub-price-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .sub-price-right { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: 1 1 auto; flex-wrap: wrap; }
+  .sub-lens-label { font-size: 11.5px; font-weight: 600; color: var(--ink-2); letter-spacing: .01em; }
+  .sub-seg {
+    display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+    border-radius: 9px; background: var(--sub-track); border: 1px solid var(--border);
+  }
+  .sub-seg button {
+    border: 0; background: transparent; color: var(--ink-2); font: 500 12px/1.2 system-ui, -apple-system, sans-serif;
+    padding: 5px 10px; border-radius: 6px; cursor: pointer; touch-action: manipulation; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sub-seg button[aria-pressed="true"] {
+    background: var(--sub-pill); color: var(--ink); font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,.12), inset 0 0 0 1px var(--border);
+  }
+  .sub-seg button:active { opacity: .82; }
+  @media (hover: hover) and (pointer: fine) {
+    .sub-seg button:not([aria-pressed="true"]):hover { background: var(--hover); color: var(--ink); }
+  }
+  .sub-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--sub-pill); color: var(--ink);
+    font: 500 12px/1.2 system-ui, -apple-system, sans-serif; cursor: pointer;
+    touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .sub-btn:active { background: var(--hover); }
+  .sub-btn.sub-primary { border-color: var(--accent); font-weight: 600; }
+  .sub-btn.active-pop { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
+  @media (hover: hover) and (pointer: fine) { .sub-btn:hover { background: var(--hover); } }
+  .sub-btn:focus-visible, .sub-seg button:focus-visible, .plans-pop select:focus-visible, .plans-pop input:focus-visible, .plans-pop button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .sub-notice {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    padding: 7px 11px; border-radius: 8px; margin: 6px 0 8px; font-size: 12px; color: var(--ink);
+    background: var(--page); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  }
+  .sub-omissions {
+    margin-top: 8px; padding: 9px 12px; border-radius: 8px;
+    background: var(--page); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    font-size: 12px; color: var(--ink);
+  }
+  .sub-omissions .om-list { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 220px; }
+  .sub-omissions .om-line { color: var(--ink-2); }
+  .sub-omissions .om-line strong { color: var(--ink); font-weight: 600; }
+  .sub-zero-box {
+    padding: 18px 16px; border-radius: 10px; border: 1px dashed var(--axis);
+    background: var(--page); margin: 6px 0 8px;
+  }
+  .sub-zero-box h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .sub-zero-box p { margin: 0 0 10px; font-size: 12.5px; color: var(--ink-2); }
+  .sub-zero-names { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; font-size: 12px; color: var(--ink-2); }
+  .sub-zero-names strong { color: var(--ink); }
+  .sub-export-note {
+    margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap;
+    font-size: 11.5px; color: var(--ink-2); line-height: 1.4;
+  }
+
+  .tasks-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); min-width: 0; max-width: 100%; scroll-margin-top: var(--section-scroll-top, 0px); }
+  .tasks-panel h4 { margin: 0 0 8px; font-size: 13.5px; font-weight: 600; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; color: var(--ink); }
+  .tasks-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 6px; }
+  .tasks-table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tasks-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+  .tasks-table th, .tasks-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+  .tasks-table th.num, .tasks-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tasks-table th { color: var(--ink-2); font-weight: 600; font-size: 11.5px; }
+  .tasks-table .m-sub, .tasks-table .m-only { display: none; }
+  .tasks-empty { margin: 0 0 8px; padding: 10px 12px; border-radius: 8px; background: var(--page); border: 1px solid var(--border); font-size: 12px; color: var(--ink-2); }
+  @media (max-width: 640px) {
+    .tasks-table { table-layout: auto; font-size: 11.5px; }
+    .tasks-table .col-plan, .tasks-table .col-src, .tasks-table .col-pct, .tasks-table .d-only { display: none; }
+    .tasks-table .m-only { display: inline; }
+    .tasks-table .m-sub { display: block; font-size: 10.5px; font-weight: 400; color: var(--ink-2); line-height: 1.3; margin-top: 2px; }
+    .tasks-table th, .tasks-table td { padding: 6px 4px; vertical-align: top; }
+    .tasks-table th:first-child, .tasks-table td:first-child { padding-left: 0; overflow-wrap: anywhere; }
+    .tasks-table th:last-child, .tasks-table td:last-child { padding-right: 0; }
+    .tasks-table th.num, .tasks-table td.num { white-space: nowrap; }
+  }
+
+  .pop-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .38); z-index: 44; display: none; }
+  .pop-backdrop.open { display: block; }
+  .plans-pop {
+    position: fixed; top: 80px; right: 20px; width: 416px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 32px);
+    overflow-y: auto; overscroll-behavior: contain; z-index: 45;
+    background: var(--sub-elev); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--sub-shadow); padding: 14px; display: none;
+  }
+  .plans-pop.open { display: block; }
+  .pop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .pop-head h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .pop-close {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--ink); font-size: 16px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0;
+    touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .pop-presets { display: flex; gap: 6px; margin-bottom: 8px; }
+  .pop-presets button { flex: 1; justify-content: center; }
+  .lab-hdr {
+    display: grid; grid-template-columns: 78px 1fr 78px; gap: 6px; margin-bottom: 4px;
+    font-size: 11px; font-weight: 600; color: var(--ink-2);
+  }
+  .lab-hdr span:last-child { text-align: right; }
+  .lab-grid { display: flex; flex-direction: column; gap: 7px; margin-bottom: 10px; }
+  .lab-row { display: grid; grid-template-columns: 78px 1fr 78px; gap: 6px; align-items: center; }
+  .lab-row label { font-size: 12px; font-weight: 600; color: var(--ink); display: inline-flex; align-items: center; gap: 5px; }
+  .lab-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .lab-row select, .lab-row input {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--sub-input); color: var(--ink); padding: 6px 8px; font-size: 12.5px;
+    font-variant-numeric: tabular-nums; box-sizing: border-box;
+  }
+  .lab-row select {
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px;
+  }
+  .lab-row input { text-align: right; }
+  .lab-row input[aria-invalid="true"] {
+    border-color: color-mix(in srgb, var(--s8) 65%, var(--ink));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--s8) 65%, var(--ink));
+  }
+  .fee-error {
+    margin: -4px 0 8px; padding: 6px 8px; border-radius: 7px;
+    background: var(--page); border: 1px solid var(--border);
+    border-left: 3px solid color-mix(in srgb, var(--s8) 65%, var(--ink));
+    color: var(--ink); font-size: 11.5px; line-height: 1.35;
+  }
+  .pop-section { padding-top: 10px; border-top: 1px solid var(--border); margin-top: 10px; }
+  .pop-sec-label { font-size: 11.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+  .chip-row { display: flex; gap: 5px; }
+  .chip-row button {
+    flex: 1; border: 1px solid var(--border); border-radius: 7px; padding: 6px 4px;
+    background: var(--page); color: var(--ink-2); font: 500 12px/1.1 system-ui, sans-serif;
+    cursor: pointer; touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .chip-row button[aria-pressed="true"] {
+    background: var(--sub-pill); border-color: var(--accent); color: var(--ink); font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .toggle-row {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    font-size: 12.5px; cursor: pointer; user-select: none; color: var(--ink);
+  }
+  .toggle-row input { width: 18px; height: 18px; accent-color: var(--accent); margin-top: 1px; flex-shrink: 0; }
+  .toggle-hint { display: block; font-size: 11.5px; color: var(--ink-2); margin-top: 2px; }
+  .live-readout {
+    margin-top: 10px; padding: 9px 10px; border-radius: 8px; background: var(--page);
+    border: 1px solid var(--border); font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .live-readout .lr-title { font-weight: 600; margin-bottom: 3px; }
+  .live-readout .lr-sub { color: var(--ink-2); font-size: 11.5px; }
+  .pop-meta { margin-top: 8px; font-size: 11px; color: var(--ink-2); line-height: 1.4; }
+  @media (max-width: 640px) {
+    .plans-pop {
+      position: fixed; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
+      width: 100%; max-width: 100%; max-height: 96dvh;
+      border-radius: 16px 16px 0 0; padding: 10px 12px calc(22px + env(safe-area-inset-bottom));
+    }
+    .pop-head { margin-bottom: 4px; }
+    .pop-presets { margin-bottom: 5px; }
+    .lab-hdr { margin-bottom: 3px; }
+    .lab-grid { gap: 4px; margin-bottom: 6px; }
+    .pop-section { padding-top: 6px; margin-top: 6px; }
+    .pop-sec-label { margin-bottom: 4px; }
+    .toggle-hint { font-size: 11px; line-height: 1.3; }
+    .live-readout { margin-top: 6px; padding: 6px 8px; font-size: 11.5px; line-height: 1.32; }
+    .live-readout .lr-sub { font-size: 11px; }
+    .pop-meta { margin-top: 6px; font-size: 10.5px; line-height: 1.3; }
+    .pop-close, .sub-seg button, .sub-btn, .chip-row button, .toggle-row { min-height: 44px; }
+    .toggle-row { align-items: center; }
+    .pop-close { width: 44px; min-width: 44px; }
+    .lab-hdr, .lab-row { grid-template-columns: 76px 1fr 74px; gap: 6px; }
+    .lab-row select, .lab-row input { min-height: 44px; height: 44px; font-size: 16px; padding: 6px 6px; }
+    .lab-row select { padding-right: 24px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .plans-pop, .pop-backdrop { transition: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -1103,11 +1307,26 @@
 
   <div class="card" id="chartCard">
     <div id="hlBar" hidden><button class="chip" id="hlReset">Reset highlights</button></div>
+    <div class="sub-price-bar" id="priceBar" hidden>
+      <div class="sub-price-left">
+        <span class="sub-lens-label">Price</span>
+        <div class="sub-seg" role="group" aria-label="Price lens" id="priceSeg">
+          <button type="button" data-price="api" aria-pressed="false">API $</button>
+          <button type="button" data-price="plan" aria-pressed="false">Plan $</button>
+          <button type="button" data-price="pct" aria-pressed="false">% of week</button>
+        </div>
+      </div>
+      <div class="sub-price-right">
+        <button type="button" class="sub-btn" id="plansBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="plansPop">Your plans · <span id="plansSummary">Example entry</span></button>
+        <button type="button" class="sub-btn" id="tasksBtn" aria-expanded="false" aria-controls="tasksPanel">Tasks / week</button>
+      </div>
+    </div>
     <h3 id="chartTitle"></h3>
     <div class="sub" id="chartSub"></div>
     <div class="desc" id="chartDesc"></div>
     <div id="aaiiBlock"></div>
     <div class="note relative-note" id="relativeNote" aria-live="polite" hidden></div>
+    <div class="sub-notice" id="priceNotice" role="status" hidden></div>
     <div class="explain" id="explain">
       <div class="shift" id="shiftRow" hidden>
         <div id="shiftText"></div>
@@ -1121,10 +1340,38 @@
       <div class="panel" id="explainPanel" hidden></div>
     </div>
     <div class="note relative-note" id="autoNote" aria-live="polite" hidden></div>
+    <div class="sub-zero-box" id="zeroBox" hidden>
+      <h4>No models covered by your current plan settings</h4>
+      <p id="zeroDesc"></p>
+      <div class="sub-zero-names" id="zeroNames"></div>
+      <button type="button" class="sub-btn sub-primary" id="zeroApiBtn">View in API $</button>
+    </div>
     <svg id="chart" role="img"></svg>
     <div class="legend" id="legend"></div>
+    <div class="sub-omissions" id="omissionsBox" hidden>
+      <div class="om-list" id="omissionsList"></div>
+      <button type="button" class="sub-btn sub-primary" id="omApiBtn">View in API $</button>
+    </div>
     <div class="note" id="chartNote"></div>
     <div class="note" id="chartFoot" style="margin-top:6px"></div>
+    <div class="sub-export-note" id="subExportNote" hidden>
+      <span id="subFourWeeksNote"></span>
+      <span id="subDownloadNote"></span>
+    </div>
+    <section class="tasks-panel" id="tasksPanel" hidden>
+      <h4>
+        <span>Tasks / week comparison <span style="font-weight:400;color:var(--ink-2);font-size:12px" id="tasksSub"></span></span>
+        <button type="button" class="sub-btn" id="toggleTasksChartBtn" aria-pressed="true">Toggle weekly chart</button>
+      </h4>
+      <p class="tasks-empty" id="tasksEmpty" hidden></p>
+      <div class="tasks-table-wrap" id="tasksTableWrap" tabindex="0" role="region" aria-label="Tasks per week comparison table">
+        <table class="tasks-table" id="tasksTable">
+          <thead><tr><th class="col-model">Model</th><th class="col-plan">Plan &amp; pool</th><th class="col-src">Source</th><th class="col-usd num">Plan $</th><th class="col-pct num">% of week</th><th class="col-tasks num"><span class="d-only">Tasks / week (capacity)</span><span class="m-only">Tasks / wk</span></th></tr></thead>
+          <tbody id="tasksTbody"></tbody>
+        </table>
+      </div>
+      <div id="tasksChartWrap" style="margin-top:8px"></div>
+    </section>
   </div>
 
   <details class="card" id="rowsCard" open>
@@ -1195,7 +1442,7 @@
   </details>
 
   <details class="card" id="planCard">
-    <summary title="Pick the plan you pay for: the table works out what the same money buys at API list prices, model by model">Subscription math <span class="note" style="font-weight:400">· what your plan's fee buys at API prices</span></summary>
+    <summary title="Legacy API-fee math: pick a plan and fee to see what the same money buys at API list prices, model by model">Legacy API-fee math <span class="note" style="font-weight:400">· Subscription math · what your plan's fee buys at API prices</span></summary>
     <div class="toolbar" style="margin:10px 0 6px">
       <div class="group" id="subPlansWrap"><span title="For the metric 'Plan cost per task (estimated)' (Cost group, either axis): which plan's real token price each lab's models use. Median: the middle of that lab's plans with data">Plan per lab</span></div>
       <div class="group"><span title="The subscription you pay for">Your plan</span><select id="planSel" title="Pick your plan, or Custom and type the fee"></select><label class="inline" title="Monthly fee in US dollars (edit it if yours differs)">$<input type="number" id="planPrice" min="0" step="1" style="width:72px" /> / month</label></div>
@@ -1272,6 +1519,49 @@
   </details>
 </main>
 
+<div class="pop-backdrop" id="popBackdrop"></div>
+<div class="plans-pop" id="plansPop" role="dialog" aria-modal="true" aria-label="Your plans">
+  <div class="pop-head">
+    <h2>Your plans</h2>
+    <button type="button" class="pop-close" id="popClose" aria-label="Close Your plans">&times;</button>
+  </div>
+  <div class="pop-presets">
+    <button type="button" class="sub-btn" id="presetEntryBtn">Example entry</button>
+    <button type="button" class="sub-btn" id="presetHeavyBtn">Example heavy</button>
+  </div>
+  <div class="lab-hdr"><span>Lab</span><span>Plan</span><span>$ / mo</span></div>
+  <div class="lab-grid" id="labGrid"></div>
+  <div class="fee-error" id="feeError" role="alert" hidden></div>
+  <div class="pop-section">
+    <div class="pop-sec-label"><span>How much of each plan you use</span><span id="useReadout" style="font-variant-numeric:tabular-nums">Full (100%)</span></div>
+    <div class="chip-row" id="useChips" role="group" aria-label="Plan utilization">
+      <button type="button" data-use="1" aria-pressed="true">Full</button>
+      <button type="button" data-use="0.75" aria-pressed="false">75%</button>
+      <button type="button" data-use="0.5" aria-pressed="false">50%</button>
+      <button type="button" data-use="0.25" aria-pressed="false">25%</button>
+    </div>
+  </div>
+  <div class="pop-section" id="fableMeterSec">
+    <div class="pop-sec-label"><span>Claude Max Fable 5.2 meter</span><span id="fableDualReadout" style="font-variant-numeric:tabular-nums"></span></div>
+    <div class="chip-row" id="fableChips" role="group" aria-label="Fable meter">
+      <button type="button" data-fable="shared" aria-pressed="true">Shared limit</button>
+      <button type="button" data-fable="own" aria-pressed="false">Fable-only (50% cap)</button>
+    </div>
+  </div>
+  <div class="pop-section">
+    <label class="toggle-row">
+      <span><strong>Estimate unmeasured models</strong><span class="toggle-hint">Includes low-confidence readings and estimates from similar models (marked ≈, excluded from the frontier).</span></span>
+      <input type="checkbox" id="estToggle" checked />
+    </label>
+  </div>
+  <div class="live-readout" id="liveReadout"></div>
+  <div class="pop-section" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <button type="button" class="sub-btn" id="openTasksFromPop">Compare Tasks / week</button>
+    <span style="font-size:11px;color:var(--ink-2)">Stored locally only</span>
+  </div>
+  <div class="pop-meta" id="popMeta"></div>
+</div>
+
 <div id="scrim"></div>
 <div id="tooltip"></div>
 <div class="menu" id="menu" role="dialog" hidden>
@@ -1295,9 +1585,11 @@
 <script src="aa-data.js"></script>
 <script src="scoring.js"></script>
 <script src="priors-fit.js"></script>
+<script src="plan-math.js"></script>
 <script src="data/models.js"></script>
 <script src="data/external.js"></script>
 <script src="data/plan-shares.js"></script>
+<script src="data/plan-allowances.js"></script>
 <script>
 (() => {
   // Data: the copy built into the page, or a newer one saved by the "Update data" button.
@@ -2354,7 +2646,20 @@
   let base = (() => { try { return JSON.parse(readKey(BASE_KEY)); } catch { return null; } })();
   let syncing = false, lastSyncOk = null;
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  const unsynced = () => !same(sets, base);
+  function scrubCtx() {
+    return {
+      validIds: new Set(ALL.map((m) => m.id)),
+      validMetrics: new Set(Object.keys(METRICS)),
+      validBenchKeys: new Set(Object.keys(METRICS).filter((k) => isBench(k))),
+      validAutoKeys: new Set([...Object.keys(METRICS), 'x', 'y']),
+      validEfforts: new Set(EFFORTS),
+    };
+  }
+  const publicSets = (obj) => window.PlanMath ? window.PlanMath.scrubSetCollection(obj, scrubCtx()) : (obj || {});
+  const withLocalSubPlans = (cleanSet, localSet) => (cleanSet && localSet?.subPlans && typeof localSet.subPlans === 'object' && Object.keys(localSet.subPlans).length)
+    ? { ...cleanSet, subPlans: { ...localSet.subPlans } }
+    : cleanSet;
+  const unsynced = () => !same(publicSets(sets), publicSets(base));
   const gist = (method, body) => fetch(`https://api.github.com/gists/${SYNC_GIST}${method === 'GET' ? '?t=' + Date.now() : ''}`, {
     method, cache: 'no-store', body: body && JSON.stringify(body),
     // reads go without the token, so a revoked one can't block them; only saving needs it
@@ -2374,14 +2679,22 @@
     $('syncBtn').disabled = syncing;
     $('tokenShare').hidden = !token;
   }
-  // Three-way merge by set name: a set this device changed (vs. the last sync) keeps its version, anything else takes
-  // GitHub's, deletions included. A device that has never synced keeps its own sets only where GitHub has no set by that name.
+  // Three-way merge by set name on typed public projections: device-local subPlans never triggers false conflicts
+  // or leaves the device, while genuine edits and deletions sync cleanly.
   function merge(remote) {
-    if (!base) return { ...sets, ...remote };
+    const cleanRemote = publicSets(remote), cleanLocal = publicSets(sets), cleanBase = base ? publicSets(base) : null;
+    if (!cleanBase) {
+      const out = {};
+      for (const n of new Set([...Object.keys(cleanLocal), ...Object.keys(cleanRemote)])) {
+        const picked = cleanRemote[n] ?? cleanLocal[n];
+        if (picked) out[n] = withLocalSubPlans(picked, sets[n]);
+      }
+      return out;
+    }
     const out = {};
-    for (const n of new Set([...Object.keys(base), ...Object.keys(sets), ...Object.keys(remote)])) {
-      const v = same(sets[n], base[n]) ? remote[n] : sets[n];
-      if (v) out[n] = v;
+    for (const n of new Set([...Object.keys(cleanBase), ...Object.keys(cleanLocal), ...Object.keys(cleanRemote)])) {
+      const picked = same(cleanLocal[n], cleanBase[n]) ? cleanRemote[n] : cleanLocal[n];
+      if (picked) out[n] = withLocalSubPlans(picked, sets[n]);
     }
     return out;
   }
@@ -2398,12 +2711,14 @@
     try {
       const res = await gist('GET');
       if (!res.ok) throw new Error(res.status === 404 ? 'gist not found' : 'HTTP ' + res.status);
-      const remote = JSON.parse((await res.json()).files?.[SYNC_FILE]?.content || '{}').sets || {};
-      useSets(merge(remote));
-      base = remote; store(BASE_KEY, JSON.stringify(base)); lastSyncOk = new Date().toISOString();
+      const rawRemote = JSON.parse((await res.json()).files?.[SYNC_FILE]?.content || '{}').sets || {};
+      const cleanRemote = publicSets(rawRemote);
+      useSets(merge(cleanRemote));
+      base = cleanRemote; store(BASE_KEY, JSON.stringify(base)); lastSyncOk = new Date().toISOString();
       if (upload && unsynced() && token) {
         setSync('saving');
-        const content = JSON.stringify({ version: 2, updatedAt: new Date().toISOString(), sets }, null, 1);
+        const wireSets = publicSets(sets);
+        const content = JSON.stringify({ version: 2, updatedAt: new Date().toISOString(), sets: wireSets }, null, 1);
         const put = await gist('PATCH', { files: { [SYNC_FILE]: { content } } });
         // 404 here means the token can't write gists (e.g. a fine-grained token without the Gists permission)
         if ([401, 403, 404].includes(put.status)) {
@@ -2411,7 +2726,7 @@
           throw new Error(`GitHub rejected the token (HTTP ${put.status}); it needs the "gist" permission. Press Sync to enter a new one`);
         }
         if (!put.ok) throw new Error('HTTP ' + put.status);
-        base = JSON.parse(JSON.stringify(sets)); store(BASE_KEY, JSON.stringify(base));
+        base = JSON.parse(JSON.stringify(wireSets)); store(BASE_KEY, JSON.stringify(base));
       }
       syncing = false; setSync();
     } catch (err) { syncing = false; setSync(upload ? 'error' : 'offline', err.message); }
@@ -2471,8 +2786,11 @@
         const point = points.find((p) => p.m === m) || ctx?.ghosts?.find((p) => p.m === m);
         if (point) return { value: point[axis + 'v'], point, model: point.m };
         // not on the chart (deselected or filtered out): 1.0 stays put, using the model's own value
-        const value = m[S[axis]];
-        return value == null ? { note: `${refName(m)} has no ${METRICS[S[axis]].label} data.` } : { value, model: m, offChart: true };
+        const subOn = subLensActive() && subAxisKey(S[axis]);
+        const pr = subOn ? subPriceOf(m, S[axis], subProfile, S.price) : null;
+        const value = subOn ? (pr && !pr.omitted ? pr.val : null) : m[S[axis]];
+        const mLabel = effectiveMetric(S[axis], subOn, S.price).label;
+        return value == null ? { note: `${refName(m)} has no ${mLabel} data.` } : { value, model: m, offChart: true };
       },
     },
     pinned: {
@@ -2504,13 +2822,14 @@
   const refWord = (ref) => ref.key === 'model' ? refName(ref.model) : REF_DEFS[ref.key].label.toLowerCase();
 
   // ---------- state ----------
+  const PM = window.PlanMath, PLAN_CAT = window.PLAN_ALLOWANCES || { plans: {}, presets: {}, allowances: {}, accounting: { totalCompiledRows: 0 } };
   const DEFAULT_FITTER = { minGrade: 'B', cover: 0.75, fill: true, maxBenches: 6 };
   const STATE_KEY = 'aa-charts:state:v2', SETS_KEY = 'aa-charts:sets';
   const defaultSelection = () => ALL.filter((m) => m.defaultSelected && !m.deprecated).map((m) => m.id);
   const THEO_FAMILIES = ['claude-opus-5-5', 'claude-fable-5-1', 'gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5-6-sol'];
   const theoSelection = () => ALL.filter((m) => THEO_FAMILIES.includes(m.family) && m.effort !== 'non-reasoning').map((m) => m.id);
   const DEFAULT_STATE = {
-    x: 'costPerTask', y: 'intelligence', xScale: 'linear', yScale: 'linear',
+    x: 'costPerTask', y: 'intelligence', price: 'plan', xScale: 'linear', yScale: 'linear',
     pareto: 'step', frontStyle: 'shade', fullFrontier: false, guides: 'hover', labels: 'auto', ladderAt: 'top', colorBy: 'lab', connect: true, markEffort: 'high', markStyle: 'hash',
     grid: 'normal', axisText: 'normal',
     efforts: EFFORTS.slice(), selected: theoSelection(), pinned: [],
@@ -2524,8 +2843,18 @@
     usagePeriod: '30', usageMetric: 'cost', usageGroup: 'model', usageRel: 'off', usageAs: '', usagePlans: {}, usageSort: { key: 'cost', dir: -1 }, usageCols: 'basic', usageCum: false, usageHeat: 'requests', // "Your usage": personal, so not in saved sets
   };
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const hadSavedState = (() => { try { return localStorage.getItem(STATE_KEY) != null; } catch { return false; } })();
   const savedState = load(STATE_KEY, {});
   const S = { ...DEFAULT_STATE, ...savedState };
+  S.price = PM ? PM.resolveInitialPrice({ hasSavedState: hadSavedState, savedPrice: savedState.price }) : 'api';
+  let subProfile = PM ? PM.loadLocalProfile(localStorage, PLAN_CAT, PM.PUBLIC_DEFAULT_ESTIMATES) : { plans: {}, use: 1, fableCap: 'shared', estimate: true };
+  let subClockOverride = undefined, subLegacyNotice = null, subPopOpen = false, subTasksOpen = false, subTasksChartOpen = true;
+  let subFeeErrors = {}, lastSubRender = null, lastLabelAudit = null, subPubDefaultEstOverride = null;
+  const saveSubProfile = () => {
+    if (!PM) return;
+    subProfile = PM.sanitizeProfile(subProfile, PLAN_CAT, PM.PUBLIC_DEFAULT_ESTIMATES);
+    PM.saveLocalProfile(localStorage, subProfile, PLAN_CAT);
+  };
   function mixCover(value) {
     return value != null && Number.isFinite(+value) && +value >= 0 && +value <= 1 ? Math.round(value * 100) / 100 : DEFAULT_FITTER.cover;
   }
@@ -2606,6 +2935,7 @@
     for (const k of ['valueAsX', 'valueAsY']) if (!VALUE_FORMS.includes(S[k])) S[k] = 'auto';
     for (const k of ['valueVsX', 'valueVsY']) if (!['axis', 'best'].includes(S[k])) S[k] = 'axis';
     S.smallCaps = !!S.smallCaps; S.smallCapsOff = !!S.smallCapsOff; S.smallCapsAuto = !!S.smallCapsAuto;
+    if (PM && !PM.PRICE_MODES.includes(S.price)) S.price = 'api';
   }
   fixAxes(); PLAN_FEE = +S.planPrice || 0; SUB_PLANS = S.subPlans; applyBasis();
   S.selected = new Set(S.selected.filter((id) => BY_ID.has(id)));
@@ -2622,6 +2952,7 @@
     const name = 'My earlier view (restored)';
     sets[name] = legacy;
     Object.assign(S, legacy, {
+      price: PM && PM.PRICE_MODES.includes(legacy.price) ? legacy.price : 'api',
       selected: new Set(legacy.selected.filter((id) => BY_ID.has(id))), pinned: new Set((legacy.pinned || []).filter((id) => BY_ID.has(id))),
       efforts: new Set(legacy.efforts || EFFORTS), activeSet: name,
     });
@@ -2753,7 +3084,43 @@
   const idColor = (p) => dualMode() !== 'off' ? p.lab : p.color;
   const textColor = (p) => readable(p.color);
   // Dual-color dot marks: Ring (lab/effort ring + value center), Split (left lab/effort, right value), Field (lab/effort dot on value field), or plain circle.
-  const dotOuter = (r, mode = dualMode()) => mode === 'ring' ? r + 2.25 : mode === 'split' ? r + 0.75 : r;
+  const dotOuter = (r, mode = dualMode(), p = null) => PM ? PM.dotOuter(r, mode, p) : (mode === 'ring' ? r + 2.25 : mode === 'split' ? r + 0.75 : r);
+  function appendBeadRing(parent, p, r, surface, inkColor, mode = dualMode()) {
+    if (!PM) return;
+    const spec = PM.beadRingSpec(r, mode);
+    const g = svgEl('g', { class: 'lane2-bead-ring', 'data-id': p.m.id, 'data-fam': p.m.family, 'pointer-events': 'none' });
+    for (let i = 0; i < spec.beadCount; i++) {
+      const ang = ((spec.startAngleDeg + (i * 360 / spec.beadCount)) * Math.PI) / 180;
+      g.append(svgEl('circle', {
+        cx: (p.px + Math.cos(ang) * spec.ringRadius).toFixed(2),
+        cy: (p.py + Math.sin(ang) * spec.ringRadius).toFixed(2),
+        r: spec.beadRadius, fill: inkColor, stroke: surface, 'stroke-width': spec.strokeWidth,
+        'paint-order': spec.paintOrder,
+      }));
+    }
+    parent.append(g);
+  }
+  function subBeadKeySvg(inkColor, surface, accent) {
+    const dots = [];
+    for (let i = 0; i < 12; i++) {
+      const a = (i * 30 - 90) * Math.PI / 180;
+      dots.push(`<circle cx="${(11 + Math.cos(a) * 8).toFixed(2)}" cy="${(11 + Math.sin(a) * 8).toFixed(2)}" r="1" fill="${inkColor}" stroke="${surface}" stroke-width="1.5" paint-order="stroke fill"/>`);
+    }
+    return `<svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true" style="flex:none">${dots.join('')}<circle cx="11" cy="11" r="4" fill="${accent}" stroke="${surface}" stroke-width="1.5"/></svg>`;
+  }
+  let _svgMeasureHost = null;
+  function measureSvgText(text, fontSize = 10.5, fontWeight = 500) {
+    if (!_svgMeasureHost) {
+      _svgMeasureHost = svgEl('svg', { width: 10, height: 10, style: 'position:fixed;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none' });
+      document.body.append(_svgMeasureHost);
+    }
+    const t = svgEl('text', { 'font-size': fontSize, 'font-weight': fontWeight, 'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif' }, text);
+    _svgMeasureHost.append(t);
+    let w = 0;
+    try { w = t.getComputedTextLength(); } catch { w = textW(text, fontSize, fontWeight); }
+    t.remove();
+    return Number.isFinite(w) && w > 0 ? w : textW(text, fontSize, fontWeight);
+  }
   function dotMark(p, r, surface, attrs = {}, mode = dualMode()) {
     const op = isEst(p.m) ? 0.45 : 1, { cx = p.px, cy = p.py } = attrs;
     if (mode === 'ring') {
@@ -3218,15 +3585,16 @@
 
   // ---------- saved sets ----------
   function snapshot() {
-    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, ladderAt: S.ladderAt, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, basis: S.basis, basisFill: S.basisFill, customWeights: knownMixWeights(S.customWeights), customCover: S.customCover, rowLayout: S.rowLayout, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor, nameAt: S.nameAt, tallRatio: S.tallRatio, valueAsX: S.valueAsX, valueAsY: S.valueAsY, valueVsX: S.valueVsX, valueVsY: S.valueVsY, smallCaps: S.smallCaps, smallCapsOff: S.smallCapsOff, smallCapsAuto: S.smallCapsAuto, subPlans: S.subPlans, autoPts: S.autoPts, autoBest: S.autoBest, autoBestPct: S.autoBestPct, autoBase: S.autoBase, autoBasePts: S.autoBasePts };
+    return { selected: [...S.selected], efforts: [...S.efforts], pinned: [...S.pinned], x: S.x, y: S.y, price: S.price, xScale: S.xScale, yScale: S.yScale, pareto: S.pareto, frontStyle: S.frontStyle, fullFrontier: S.fullFrontier, guides: S.guides, labels: S.labels, ladderAt: S.ladderAt, colorBy: S.colorBy, idColor: S.idColor, dual: S.dual, connect: S.connect, markEffort: S.markEffort, markStyle: S.markStyle, grid: S.grid, axisText: S.axisText, glow: S.glow, hideOlder: S.hideOlder, zone: S.zone, zoneStyle: S.zoneStyle, shape: S.shape, focus: S.focus, basis: S.basis, basisFill: S.basisFill, customWeights: knownMixWeights(S.customWeights), customCover: S.customCover, rowLayout: S.rowLayout, rowMetric: S.rowMetric, rowScale: S.rowScale, lineStyle: S.lineStyle, valueLabels: S.valueLabels, valueFront: S.valueFront, shortEffort: S.shortEffort, shortEffortTouched: S.shortEffortTouched, extWithFamily: S.extWithFamily, xRel: S.xRel, yRel: S.yRel, ramp: S.ramp, guideAxes: S.guideAxes, guideBox: S.guideBox, guideBoxColor: S.guideBoxColor, zoneColor: S.zoneColor, nameAt: S.nameAt, tallRatio: S.tallRatio, valueAsX: S.valueAsX, valueAsY: S.valueAsY, valueVsX: S.valueVsX, valueVsY: S.valueVsY, smallCaps: S.smallCaps, smallCapsOff: S.smallCapsOff, smallCapsAuto: S.smallCapsAuto, subPlans: S.subPlans, autoPts: S.autoPts, autoBest: S.autoBest, autoBestPct: S.autoBestPct, autoBase: S.autoBase, autoBasePts: S.autoBasePts };
   }
   function applySet(snap) {
     if (snap.selected) S.selected = new Set(snap.selected.filter((id) => BY_ID.has(id)));
     if (snap.efforts) S.efforts = new Set(snap.efforts);
     S.pinned = new Set((snap.pinned || []).filter((id) => BY_ID.has(id)));
-    for (const k of ['x', 'y', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor', 'nameAt', 'tallRatio', 'valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'smallCaps', 'smallCapsOff', 'smallCapsAuto', 'subPlans', 'autoPts', 'autoBest', 'autoBestPct', 'autoBase', 'autoBasePts']) if (snap[k] != null) S[k] = snap[k];
+    for (const k of ['x', 'y', 'price', 'xScale', 'yScale', 'pareto', 'frontStyle', 'fullFrontier', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'connect', 'markEffort', 'markStyle', 'grid', 'axisText', 'glow', 'hideOlder', 'zone', 'zoneStyle', 'shape', 'focus', 'lineStyle', 'valueLabels', 'valueFront', 'shortEffort', 'shortEffortTouched', 'extWithFamily', 'xRel', 'yRel', 'ramp', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor', 'nameAt', 'tallRatio', 'valueAsX', 'valueAsY', 'valueVsX', 'valueVsY', 'smallCaps', 'smallCapsOff', 'smallCapsAuto', 'subPlans', 'autoPts', 'autoBest', 'autoBestPct', 'autoBase', 'autoBasePts']) if (snap[k] != null) S[k] = snap[k];
     if (snap.shortEffort != null && snap.shortEffortTouched == null) S.shortEffortTouched = true;
     for (const key of ['basis', 'basisFill', 'customWeights', 'customCover', 'rowLayout', 'rowMetric', 'rowScale']) S[key] = snap[key] ?? DEFAULT_STATE[key];
+    subLegacyNotice = null;
     fixMixState(); fixAxes(); fixMarks();
     mixUndo = null; mixDrag = null; zeroWeights.clear();
     SUB_PLANS = S.subPlans; applyBasis(); syncControls(); $('subPlansWrap').querySelectorAll('select').forEach((sel) => { sel.value = S.subPlans[sel.dataset.lab] || 'median'; });
@@ -3261,11 +3629,11 @@
     if (!sets[S.activeSet] || !confirm(`Delete set "${S.activeSet}"?`)) return;
     delete sets[S.activeSet]; S.activeSet = ''; persistSets(); save(); renderSetSelect();
   });
-  $('setExport').addEventListener('click', () => download('aa-model-sets.json', new Blob([JSON.stringify(sets, null, 2)], { type: 'application/json' })));
+  $('setExport').addEventListener('click', () => download('aa-model-sets.json', new Blob([JSON.stringify(publicSets(sets), null, 2)], { type: 'application/json' })));
   $('setImport').addEventListener('click', () => $('importFile').click());
   $('importFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    try { const obj = JSON.parse(await f.text()); Object.assign(sets, obj); persistSets(); renderSetSelect(); alert(`Imported ${Object.keys(obj).length} set(s).`); }
+    try { const raw = JSON.parse(await f.text()), clean = publicSets(raw); Object.assign(sets, clean); persistSets(); renderSetSelect(); alert(`Imported ${Object.keys(clean).length} set(s).`); }
     catch (err) { alert('Could not read that file: ' + err.message); }
     e.target.value = '';
   });
@@ -3557,6 +3925,7 @@
     const axis = menuKind === 'x' ? 'x' : 'y';
     closeMenu();
     S[axis] = k; S[axis + 'Scale'] = METRICS[k].scale || 'linear';
+    subLegacyNotice = null;
     markDirty(); syncControls(); save(); if (axis === 'x') renderList(); render();
   }
   // In Choose mode a click or Enter on a row ticks or unticks it instead of charting it
@@ -3811,11 +4180,17 @@
   const AUTO_MEMO_KEY = 'aa-charts:also-show-last';
   let lastAutoIds = [];
   function autoIncluded(chosen, yBase) {
-    const T = METRICS[S.y], k = S.y, low = T.better === 'low';
+    const subOn = subLensActive();
+    const T = effectiveMetric(S.y, subOn, S.price), k = S.y, low = T.better === 'low';
+    const valOf = (m, key) => {
+      if (!subOn || !subAxisKey(key)) return m[key];
+      const pr = subPriceOf(m, key, subProfile, S.price);
+      return pr && !pr.omitted ? pr.val : null;
+    };
     const unitWord = T.fmt === money ? 'dollars' : T.fmt === elo ? 'Elo' : T.fmt === secs ? 'seconds' : T.frac ? 'percentage points' : k === 'outputSpeed' ? 'tokens/s' : 'points';
     const out = { extra: [], ids: new Set(), note: '', baseLabel: 'the best', unitWord };
-    const pool = ALL.filter((m) => passes(m) && labListed(m.creatorSlug) && S.efforts.has(m.effort) && scaleOk(S.yScale, m[k]) && scaleOk(S.xScale, m[S.x]));
-    const vals = pool.map((m) => m[k]), best = vals.length ? (low ? Math.min(...vals) : Math.max(...vals)) : NaN;
+    const pool = ALL.filter((m) => passes(m) && labListed(m.creatorSlug) && S.efforts.has(m.effort) && scaleOk(S.yScale, valOf(m, k)) && scaleOk(S.xScale, valOf(m, S.x)));
+    const vals = pool.map((m) => valOf(m, k)), best = vals.length ? (low ? Math.min(...vals) : Math.max(...vals)) : NaN;
     const base = yBase || { value: best, label: 'the best' };
     out.baseLabel = base.label;
     // "within N": this Y metric's own number, else 5% of the baseline to one significant figure (3 on a 0–100 index)
@@ -3828,7 +4203,7 @@
       if (!(best > 0)) why.push(`% rule skipped: the best ${T.label} is ${T.fmt(best)}, so a percentage of it is nothing`);
       else {
         const f = S.autoBestPct / 100, cut = low ? best * (1 + f) : best * (1 - f);
-        for (const m of pool) if (low ? m[k] <= cut : m[k] >= cut) keep.add(m);
+        for (const m of pool) { const mv = valOf(m, k); if (low ? mv <= cut : mv >= cut) keep.add(m); }
         why.push(`within ${S.autoBestPct}% of the best ${T.label} (${T.fmt(best)}, so ${low ? 'at most' : 'at least'} ${T.fmt(cut)})`);
       }
     }
@@ -3840,7 +4215,7 @@
       : `points rule paused: Y's 1.0 can't be worked out from the selected models`);
     if (S.autoBase && !needsTicks && Number.isFinite(base.value)) {
       const d = S.autoBasePts / (T.frac ? 100 : 1);
-      for (const m of pool) if (Math.abs(m[k] - base.value) <= d + 1e-9) keep.add(m);
+      for (const m of pool) if (Math.abs(valOf(m, k) - base.value) <= d + 1e-9) keep.add(m);
       const atBest = base.value === best, range = atBest ? `${low ? 'at most' : 'at least'} ${T.fmt(low ? base.value + d : base.value - d)}` : `${T.fmt(base.value - d)} to ${T.fmt(base.value + d)}`;
       why.push(`within ${S.autoBasePts} ${out.unitWord} of ${base.label} (${T.fmt(base.value)}, so ${range})`);
     }
@@ -3863,6 +4238,306 @@
     return out;
   }
 
+  // ---------- subscription price lens, Your plans editor & Tasks / week ----------
+  const SUB_LAB_DEFS = [
+    { id: 'anthropic', label: 'Anthropic', color: 'var(--s2)' },
+    { id: 'openai',    label: 'OpenAI',    color: 'var(--ink)' },
+    { id: 'google',    label: 'Google',    color: 'var(--s1)' },
+    { id: 'xai',       label: 'xAI',       color: 'var(--s3)' },
+  ];
+  const legacyAxisActive = () => !!PM && PM.hasActiveLegacyAxis(S.x, S.y);
+  const subAxisKey = (k) => !!PM && PM.isPriceEligibleAxis(k);
+  const subLensActive = () => !!PM && !legacyAxisActive() && (S.price === 'plan' || S.price === 'pct') && (subAxisKey(S.x) || subAxisKey(S.y));
+  const subNowOpt = () => subClockOverride ? { now: subClockOverride } : {};
+  const subShortName = (m, narrow = false) => {
+    const base = (m.familyName || m.name || '').replace(/^Claude |^Gemini\s+(?:4|3\.8)\s+|^Gemini /, '');
+    return narrow ? base.replace(/^GPT-6\.2 /, 'GPT ') : base;
+  };
+  function subPriceOf(m, metricKey = 'costPerTask', prof = subProfile, mode = S.price) {
+    if (!PM) return null;
+    const key = subAxisKey(metricKey) ? metricKey : 'costPerTask';
+    return PM.priceTask(PLAN_CAT, m, prof, { price: mode, basis: BASIS, apiCost: m[key], ...subNowOpt() });
+  }
+  function effectiveMetric(k, active = subLensActive(), mode = S.price) {
+    if (!active || !subAxisKey(k)) return METRICS[k];
+    if (mode === 'plan') {
+      return {
+        ...METRICS[k],
+        label: k === 'myCost' ? 'Plan $ per task, your benchmarks' : 'Plan $ per task',
+        long: k === 'myCost' ? 'Plan $ per task on your benchmarks (share of monthly plan fee)' : 'Plan $ per task (share of monthly plan fee)',
+        fmt: (v) => PM.fmtPlanUsd(v),
+        better: 'low',
+        scale: 'linear',
+      };
+    }
+    return {
+      ...METRICS[k],
+      label: k === 'myCost' ? '% of week per task, your benchmarks' : '% of week per task',
+      long: k === 'myCost' ? '% of weekly plan allowance per task on your benchmarks' : '% of weekly plan allowance per task',
+      fmt: (v) => PM.fmtPct(v),
+      better: 'low',
+      scale: 'linear',
+    };
+  }
+  function subProfileSummary(prof = subProfile) {
+    if (!PM) return 'Example entry';
+    const def = PM.getExampleProfile(PLAN_CAT, 'entry', prof.estimate);
+    const sameEntry = PM.LAB_ORDER.every((lab) => prof.plans?.[lab]?.id === def.plans[lab].id && prof.plans?.[lab]?.fee == null)
+      && prof.use === 1 && prof.fableCap === 'shared';
+    if (sameEntry) return 'Example entry';
+    const count = PM.LAB_ORDER.filter((lab) => prof.plans?.[lab]?.id && prof.plans[lab].id !== 'none').length;
+    return `${count}/4 plans · ${Math.round((prof.use || 1) * 100)}%`;
+  }
+  function evalSubItems(models, prof, mode, costKey = 'costPerTask', scoreKey = 'intelligence', xBetter = 'low', yBetter = 'high') {
+    const items = models.map((m) => ({
+      id: m.id, m, name: m.familyName || m.name, short: subShortName(m, true),
+      familyName: m.familyName, effort: m.effort, lab: PM.normalizeLab(m.creatorSlug),
+      score: m[scoreKey],
+      price: subPriceOf(m, costKey, prof, mode),
+    }));
+    return PM.evaluateComparison(items, { mode, yField: 'score', xBetter, yBetter });
+  }
+  function groupSubOmissionsHtml(omitted, prefix = '') {
+    const byR = new Map();
+    for (const o of omitted) {
+      const r = o.price?.reason || 'Omitted';
+      if (!byR.has(r)) byR.set(r, []);
+      const nm = o.m ? o.m.familyName : (o.name || o.short || o.id);
+      const eff = o.m ? o.m.effort : o.effort;
+      byR.get(r).push(eff && eff !== 'default' ? `${nm} (${eff})` : nm);
+    }
+    return [...byR.entries()].map(([reason, names]) =>
+      `<div class="om-line"><strong>${esc(prefix)}${esc(reason)}:</strong> ${esc(names.join(', '))}</div>`
+    ).join('');
+  }
+  let subLabRowNodes = null;
+  function syncSubFeeErrorDom() {
+    if (subLabRowNodes) {
+      for (const l of SUB_LAB_DEFS) {
+        const { inp } = subLabRowNodes[l.id];
+        if (subFeeErrors[l.id]) {
+          inp.setAttribute('aria-invalid', 'true');
+          inp.setAttribute('aria-describedby', 'feeError');
+        } else {
+          inp.removeAttribute('aria-invalid');
+          inp.removeAttribute('aria-describedby');
+        }
+      }
+    }
+    const errEl = $('feeError');
+    if (!errEl) return;
+    const msgs = Object.values(subFeeErrors).map((x) => x.msg);
+    errEl.hidden = msgs.length === 0;
+    errEl.textContent = msgs.join(' ');
+  }
+  function previewSubFeeInput(l, inp) {
+    const parsed = PM.parseFeeInput(inp.value);
+    const curCfg = subProfile.plans[l.id] || { id: 'none', fee: null };
+    const curPlan = PLAN_CAT.plans[curCfg.id];
+    if (parsed.ok) {
+      delete subFeeErrors[l.id];
+    } else {
+      const curFee = curCfg.fee != null ? curCfg.fee : (curPlan ? curPlan.fee : 0);
+      subFeeErrors[l.id] = {
+        raw: inp.value,
+        msg: `${l.label}: enter a valid monthly fee ($0–$100,000, up to 2 decimals); keeping $${PM.fmtFeeEcho(curFee)}.`,
+      };
+    }
+    syncSubFeeErrorDom();
+  }
+  function commitSubFeeInput(l, inp, forceSyncValue = false) {
+    const parsed = PM.parseFeeInput(inp.value);
+    const curCfg = subProfile.plans[l.id] || { id: 'none', fee: null };
+    const curPlan = PLAN_CAT.plans[curCfg.id];
+    if (parsed.ok) {
+      delete subFeeErrors[l.id];
+      subProfile.plans[l.id].fee = parsed.fee;
+      saveSubProfile();
+    } else {
+      const curFee = curCfg.fee != null ? curCfg.fee : (curPlan ? curPlan.fee : 0);
+      subFeeErrors[l.id] = {
+        raw: inp.value,
+        msg: `${l.label}: enter a valid monthly fee ($0–$100,000, up to 2 decimals); keeping $${PM.fmtFeeEcho(curFee)}.`,
+      };
+    }
+    render();
+    if (forceSyncValue && parsed.ok) {
+      const activeFee = subProfile.plans[l.id].fee != null ? subProfile.plans[l.id].fee : (curPlan ? curPlan.fee : '');
+      inp.value = String(activeFee);
+    }
+  }
+  function ensureSubLabRows() {
+    if (subLabRowNodes) return subLabRowNodes;
+    const grid = $('labGrid');
+    if (!grid) return null;
+    grid.innerHTML = '';
+    subLabRowNodes = {};
+    for (const l of SUB_LAB_DEFS) {
+      const row = document.createElement('div');
+      row.className = 'lab-row';
+      const labPlans = Object.values(PLAN_CAT.plans || {}).filter((p) => p.lab === l.id);
+      const optsHtml = `<option value="none">No plan</option>` + labPlans.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+      row.innerHTML = `<label><span class="lab-dot" style="background:${l.color}"></span>${esc(l.label)}</label><select data-lab="${l.id}" aria-label="${esc(l.label)} plan">${optsHtml}</select><input type="text" inputmode="decimal" data-fee-lab="${l.id}" aria-label="${esc(l.label)} monthly fee in dollars" />`;
+      const sel = row.querySelector('select'), inp = row.querySelector('input');
+      sel.addEventListener('change', (e) => {
+        delete subFeeErrors[l.id];
+        subProfile.plans[l.id] = { id: e.target.value, fee: null };
+        saveSubProfile();
+        render();
+      });
+      inp.addEventListener('input', () => previewSubFeeInput(l, inp));
+      inp.addEventListener('change', () => commitSubFeeInput(l, inp, true));
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commitSubFeeInput(l, inp, true); } });
+      grid.append(row);
+      subLabRowNodes[l.id] = { row, sel, inp };
+    }
+    return subLabRowNodes;
+  }
+  function positionPlansPop() {
+    const pop = $('plansPop'), btn = $('plansBtn');
+    if (!pop || !btn) return;
+    if (window.innerWidth <= 640) {
+      pop.style.left = ''; pop.style.right = ''; pop.style.top = '';
+      return;
+    }
+    const r = btn.getBoundingClientRect(), w = Math.min(416, window.innerWidth - 24);
+    const h = Math.min(pop.offsetHeight || 560, window.innerHeight - 24);
+    const left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12));
+    const top = Math.max(12, Math.min(r.bottom + 8, window.innerHeight - h - 12));
+    pop.style.left = left + 'px'; pop.style.right = 'auto'; pop.style.top = top + 'px';
+  }
+  function openPlansPop() {
+    subPopOpen = true;
+    renderSubPopover();
+    $('plansPop').classList.add('open');
+    $('popBackdrop').classList.add('open');
+    positionPlansPop();
+    $('plansBtn').setAttribute('aria-expanded', 'true');
+    $('plansBtn').classList.add('active-pop');
+    const first = $('plansPop').querySelector('select, button, input');
+    first?.focus({ preventScroll: true });
+  }
+  function closePlansPop(restoreFocus = true) {
+    if (!subPopOpen) return;
+    subPopOpen = false;
+    $('plansPop').classList.remove('open');
+    $('popBackdrop').classList.remove('open');
+    $('plansBtn').setAttribute('aria-expanded', 'false');
+    $('plansBtn').classList.remove('active-pop');
+    if (restoreFocus) $('plansBtn')?.focus({ preventScroll: true });
+  }
+  function renderSubPopover() {
+    if (!PM || !$('plansPop')) return;
+    const nodes = ensureSubLabRows();
+    if (nodes) {
+      for (const l of SUB_LAB_DEFS) {
+        const { sel, inp } = nodes[l.id];
+        const cfg = subProfile.plans[l.id] || { id: 'none', fee: null };
+        const selPlan = PLAN_CAT.plans[cfg.id];
+        const activeFee = cfg.fee != null ? cfg.fee : (selPlan ? selPlan.fee : '');
+        const errObj = subFeeErrors[l.id];
+        const feeVal = errObj ? errObj.raw : activeFee;
+        if (sel.value !== cfg.id) sel.value = cfg.id;
+        const strFee = String(feeVal);
+        if (document.activeElement !== inp && inp.value !== strFee) inp.value = strFee;
+        inp.placeholder = selPlan ? String(selPlan.fee) : '—';
+        inp.disabled = !selPlan;
+      }
+      syncSubFeeErrorDom();
+    }
+    $('useReadout').textContent = subProfile.use === 1 ? 'Full (100%)' : `${Math.round(subProfile.use * 100)}%`;
+    $('useChips').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.use) === subProfile.use)));
+    $('fableChips').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fable === subProfile.fableCap)));
+    $('estToggle').checked = !!subProfile.estimate;
+    const fableModel = ALL.find((m) => m.family === 'claude-fable-5-2' && m.effort === 'max' && m.costPerTask > 0)
+      || ALL.find((m) => m.family === 'claude-fable-5-2' && m.costPerTask > 0);
+    const opusModel = ALL.find((m) => m.family === 'claude-opus-5-5' && m.effort === 'xhigh' && m.costPerTask > 0)
+      || ALL.find((m) => m.family === 'claude-opus-5-5' && m.costPerTask > 0);
+    if (fableModel) {
+      const fS = subPriceOf(fableModel, 'costPerTask', { ...subProfile, fableCap: 'shared' }, 'plan');
+      const fO = subPriceOf(fableModel, 'costPerTask', { ...subProfile, fableCap: 'own' }, 'plan');
+      $('fableDualReadout').textContent = (!fS.omitted && fS.hasSubCap)
+        ? `Shared ${PM.fmtPlanUsd(fS.planCost)} (${PM.fmtPct(fS.pctShared)}) · 50% cap ${PM.fmtPlanUsd(fO.planCost)} (${PM.fmtPct(fO.pctOwn)})`
+        : 'Applies on Claude Max 5x / 20x';
+    } else {
+      $('fableDualReadout').textContent = 'Applies on Claude Max 5x / 20x';
+    }
+    const opusRes = opusModel ? subPriceOf(opusModel, 'costPerTask', subProfile, 'plan') : null;
+    const fableRes = fableModel ? subPriceOf(fableModel, 'costPerTask', subProfile, 'plan') : null;
+    const lineOpus = opusRes ? `<div class="lr-sub">Opus 5.5 xhigh: ${opusRes.omitted ? esc(opusRes.shortReason) : `${PM.fmtPlanUsd(opusRes.planCost, opusRes.isLane2)} / task (${PM.fmtPct(opusRes.pctSelected, opusRes.isLane2)} of wk · capacity ${PM.fmtTasksWk(opusRes.tasksPerWeek, opusRes.isLane2)} tasks/wk)`}</div>` : '';
+    const lineFable = fableRes ? `<div class="lr-sub">Fable 5.2 max: ${fableRes.omitted ? esc(fableRes.shortReason) : `${PM.fmtPlanUsd(fableRes.planCost, fableRes.isLane2)} / task (${PM.fmtPct(fableRes.pctSelected, fableRes.isLane2)} of wk · capacity ${PM.fmtTasksWk(fableRes.tasksPerWeek, fableRes.isLane2)} tasks/wk${fableRes.hasSubCap ? `, 50% cap · ${subProfile.fableCap === 'own' ? 'Fable-only' : 'Shared limit'}` : ''})`}</div>` : '';
+    $('liveReadout').innerHTML = `<div class="lr-title">Live cost at ${Math.round(subProfile.use * 100)}% use (plan capacity stays fixed)</div>${lineOpus}${lineFable}`;
+    $('popMeta').textContent = `${PM.DISCLOSURES.fourWeeks} Catalog ${PLAN_CAT.catalogDate || ''} (${PLAN_CAT.attribution || 'Real API Pricing'}, ${PLAN_CAT.license || 'MIT'}).`;
+  }
+  function renderTasksPanel(chosenModels) {
+    const panel = $('tasksPanel');
+    if (!panel || !PM) return;
+    $('tasksBtn').setAttribute('aria-expanded', String(subTasksOpen));
+    panel.hidden = !subTasksOpen;
+    if (!subTasksOpen) return;
+    const legacy = legacyAxisActive();
+    const costKey = subAxisKey(S.x) ? S.x : subAxisKey(S.y) ? S.y : 'costPerTask';
+    const evalRes = legacy ? { plotted: [] } : evalSubItems(chosenModels, subProfile, 'plan', costKey, S.y === costKey ? 'intelligence' : S.y);
+    const rows = evalRes.plotted.slice().sort((a, b) => (b.price.tasksPerWeek || 0) - (a.price.tasksPerWeek || 0));
+    const emptyEl = $('tasksEmpty'), wrapEl = $('tasksTableWrap'), chartEl = $('tasksChartWrap');
+    $('toggleTasksChartBtn').setAttribute('aria-pressed', String(subTasksChartOpen));
+    if (legacy || !rows.length) {
+      emptyEl.hidden = false;
+      emptyEl.textContent = legacy
+        ? 'Switch to Plan $ or % of week above to compare subscription Tasks / week for your selected models.'
+        : 'No selected models have subscription allowance data for your current plan picks. Choose a plan in Your plans or select covered models.';
+      wrapEl.hidden = true;
+      chartEl.innerHTML = '';
+      $('tasksSub').textContent = '';
+      return;
+    }
+    emptyEl.hidden = true;
+    wrapEl.hidden = false;
+    const hasSubCap = rows.some((d) => d.price.hasSubCap);
+    $('tasksSub').textContent = hasSubCap
+      ? '· Fable plan capacity (50% cap) is identical on Shared limit & Fable-only'
+      : '· Plan capacity based on weekly allowance ÷ task API cost';
+    $('tasksTbody').innerHTML = rows.map((d) => {
+      const pr = d.price, isEst = pr.lane === 2;
+      const capTagD = pr.hasSubCap ? ' <span class="d-only" style="color:var(--ink-2);font-size:11px">(50% cap)</span>' : '';
+      const capTagM = pr.hasSubCap ? '<span class="m-sub">(50% cap)</span>' : '';
+      const srcSub = esc(pr.sourceLabel).replace(' (≈)', '&nbsp;(≈)');
+      return `<tr>
+        <td class="col-model"><strong>${esc(subShortName(d.m, true))}</strong> <span style="color:var(--ink-2)">${esc(d.m.effort === 'default' ? '' : d.m.effort)}</span><span class="m-sub">${esc(pr.poolLabel)} · ${srcSub}</span></td>
+        <td class="col-plan">${esc(pr.poolLabel)}</td>
+        <td class="col-src">${esc(pr.sourceLabel)}</td>
+        <td class="col-usd num">${esc(PM.fmtPlanUsd(pr.planCost, isEst))}<span class="m-sub">${esc(PM.fmtPct(pr.pctSelected, isEst))}/wk</span></td>
+        <td class="col-pct num">${esc(PM.fmtPct(pr.pctSelected, isEst))}</td>
+        <td class="col-tasks num"><strong>${esc(PM.fmtTasksWk(pr.tasksPerWeek, isEst))}</strong>${capTagD}${capTagM}</td>
+      </tr>`;
+    }).join('');
+    if (!subTasksChartOpen) { chartEl.innerHTML = ''; return; }
+    const maxT = Math.max(...rows.map((r) => r.price.tasksPerWeek || 1));
+    chartEl.innerHTML = rows.slice(0, 8).map((d) => {
+      const wPct = Math.max(2, Math.round(((d.price.tasksPerWeek || 0) / maxT) * 100));
+      const col = familyColor(d.m);
+      return `<div style="display:grid;grid-template-columns:138px 1fr 54px;gap:8px;align-items:center;margin-bottom:5px;font-size:11.5px">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(subShortName(d.m, true))} ${esc(d.m.effort === 'default' ? '' : d.m.effort)}</span>
+        <div style="height:12px;border-radius:4px;background:var(--page);overflow:hidden;border:1px solid var(--border)">
+          <div style="height:100%;width:${wPct}%;background:${col};opacity:${d.price.lane === 2 ? 0.55 : 0.9}"></div>
+        </div>
+        <span class="num" style="text-align:right;font-variant-numeric:tabular-nums">${esc(PM.fmtTasksWk(d.price.tasksPerWeek, d.price.lane === 2))}</span>
+      </div>`;
+    }).join('');
+  }
+  function syncPriceBar() {
+    const bar = $('priceBar');
+    if (!bar || !PM) return;
+    const show = subAxisKey(S.x) || subAxisKey(S.y) || legacyAxisActive();
+    bar.hidden = !show;
+    const leg = legacyAxisActive();
+    $('priceSeg').querySelectorAll('button').forEach((btn) => {
+      btn.setAttribute('aria-pressed', String(!leg && btn.dataset.price === S.price));
+    });
+    $('plansSummary').textContent = subProfileSummary(subProfile);
+    if (subPopOpen) { renderSubPopover(); positionPlansPop(); }
+  }
+
   function render() {
     // the ramp picker and Lab/Effort dual control show only when coloring by value (synced first, so an empty chart doesn't leave them stale)
     const byVal = VALUE_BY.has(S.colorBy);
@@ -3882,18 +4557,21 @@
       const note = $('autoNote'); return view - (bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0) - (note && !note.hidden ? note.offsetHeight + 4 : 0) - 12; })();
     const tallPH = tall && !narrow ? Math.max(480, Math.min(1040, visH)) - 74 : 0;
     const tallPW = tall && !narrow ? Math.min(Math.max(220, Math.round(tallPH / S.tallRatio)), Math.max(220, availW - 70 - 150)) : 0;
-    let H = tall ? Math.round((narrow ? W - 58 : tallPW) * S.tallRatio) + (narrow ? 70 : 74) : narrow ? Math.round(Math.max(340, Math.min(W * (diamond ? 1.15 : 1.35), innerHeight * 0.66))) : Math.round(Math.min(diamond ? (S.wide ? 900 : 820) : (S.wide ? 880 : 760), Math.max(diamond ? 500 : 440, W * (diamond ? 0.66 : 0.6))));
+    let H = tall ? Math.round((narrow ? W - 58 : tallPW) * S.tallRatio) + (narrow ? 70 : 74) : narrow ? Math.round(Math.max(subLensActive() ? 420 : 340, Math.min(W * (diamond ? 1.15 : subLensActive() ? 1.52 : 1.35), innerHeight * (subLensActive() ? 0.74 : 0.66)))) : Math.round(Math.min(diamond ? (S.wide ? 900 : 820) : (S.wide ? 880 : 760), Math.max(diamond ? 500 : 440, W * (diamond ? 0.66 : 0.6))));
     // Diamond: tick labels and axis titles sit outside the rhombus, in the corners of the plot rectangle, so margins are small.
     const M = diamond ? (narrow ? { top: 22, right: 6, bottom: 40, left: 6 } : { top: 30, right: 24, bottom: 40, left: 24 })
-      : narrow ? { top: 26, right: 12, bottom: 44, left: 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
+      : narrow ? { top: 26, right: 12, bottom: 44, left: subLensActive() ? 30 : 46 } : { top: 16, right: 28, bottom: 58, left: 70 };
     if (tall && !narrow) { M.right = 150; W = Math.min(availW, M.left + tallPW + M.right); } // the right margin takes labels
     let PW = W - M.left - M.right;
     let PH = H - M.top - M.bottom;
-    let X = METRICS[S.x], Y = METRICS[S.y];
+    const subActive = subLensActive(), legActive = legacyAxisActive();
+    const subX = subActive && subAxisKey(S.x), subY = subActive && subAxisKey(S.y);
+    let X = effectiveMetric(S.x, subActive, S.price), Y = effectiveMetric(S.y, subActive, S.price);
     const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis') };
+    syncPriceBar();
 
     $('chartDesc').innerHTML = [S.y, S.x].filter((k, i) => descOf(k) && !(usesYourIndex() && k === 'myIndex') && (i === 0 || S.x !== S.y))
-      .map((k) => { const c = reportCard(k); return `<b>${esc(METRICS[k].label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(descOf(k))}${c ? ` <span class="upd" title="${esc(c.reason)}">Grading v2 <b>${gradeText(c)}</b></span>` : ''}`; }).join('<br>');
+      .map((k) => { const c = reportCard(k), mk = effectiveMetric(k, subActive, S.price); return `<b>${esc(mk.label)}</b>${UPDATED.has(k) ? ` <span class="upd" title="${esc([updatedNote(k), activeNote(k)].filter(Boolean).join('. '))}">(updated ${esc(updatedDay(k))}${isActive(k) ? '' : ' · inactive'})</span>` : ''}: ${esc(descOf(k))}${c ? ` <span class="upd" title="${esc(c.reason)}">Grading v2 <b>${gradeText(c)}</b></span>` : ''}`; }).join('<br>');
     const dir = (T) => T.better === 'low' ? 'lower is better' : 'higher is better', word = { linear: 'linear', sqrt: 'square-root', log: 'log', logit: 'logit' };
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
     svg.replaceChildren();
@@ -3901,22 +4579,49 @@
     const ladder = S.labels === 'ladder' && !diamond;
     $('ladderAtWrap').hidden = !ladder; $('ladderAtSel').value = S.ladderAt;
     const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort) && !superseded(m));
+    const subPriceMap = new Map();
+    const getAxisVal = (m, k) => {
+      if (!subActive || !subAxisKey(k)) return m[k];
+      const ck = `${m.id}::${k}`;
+      let pr = subPriceMap.get(ck);
+      if (!pr) { pr = subPriceOf(m, k, subProfile, S.price); subPriceMap.set(ck, pr); }
+      return pr && !pr.omitted ? pr.val : null;
+    };
+    const getSubPrice = (m) => {
+      if (!subActive) return null;
+      const k = subX ? S.x : S.y;
+      const ck = `${m.id}::${k}`;
+      let pr = subPriceMap.get(ck);
+      if (!pr) { pr = subPriceOf(m, k, subProfile, S.price); subPriceMap.set(ck, pr); }
+      return pr;
+    };
     // the Y axis's 1.0, worked out on the selected models only, so Also show's dots can't move it (and "within N points
     // of Y's 1.0" uses exactly the 1.0 the chart divides by)
-    const manualPts = chosen.filter((m) => scaleOk(S.xScale, m[S.x]) && scaleOk(S.yScale, m[S.y])).map((m) => ({ m, xv: m[S.x], yv: m[S.y] }));
-    const manualFront = paretoFront(manualPts), yKey = refKeyOf(S.yRel);
+    const manualPts = chosen.map((m) => ({ m, xv: getAxisVal(m, S.x), yv: getAxisVal(m, S.y), subPrice: getSubPrice(m) })).filter((p) => scaleOk(S.xScale, p.xv) && scaleOk(S.yScale, p.yv));
+    const manualFront = paretoFront(subActive ? manualPts.filter((p) => p.subPrice?.lane !== 2) : manualPts), yKey = refKeyOf(S.yRel);
     const yPick = yKey !== 'off' && REF_DEFS[yKey] ? REF_DEFS[yKey].pick(manualPts, 'y', { front: manualFront, knee: kneeOf(manualFront), notes: [], ghosts: [] }) : null;
     const yBase = Number.isFinite(yPick?.value) && yPick.value > 0 ? { value: yPick.value, label: `${yPick.model ? refName(yPick.model) : yPick.point ? yPick.point.m.label : REF_DEFS[yKey].label.toLowerCase()}, Y's 1.0` } : null;
     const auto = autoIncluded(chosen, yBase); lastAutoIds = [...auto.ids];
     chosen.push(...auto.extra);
     $('autoBaseRef').textContent = auto.baseLabel; $('autoBaseUnit').textContent = auto.unitWord;
     if (document.activeElement !== $('autoBasePts')) $('autoBasePts').value = S.autoBasePts;
-    const missing = [];
+    const missing = [], subOmitted = [];
     let points = [];
     for (const m of chosen) {
-      const xv = m[S.x], yv = m[S.y];
+      const pr = getSubPrice(m);
+      if (subActive && pr?.omitted) {
+        const otherOk = subX ? scaleOk(S.yScale, m[S.y]) : scaleOk(S.xScale, m[S.x]);
+        if (otherOk && (pr.reasonCode !== 'unavailable_cost' || (BASIS !== 'aa' && m.costPerTask > 0))) {
+          subOmitted.push({ id: m.id, m, name: m.familyName, short: subShortName(m, true), effort: m.effort, price: pr });
+        } else {
+          missing.push(m);
+        }
+        continue;
+      }
+      const xv = getAxisVal(m, S.x), yv = getAxisVal(m, S.y);
       const okX = scaleOk(S.xScale, xv), okY = scaleOk(S.yScale, yv);
-      if (okX && okY) points.push({ m, xv, yv, auto: auto.ids.has(m.id) }); else missing.push(m);
+      if (okX && okY) points.push({ m, xv, yv, auto: auto.ids.has(m.id), subPrice: pr, isLane2: !!(subActive && pr?.lane === 2) });
+      else missing.push(m);
     }
     const anchors = [];
     // Ladder at an effort the effort filter hides: a selected model's result at that effort is drawn hollow, so its
@@ -3925,23 +4630,39 @@
     if (ladder && S.ladderAt !== 'top' && !S.efforts.has(S.ladderAt)) for (const id of S.selected) {
       const m = BY_ID.get(id);
       if (!m || m.effort !== S.ladderAt || superseded(m) || points.some((p) => p.m.family === m.family && p.m.effort === S.ladderAt)) continue;
-      if (scaleOk(S.xScale, m[S.x]) && scaleOk(S.yScale, m[S.y])) anchors.push({ m, xv: m[S.x], yv: m[S.y], anchorOnly: true });
+      const pr = getSubPrice(m);
+      if (subActive && pr?.omitted) continue;
+      const xv = getAxisVal(m, S.x), yv = getAxisVal(m, S.y);
+      if (scaleOk(S.xScale, xv) && scaleOk(S.yScale, yv)) anchors.push({ m, xv, yv, anchorOnly: true, subPrice: pr, isLane2: !!(subActive && pr?.lane === 2) });
     }
     lastAnchors = anchors;
+    // Evaluate subscription lanes, truthful frontier key, and weekly pool comparability.
+    let subEval = null;
+    if (subActive) {
+      const evalInput = points.map((p) => ({
+        id: p.m.id, m: p.m, name: p.m.familyName, short: subShortName(p.m, true), effort: p.m.effort,
+        xv: p.xv, yv: p.yv, price: p.subPrice,
+      })).concat(subOmitted);
+      subEval = PM.evaluateComparison(evalInput, {
+        mode: S.price, xField: 'xv', yField: 'yv', xBetter: X.better, yBetter: Y.better,
+      });
+    }
+    lastSubRender = subActive ? { evalRes: subEval, mode: S.price, profileSummary: subProfileSummary(subProfile), catalogDate: PLAN_CAT.catalogDate, sourceRevision: PLAN_CAT.sourceRevision } : null;
     // Frontier membership and the sweet spot are decided before any division, using only shown models for references.
-    const rawFront = paretoFront(points), refCtx = { front: rawFront, knee: kneeOf(rawFront), notes: [], ghosts: [] };
+    const rawFrontPool = subActive ? (subEval.comparable ? points.filter((p) => !p.isLane2) : []) : points;
+    const rawFront = paretoFront(rawFrontPool), refCtx = { front: rawFront, knee: kneeOf(rawFront), notes: [], ghosts: [] };
     const sweetRef = REF_DEFS.sweet.pick(points, 'x', refCtx), knee = sweetRef?.point || null;
     let front = [], ghosts = [], inScale = [];
-    if (points.length && S.pareto !== 'off') {
+    if (points.length && S.pareto !== 'off' && (!subActive || subEval.comparable)) {
       if (S.fullFrontier) {
         const shown = new Set(points.map((p) => p.m.id));
-        const pool = points.concat(ALL.filter((m) => !shown.has(m.id) && !superseded(m) && (S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights) && S.efforts.has(m.effort))
-          .map((m) => ({ m, xv: m[S.x], yv: m[S.y], ghost: true }))
-          .filter((p) => scaleOk(S.xScale, p.xv) && scaleOk(S.yScale, p.yv)));
+        const pool = (subActive ? points.filter((p) => !p.isLane2) : points).concat(ALL.filter((m) => !shown.has(m.id) && !superseded(m) && (S.showDeprecated || !m.deprecated) && (!S.openOnly || m.openWeights) && S.efforts.has(m.effort))
+          .map((m) => { const pr = getSubPrice(m); return { m, xv: getAxisVal(m, S.x), yv: getAxisVal(m, S.y), ghost: true, subPrice: pr, isLane2: !!(subActive && pr?.lane === 2) }; })
+          .filter((p) => (!subActive || (p.subPrice && !p.subPrice.omitted && !p.isLane2)) && scaleOk(S.xScale, p.xv) && scaleOk(S.yScale, p.yv)));
         front = paretoFront(pool); ghosts = front.filter((p) => p.ghost);
         const ys = points.map((p) => p.yv), yLow = Y.better === 'low';
         inScale = ghosts.filter((p) => yLow ? p.yv <= Math.max(...ys) : p.yv >= Math.min(...ys));
-      } else front = paretoFront(points);
+      } else front = paretoFront(subActive ? points.filter((p) => !p.isLane2) : points);
     }
     refCtx.ghosts = inScale; // the faint frontier dots that get drawn (a model reference may be one of them)
     // 1.0 comes from the models you selected: dots added by Also show never move it
@@ -3997,7 +4718,11 @@
     renderExplain();
     svg.setAttribute('aria-label', $('chartTitle').textContent);
     // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
-    if (!narrow && !diamond) { const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700))); if (yw + 44 > M.left) { M.left = Math.ceil(yw + 44); if (tall) W = Math.min(availW, M.left + tallPW + M.right); PW = W - M.left - M.right; } }
+    if (!diamond) {
+      const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), 12, 700)));
+      const needLeft = narrow ? Math.ceil(yw + 16) : Math.ceil(yw + 44);
+      if (needLeft > M.left) { M.left = needLeft; if (tall && !narrow) W = Math.min(availW, M.left + tallPW + M.right); PW = W - M.left - M.right; }
+    }
     // "Ladder" labels: model names in a column to the right of the plot, so they never sit on the data
     if (ladder) {
       const names = [...new Set(points.concat(anchors).map((p) => p.m.familyName))];
@@ -4031,6 +4756,30 @@
       [...new Set([X.ext, Y.ext].filter(Boolean))].map((e) => ` · ${esc(e.label)}: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.by)}</a>, ${esc((e.updated || e.fetchedAt || '').slice(0, 10))}${e.stale ? ' (couldn\'t refresh; last good copy)' : ''}. Matched to Artificial Analysis models by name; where the source doesn't say which effort it ran, it's shown on the model's default one.`).join('');
 
     // background
+    const noticeMsg = subLegacyNotice || (subActive && S.price === 'pct' && subEval && !subEval.comparable ? subEval.suppressReason : null);
+    $('priceNotice').hidden = !noticeMsg;
+    if (noticeMsg) $('priceNotice').textContent = noticeMsg;
+    const showSubFoot = (subActive || legActive) && !!PM;
+    $('subExportNote').hidden = !showSubFoot;
+    if (showSubFoot) {
+      $('subFourWeeksNote').textContent = `${PM.DISCLOSURES.fourWeeks} Catalog ${PLAN_CAT.catalogDate || ''} (${PLAN_CAT.attribution || 'Real API Pricing'}, ${PLAN_CAT.license || 'MIT'}).`;
+      $('subDownloadNote').textContent = PM.DISCLOSURES.download;
+    }
+    const subZero = subActive && !points.length && !anchors.length && subOmitted.length > 0;
+    $('zeroBox').hidden = !subZero;
+    svg.hidden = subZero;
+    if (subZero) {
+      $('zeroDesc').textContent = `${subOmitted.length} selected model-effort${subOmitted.length === 1 ? '' : 's'} omitted from ${S.price === 'pct' ? '% of week' : 'Plan $'} view. Choose plans in Your plans or switch back to API $.`;
+      $('zeroNames').innerHTML = groupSubOmissionsHtml(subOmitted);
+      $('omissionsBox').hidden = true;
+      $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; lastLabelAudit = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); renderTasksPanel(chosen); syncHighlights(new Set(), narrow); return;
+    }
+    if (subActive && subOmitted.length > 0) {
+      $('omissionsBox').hidden = false;
+      $('omissionsList').innerHTML = groupSubOmissionsHtml(subOmitted, 'Omitted — ');
+    } else {
+      $('omissionsBox').hidden = true;
+    }
     svg.append(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: C.surface }));
     if (!points.length && !anchors.length) {
       const emptyCurrent = [S.x, S.y].filter((k) => !ALL.some((m) => !m.deprecated && Number.isFinite(m[k])));
@@ -4045,7 +4794,7 @@
       lines.forEach((line, i) => message.append(svgEl('tspan', { x: W / 2, dy: i ? 20 : 0 }, line + (i < lines.length - 1 ? ' ' : ''))));
       svg.append(message);
       svg.setAttribute('aria-label', why);
-      $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); syncHighlights(new Set(), narrow); return;
+      $('legend').innerHTML = ''; renderTable([], new Set(), X, Y); lastPoints = []; lastGhosts = []; lastGeom = null; lastLabelAudit = null; colorKey = null; fillRelativeOptions([]); clearHover(); renderRows(chosen); renderPlan(chosen); renderTasksPanel(chosen); syncHighlights(new Set(), narrow); return;
     }
 
     const sx = makeScale(points.concat(inScale, anchors).map((p) => p.xv), S.xScale, [M.left, M.left + PW], !!X.ref, tall ? Math.max(4, Math.round(PW / 95)) : 7);
@@ -4107,8 +4856,13 @@
       const x = sx.f(t), txt = X.fmt(t), tw = textW(txt, 11);
       if (S.grid !== 'off') g.append(seg(T(x, M.top), T(x, M.top + PH), gridAttrs));
       const [qx, qy] = diamond ? T(x, yWorse) : [x, M.top + PH];
-      const el = diamond ? svgEl('text', { ...tickFont, x: qx - 6, y: qy + 12, 'text-anchor': 'end' }, txt) : svgEl('text', { ...tickFont, x: qx, y: qy + 18, 'text-anchor': 'middle' }, txt);
-      g.append(el); tickEls.push([el, diamond ? { x0: qx - 6 - tw, x1: qx - 6, y0: qy + 2, y1: qy + 14 } : { x0: x - tw / 2, x1: x + tw / 2, y0: qy + 6, y1: qy + 22 }]);
+      let tx = qx, anchor = 'middle';
+      if (!diamond) {
+        if (qx + tw / 2 > W - 2) { tx = Math.min(qx, W - 2); anchor = 'end'; }
+        else if (qx - tw / 2 < 2) { tx = Math.max(qx, 2); anchor = 'start'; }
+      }
+      const el = diamond ? svgEl('text', { ...tickFont, x: qx - 6, y: qy + 12, 'text-anchor': 'end' }, txt) : svgEl('text', { ...tickFont, x: tx, y: qy + 18, 'text-anchor': anchor }, txt);
+      g.append(el); tickEls.push([el, diamond ? { x0: qx - 6 - tw, x1: qx - 6, y0: qy + 2, y1: qy + 14 } : { x0: anchor === 'end' ? tx - tw : anchor === 'start' ? tx : tx - tw / 2, x1: anchor === 'end' ? tx : anchor === 'start' ? tx + tw : tx + tw / 2, y0: qy + 6, y1: qy + 22 }]);
     }
     const scaleTag = (s) => s === 'linear' ? '' : narrow ? ` (${word[s]})` : ` · ${SCALE_NOTE[s]}`, yLow = Y.better === 'low';
     const titleFont = { ...axisText, fill: C.ink2, 'font-size': narrow ? 10.5 : 12, 'font-weight': 500 };
@@ -4259,12 +5013,13 @@
     for (const p of points) {
       if (S.markStyle === 'none' || p.m.effort !== S.markEffort) continue;
       const fam = { 'data-fam': p.m.family, stroke: idColor(p) }, markLayer = dimmed(p) ? markFade : dotLayer;
-      const ro = dotOuter(S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25, dual);
+      const rBase = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25;
+      const ro = dotOuter(rBase, dual, p);
       if (S.markStyle === 'ring') {
-        markLayer.append(svgEl('circle', { ...fam, cx: p.px, cy: p.py, r: Math.max(9, ro + 3.5), fill: 'none', 'stroke-width': 2 }));
+        markLayer.append(svgEl('circle', { ...fam, class: 'effort-ring', 'data-id': p.m.id, cx: p.px, cy: p.py, r: Math.max(9, ro + 3.5), fill: 'none', 'stroke-width': 2 }));
       } else if (S.markStyle === 'square') {
-        const s = Math.max(8, ro + 2.5);
-        markLayer.append(svgEl('rect', { ...fam, x: p.px - s, y: p.py - s, width: s * 2, height: s * 2, rx: 2, fill: 'none', 'stroke-width': 2 }));
+        const s = PM ? PM.effortSquareHalf(rBase, dual, p) : Math.max(8, ro + 2.5);
+        markLayer.append(svgEl('rect', { ...fam, class: 'effort-square', 'data-id': p.m.id, x: p.px - s, y: p.py - s, width: s * 2, height: s * 2, rx: 2, fill: 'none', 'stroke-width': 2 }));
       } else {
         // hash: a tick across the line, perpendicular to it at this dot
         const ps = p.series || [p], i = ps.indexOf(p);
@@ -4272,18 +5027,19 @@
         let dx = b.px - a.px, dy = b.py - a.py, len = Math.hypot(dx, dy);
         if (!len) { dx = 1; dy = 0; len = 1; } // lone dot: vertical tick
         const h = Math.max(12, ro + 5.5), nx = -dy / len * h, ny = dx / len * h;
-        markLayer.append(svgEl('line', { ...fam, x1: p.px - nx, y1: p.py - ny, x2: p.px + nx, y2: p.py + ny, 'stroke-width': 3, 'stroke-linecap': 'round' }));
+        markLayer.append(svgEl('line', { ...fam, class: 'effort-hash', 'data-id': p.m.id, x1: p.px - nx, y1: p.py - ny, x2: p.px + nx, y2: p.py + ny, 'stroke-width': 3, 'stroke-linecap': 'round' }));
       }
     }
     const ghostLayer = svgEl('g', { 'clip-path': `url(#${clipId})` }); dotLayer.append(ghostLayer);
     for (const p of ghosts) ghostLayer.append(svgEl('circle', { cx: p.px, cy: p.py, r: 4.5, fill: p.val, 'fill-opacity': 0.4, stroke: dual !== 'off' ? p.lab : p.color, 'stroke-opacity': 0.7, 'stroke-width': 1.25 }));
     const order = points.slice().sort((a, b) => (frontSet.has(a.m.id) + S.pinned.has(a.m.id) * 2) - (frontSet.has(b.m.id) + S.pinned.has(b.m.id) * 2));
     const fadeLayer = svgEl('g', { opacity: dimTo }); dotLayer.append(fadeLayer);
-    if (glow) for (const p of points) if (!dimmed(p)) glowLayer.firstChild.append(svgEl('circle', { cx: p.px, cy: p.py, r: dotOuter(p.isEnd ? 5.5 : 4.25, dual) + 3, fill: idColor(p) }));
+    if (glow) for (const p of points) if (!dimmed(p)) glowLayer.firstChild.append(svgEl('circle', { cx: p.px, cy: p.py, r: PM ? PM.glowRadius(p, dual) : dotOuter(p.isEnd ? 5.5 : 4.25, dual) + 3, fill: idColor(p) }));
     for (const p of order) {
-      const r = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25, ro = dotOuter(r, dual), onFront = frontSet.has(p.m.id);
+      const r = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25, ro = dotOuter(r, dual, p), onFront = frontSet.has(p.m.id);
       const layer = dimmed(p) ? fadeLayer : dotLayer;
       if (onFront && S.frontStyle === 'rings') layer.append(svgEl('circle', { 'data-fam': p.m.family, cx: p.px, cy: p.py, r: ro + 3.5, fill: 'none', stroke: C.ink, 'stroke-width': 1, 'stroke-opacity': 0.45 }));
+      if (p.isLane2) appendBeadRing(layer, p, r, C.surface, C.ink, dual);
       layer.append(dotMark(p, r, C.surface, { 'data-id': p.m.id, 'data-fam': p.m.family }, dual));
       if (p.auto) layer.append(svgEl('circle', { class: 'auto-halo', 'data-fam': p.m.family, cx: p.px, cy: p.py, r: ro + 3 + (onFront && S.frontStyle === 'rings' ? 3.5 : 0), fill: 'none', stroke: p.color, 'stroke-width': 1, 'stroke-dasharray': '2 2', 'pointer-events': 'none' }));
     }
@@ -4294,7 +5050,7 @@
       for (const p of ps) { if (!references.has(p)) references.set(p, []); references.get(p).push(axis); }
     }
     for (const [p, axes] of references) {
-      const rr = Math.max(10, dotOuter(S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25, dual) + 3.5);
+      const rr = Math.max(10, dotOuter(S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25, dual, p) + 3.5);
       dotLayer.append(svgEl('circle', { class: 'reference-dot', 'data-id': p.m.id, 'data-axes': axes.join(' '), cx: p.px, cy: p.py, r: rr, fill: 'none', stroke: C.ink2, 'stroke-opacity': 0.6, 'stroke-width': 1.25, 'pointer-events': 'none' }));
     }
     plot.append(chipLayer);
@@ -4303,7 +5059,14 @@
     const labelLayer = svgEl('g'); plot.append(labelLayer);
     // "frontier only" values follow the frontier that's drawn, or with Pareto off the frontier of the models shown
     const valueIds = S.valueFront ? (S.pareto !== 'off' ? frontSet : new Set(rawFront.map((p) => p.m.id))) : null;
-    if (S.labels !== 'none' || S.valueLabels !== 'off') placeLabels(points, frontSet, labelLayer, { M, PW, PH, C, X, Y, segs, ghosts: visibleGhosts, dimmed, ladder, narrow, anchors, rings: new Set(references.keys()), valueIds });
+    lastLabelAudit = null;
+    if (S.labels !== 'none' || S.valueLabels !== 'off') {
+      if (subActive && !ladder) {
+        lastLabelAudit = placeSubLabels(points, frontSet, labelLayer, { M, PW, PH, W, C, X, Y, segs, dimmed, narrow, dual, subEval, valueIds });
+      } else {
+        placeLabels(points, frontSet, labelLayer, { M, PW, PH, C, X, Y, segs, ghosts: visibleGhosts, dimmed, ladder, narrow, anchors, rings: new Set(references.keys()), valueIds });
+      }
+    }
     const tags = zone?.tag ? [zone.tag] : [];
     if (X.ref && Y.ref) for (const [point, axes] of references) {
       const text = axes.join('/') + ' 1.0', tag = tags.find((tag) => tag.point === point);
@@ -4316,9 +5079,9 @@
     const hoverLayer = svgEl('g', { id: 'hoverLayer', 'pointer-events': 'none' }); svg.append(hoverLayer);
     svg.append(svgEl('rect', { id: 'hit', x: M.left, y: M.top, width: PW, height: PH, fill: 'transparent', style: 'cursor:crosshair' }));
 
-    renderLegend(points, visibleGhosts.length > 0, zone, ramp && { ramp, X, Y, dir: diamond ? 'to top' : `to ${Y.better === 'low' ? 'bottom' : 'top'} ${X.better === 'low' ? 'left' : 'right'}`, us: points.map(valueU), vals: points.map((p) => S.colorBy === 'x' ? p.xv : p.yv) });
+    renderLegend(points, visibleGhosts.length > 0, zone, ramp && { ramp, X, Y, dir: diamond ? 'to top' : `to ${Y.better === 'low' ? 'bottom' : 'top'} ${X.better === 'low' ? 'left' : 'right'}`, us: points.map(valueU), vals: points.map((p) => S.colorBy === 'x' ? p.xv : p.yv) }, subEval);
     renderTable(points, frontSet, X, Y);
-    renderRows(chosen, dimmed); renderPlan(chosen);
+    renderRows(chosen, dimmed); renderPlan(chosen); renderTasksPanel(chosen);
     syncHighlights(hlFams, narrow);
   }
   // "Reset highlights" shows while any highlighted model is on the chart, in the chart's own margin so it's in view whenever
@@ -4447,6 +5210,367 @@
     const prefix = S.ladderAt === 'top' || fallback ? (S.shortEffort || short ? EFFORT_SHORT[p.m.effort] || p.m.effort.toUpperCase() : (EFFORT_LABEL[p.m.effort] || p.m.effort).toLowerCase()) : '';
     const value = axisValue(p, 'y', Y); return { prefix, value, fallback, text: [prefix, value].filter(Boolean).join(' ') };
   }
+  // AT-01 strict subscription label engine: enforces (i)-(v), zero overlaps, zero clips, measured-priority superset, and >=4.5:1 ≈ contrast.
+  function placeSubLabels(points, frontSet, layer, { M, PW, PH, W, C, X, Y, segs = [], dimmed = () => false, narrow = false, dual = dualMode(), subEval = null, isExport = false, valueIds = null }) {
+    const leaderLayer = svgEl('g', { class: 'sub-leader-layer' });
+    const textLayer = svgEl('g', { class: 'sub-label-layer' });
+    const faded = svgEl('g', { class: 'sub-label-faded', opacity: points.some((p) => highlight.has(p.m.family)) ? 0.28 : 0.38 });
+    layer.append(leaderLayer, textLayer, faded);
+
+    const markOuterR = (o) => dotOuter(S.pinned.has(o.m.id) ? 6.5 : o.isEnd ? 5.5 : 4.25, dual, o);
+    const markPaintedR = (o) => o.isLane2 ? markOuterR(o) : (markOuterR(o) + 1.0);
+    const dotBoxes = points.map((d) => {
+      const rr = markOuterR(d) + 3.5;
+      return { id: d.m.id, px: d.px, py: d.py, x1: d.px - rr, y1: d.py - rr, x2: d.px + rr, y2: d.py + rr };
+    });
+    const boxHit = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
+    const segHitsBox = (x1, y1, x2, y2, b) => {
+      let t0 = 0, t1 = 1;
+      const dx = x2 - x1, dy = y2 - y1;
+      for (const [pv, qv] of [[-dx, x1 - b.x1], [dx, b.x2 - x1], [-dy, y1 - b.y1], [dy, b.y2 - y1]]) {
+        if (pv === 0) { if (qv < 0) return false; }
+        else {
+          const rv = qv / pv;
+          if (pv < 0) { if (rv > t1) return false; if (rv > t0) t0 = rv; }
+          else { if (rv < t0) return false; if (rv < t1) t1 = rv; }
+        }
+      }
+      return t0 <= t1;
+    };
+    const distPointToBox = (px, py, b) => {
+      const dx = px < b.x1 ? b.x1 - px : (px > b.x2 ? px - b.x2 : 0);
+      const dy = py < b.y1 ? b.y1 - py : (py > b.y2 ? py - b.y2 : 0);
+      return Math.hypot(dx, dy);
+    };
+    const segDist = (px, py, x1, y1, x2, y2) => {
+      const dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy;
+      let t = L ? ((px - x1) * dx + (py - y1) * dy) / L : 0;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+    };
+    const segsCross = (a, b) => {
+      const ccw = (ax, ay, bx, by, cx, cy) => (cx - ax) * (by - ay) - (cy - ay) * (bx - ax);
+      const onSeg = (ax, ay, bx, by, px, py) =>
+        Math.min(ax, bx) - 1e-6 <= px && px <= Math.max(ax, bx) + 1e-6 &&
+        Math.min(ay, by) - 1e-6 <= py && py <= Math.max(ay, by) + 1e-6;
+      const d1 = ccw(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1), d2 = ccw(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2);
+      const d3 = ccw(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1), d4 = ccw(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2);
+      if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+      if (Math.abs(d1) < 1e-6 && onSeg(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1)) return true;
+      if (Math.abs(d2) < 1e-6 && onSeg(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2)) return true;
+      if (Math.abs(d3) < 1e-6 && onSeg(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1)) return true;
+      if (Math.abs(d4) < 1e-6 && onSeg(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2)) return true;
+      return false;
+    };
+
+    const nearestMarkDist = new Map();
+    for (const a of points) {
+      let bestD = Infinity;
+      for (const b of points) {
+        if (b.m.id === a.m.id) continue;
+        const d = Math.hypot(a.px - b.px, a.py - b.py) - markPaintedR(b);
+        if (d < bestD) bestD = d;
+      }
+      nearestMarkDist.set(a.m.id, bestD);
+    }
+
+    const baseQueue = S.labels === 'all'
+      ? points.slice()
+      : S.labels === 'none'
+        ? points.filter((p) => !valueIds || valueIds.has(p.m.id))
+        : points.filter((p) => p.isEnd || frontSet.has(p.m.id) || (valueIds && valueIds.has(p.m.id)) || S.pinned.has(p.m.id));
+    const effFront = (id) => frontSet.has(id) || (S.pareto === 'off' && Boolean(valueIds?.has(id)));
+    const frontItems = baseQueue.filter((p) => !p.isLane2 && effFront(p.m.id));
+    const measuredNonFront = baseQueue.filter((p) => !p.isLane2 && !effFront(p.m.id)).sort((a, b) => b.yv - a.yv);
+    const estItems = baseQueue.filter((p) => p.isLane2).sort((a, b) => b.yv - a.yv);
+    const nonFrontItems = [...measuredNonFront, ...estItems];
+
+    const lblFont = W < 340 ? 8.2 : narrow ? 8.8 : 10.5;
+    const subX = subAxisKey(S.x);
+    const labelTextOf = (p) => {
+      let nm = subShortName(p.m, narrow);
+      if (W < 340) nm = nm.replace(/^GPT-6\.1 /, 'GPT 6.1 ').replace(/^GPT-6 /, 'GPT 6 ');
+      const showEff = p.m.effort && p.m.effort !== 'default' && p.m.effort !== 'non-reasoning' && (!p.isEnd || p.m.effort !== 'max');
+      const costVal = subX ? (p.rawX ?? p.xv) : (p.rawY ?? p.yv);
+      const valStr = S.price === 'pct' ? PM.fmtPct(costVal, p.isLane2) : PM.fmtPlanUsd(costVal, p.isLane2);
+      const poolSuffix = (S.price === 'pct' && subEval?.hasOtherPoolLane2 && p.isLane2 && p.subPrice?.poolLabel)
+        ? ` · ${p.subPrice.poolLabel.split('·')[1]?.trim() || ''}` : '';
+      const core = `${nm}${showEff ? ' ' + p.m.effort : ''}`;
+      if (!isExport && S.valueLabels !== 'off') {
+        if (!valueIds || valueIds.has(p.m.id)) {
+          const yTxt = axisValue(p, 'y', Y), xTxt = subX ? (X.ref ? axisValue(p, 'x', X) : valStr) : axisValue(p, 'x', X);
+          const vTxt = S.valueLabels === 'y' ? yTxt : S.valueLabels === 'x' ? xTxt : `${xTxt} · ${yTxt}`;
+          if (S.labels === 'none') return `${p.isLane2 && !vTxt.includes('≈') ? '≈ ' : ''}${vTxt}`;
+          return `${p.isLane2 && !vTxt.includes('≈') ? '≈ ' : ''}${core} · ${vTxt}`;
+        }
+        return core;
+      }
+      const includeVal = frontSet.has(p.m.id) || p.isLane2 || isExport;
+      return includeVal ? `${core} (${valStr}${poolSuffix})` : core;
+    };
+
+    const runPlacement = (queue) => {
+      const placedBoxes = [], drawnLeaders = [], drawnLabels = [], droppedLabels = [], droppedFrontierLabels = [], droppedMeasuredLabels = [], placedItems = [];
+      let runMaxLeader = 0;
+
+      for (let qi = 0; qi < queue.length; qi++) {
+        const p = queue[qi];
+        const isFront = !p.isLane2 && effFront(p.m.id);
+        const unplacedFrontier = queue.slice(qi + 1).filter((u) => !u.isLane2 && effFront(u.m.id));
+        const txt = labelTextOf(p);
+        const weight = isFront ? 600 : 500;
+        const tw = measureSvgText(txt, lblFont, weight) + 4;
+        const th = lblFont + 3.5;
+        const off = markPaintedR(p) + 4.5;
+
+        const nearCands = [
+          { lx: p.px + off, ly: p.py + 3.5, anchor: 'start', bx1: p.px + off, by1: p.py - th / 2, ax: p.px + off, ay: p.py, far: false },
+          { lx: p.px - off, ly: p.py + 3.5, anchor: 'end', bx1: p.px - off - tw, by1: p.py - th / 2, ax: p.px - off, ay: p.py, far: false },
+          { lx: p.px, ly: p.py - off - 2, anchor: 'middle', bx1: p.px - tw / 2, by1: p.py - off - th, ax: p.px, ay: p.py - off, far: false },
+          { lx: p.px, ly: p.py + off + 10, anchor: 'middle', bx1: p.px - tw / 2, by1: p.py + off + 10 - th + 2, ax: p.px, ay: p.py + off, far: false },
+          { lx: p.px + off, ly: p.py - off - 1, anchor: 'start', bx1: p.px + off, by1: p.py - off - th + 1, ax: p.px + off, ay: p.py - off + 2, far: false },
+          { lx: p.px + off, ly: p.py + off + 9, anchor: 'start', bx1: p.px + off, by1: p.py + off + 9 - th + 2, ax: p.px + off, ay: p.py + off, far: false },
+          { lx: p.px - off, ly: p.py - off - 1, anchor: 'end', bx1: p.px - off - tw, by1: p.py - off - th + 1, ax: p.px - off, ay: p.py - off + 2, far: false },
+          { lx: p.px - off, ly: p.py + off + 9, anchor: 'end', bx1: p.px - off - tw, by1: p.py + off + 9 - th + 2, ax: p.px - off, ay: p.py + off, far: false },
+        ];
+
+        const ownDotR = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25;
+        const others = points.filter((o) => o.m.id !== p.m.id);
+        const ownR = markPaintedR(p) + 1.5;
+        const ownOb = { x1: p.px - ownR, y1: p.py - ownR, x2: p.px + ownR, y2: p.py + ownR };
+        const leaderSeg = (ax, ay) => {
+          const dx = ax - p.px, dy = ay - p.py, len = Math.hypot(dx, dy) || 1;
+          const sr = Math.min(p.isLane2 ? markOuterR(p) - 0.5 : ownDotR + 1.5, len * 0.45);
+          return { x1: p.px + (dx / len) * sr, y1: p.py + (dy / len) * sr, x2: ax, y2: ay };
+        };
+        const topMarginAllow = M.top >= 70 ? 14 : M.top >= 54 ? 10 : 4;
+        const minTopY = Math.max(4, M.top - topMarginAllow);
+        const boxBasePen = (box) => {
+          if (box.x1 < 4 || box.x2 > W - 4 || box.y1 < minTopY || box.y2 > M.top + PH) return 20000;
+          if (box.x1 < M.left && box.y2 > M.top - 5) return 20000;
+          for (const pb of placedBoxes) if (boxHit(box, pb)) return 30000;
+          if (boxHit(box, ownOb)) return 25000;
+          for (const db of dotBoxes) if (db.id !== p.m.id && boxHit(box, db)) return 25000;
+          const cy = (box.y1 + box.y2) / 2;
+          for (const o of others) {
+            if (Math.abs(cy - o.py) < 10 && Math.min(Math.abs(box.x1 - o.px), Math.abs(box.x2 - o.px)) < 19.5) return 15000;
+          }
+          const boxPad = { x1: box.x1 - 1.5, y1: box.y1 - 1.5, x2: box.x2 + 1.5, y2: box.y2 + 1.5 };
+          for (const dl of drawnLeaders) if (segHitsBox(dl.x1, dl.y1, dl.x2, dl.y2, boxPad)) return 25000;
+          let pen = 0;
+          for (const fs of segs) if (segHitsBox(fs[0], fs[1], fs[2], fs[3], box)) pen += 300;
+          if (narrow && unplacedFrontier.length) {
+            for (const uf of unplacedFrontier) if (distPointToBox(uf.px, uf.py, box) < 22) pen += 450;
+          }
+          return pen;
+        };
+        const evalCand = (c, preBox = null, prePen = null) => {
+          const box = preBox || { x1: c.bx1 - 1, y1: c.by1 - 1, x2: c.bx1 + tw + 1, y2: c.by1 + th + 1 };
+          let pen = prePen != null ? prePen : boxBasePen(box);
+          if (pen >= 10000) return { ...c, box, pen, seg: null };
+          const seg = c.far ? leaderSeg(c.ax, c.ay) : null;
+          const lDist = seg ? Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1) : 0;
+          if (c.far && lDist > 79.5) return { ...c, box, pen: pen + 25000, seg };
+          const ownBoxD = distPointToBox(p.px, p.py, box);
+          if (c.far) pen += 22 + lDist * 0.42 + Math.abs((box.x1 + box.x2) / 2 - p.px) * 0.22;
+          if (!c.far) {
+            for (const o of others) if (distPointToBox(o.px, o.py, box) < ownBoxD + 5) return { ...c, box, pen: pen + 15000, seg };
+          } else {
+            for (const o of others) if (segDist(o.px, o.py, seg.x1, seg.y1, seg.x2, seg.y2) <= markPaintedR(o) + 2.2) return { ...c, box, pen: pen + 25000, seg };
+            for (const pb of placedBoxes) {
+              const pbPad = { x1: pb.x1 - 1.5, y1: pb.y1 - 1.5, x2: pb.x2 + 1.5, y2: pb.y2 + 1.5 };
+              if (segHitsBox(seg.x1, seg.y1, seg.x2, seg.y2, pbPad)) return { ...c, box, pen: pen + 25000, seg };
+            }
+            for (const dl of drawnLeaders) if (segsCross(seg, dl)) return { ...c, box, pen: pen + 25000, seg };
+            if (others.length) {
+              let minOtherD = Infinity;
+              const ownStartD = Math.hypot(p.px - seg.x1, p.py - seg.y1);
+              for (const o of others) {
+                if (Math.hypot(o.px - seg.x1, o.py - seg.y1) <= ownStartD + 0.2) return { ...c, box, pen: pen + 25000, seg };
+                const od = distPointToBox(o.px, o.py, box);
+                if (od < minOtherD) minOtherD = od;
+              }
+              if (ownBoxD > minOtherD) pen += 18 + (ownBoxD - minOtherD) * 0.4;
+            }
+          }
+          return { ...c, box, pen, seg };
+        };
+
+        let best = null, bestPen = Infinity;
+        for (const c of nearCands) {
+          const r = evalCand(c);
+          if (r.pen < bestPen) { bestPen = r.pen; best = r; if (r.pen === 0) break; }
+        }
+        if (!best || bestPen >= 10000) {
+          const yMin = Math.max(Math.ceil(th) + 4, M.top + Math.ceil(th) - (topMarginAllow + 1));
+          const yMax = M.top + PH - 4;
+          const stepX = narrow ? 3 : 10, stepY = narrow ? 3 : 7;
+          const yLo = Math.max(yMin, yMin + Math.max(0, Math.floor((p.py - 84 - yMin) / stepY)) * stepY);
+          const yHi = Math.min(yMax, Math.ceil(p.py + th + 84));
+          for (let ly = yLo; ly <= yHi; ly += stepY) {
+            const by1 = ly - th + 2;
+            const xMin = (narrow && by1 + th + 1 <= M.top - 5) ? 10 : Math.max(6, M.left + 2);
+            const xMax = Math.max(xMin, W - 6 - tw);
+            const xLo = Math.max(xMin, xMin + Math.max(0, Math.floor((p.px - tw - 84 - xMin) / stepX)) * stepX);
+            const xHi = Math.min(xMax, Math.ceil(p.px + 84));
+            for (let lx = xLo; lx <= xHi; lx += stepX) {
+              const b = { x1: lx - 1, y1: by1 - 1, x2: lx + tw + 1, y2: by1 + th + 1 };
+              if (distPointToBox(p.px, p.py, b) > 84) continue;
+              const bp = boxBasePen(b);
+              if (bp >= 10000 || bp >= bestPen) continue;
+              const cx = Math.max(b.x1, Math.min(b.x2, p.px)), cy = Math.max(b.y1, Math.min(b.y2, p.py));
+              const candAnchors = [[cx, cy]];
+              if (p.py < b.y1 || p.py > b.y2) {
+                candAnchors.push([b.x1 + 2, cy], [b.x2 - 2, cy], [Math.max(b.x1, Math.min(b.x2, p.px - 14)), cy], [Math.max(b.x1, Math.min(b.x2, p.px + 14)), cy]);
+              }
+              if (p.px <= b.x1) candAnchors.push([b.x1, b.y1], [b.x1, b.y2]);
+              else if (p.px >= b.x2) candAnchors.push([b.x2, b.y1], [b.x2, b.y2]);
+              for (const [ax, ay] of candAnchors) {
+                const r = evalCand({ lx, ly, anchor: 'start', bx1: lx, by1, ax, ay, far: true }, b, bp);
+                if (r.pen < bestPen) { bestPen = r.pen; best = r; }
+              }
+            }
+          }
+        }
+        if (!best || bestPen >= 10000) {
+          droppedLabels.push(txt);
+          if (isFront) droppedFrontierLabels.push(txt);
+          if (!p.isLane2) droppedMeasuredLabels.push(txt);
+          continue;
+        }
+        placedBoxes.push({ ...best.box, id: p.m.id, isLane2: p.isLane2 });
+        drawnLabels.push(txt);
+        let leaderCoords = null;
+        if (best.far) {
+          leaderCoords = best.seg;
+          drawnLeaders.push(leaderCoords);
+          const lLen = Math.hypot(leaderCoords.x2 - leaderCoords.x1, leaderCoords.y2 - leaderCoords.y1);
+          if (lLen > runMaxLeader) runMaxLeader = lLen;
+        }
+        placedItems.push({ p, txt, isFront, best, leaderCoords, weight });
+      }
+      return { placedBoxes, drawnLeaders, drawnLabels, droppedLabels, droppedFrontierLabels, droppedMeasuredLabels, placedItems, runMaxLeader };
+    };
+
+    const baseFront = frontItems.slice().sort((a, b) => b.yv - a.yv);
+    const frontierOrders = [
+      baseFront,
+      frontItems.slice().sort((a, b) => (nearestMarkDist.get(a.m.id) - nearestMarkDist.get(b.m.id)) || b.yv - a.yv),
+      frontItems.slice().sort((a, b) => a.xv - b.xv),
+      frontItems.slice().sort((a, b) => b.xv - a.xv),
+      frontItems.slice().sort((a, b) => a.yv - b.yv),
+    ];
+    let bestRun = runPlacement([...frontierOrders[0], ...nonFrontItems]);
+    const considerRun = (order, tail = nonFrontItems) => {
+      const cand = runPlacement([...order, ...tail]);
+      if (
+        cand.droppedFrontierLabels.length < bestRun.droppedFrontierLabels.length ||
+        (cand.droppedFrontierLabels.length === bestRun.droppedFrontierLabels.length && (
+          cand.droppedMeasuredLabels.length < bestRun.droppedMeasuredLabels.length ||
+          (cand.droppedMeasuredLabels.length === bestRun.droppedMeasuredLabels.length && (
+            cand.drawnLabels.length > bestRun.drawnLabels.length ||
+            (cand.drawnLabels.length === bestRun.drawnLabels.length && cand.runMaxLeader < bestRun.runMaxLeader)
+          ))
+        ))
+      ) bestRun = cand;
+    };
+    if ((bestRun.droppedFrontierLabels.length > 0 || bestRun.droppedMeasuredLabels.length > 0) && baseQueue.length <= 35) {
+      const dropIdx = baseFront.findIndex((f) => !bestRun.placedItems.some((pi) => pi.p.m.id === f.m.id));
+      if (dropIdx > 0) {
+        for (let pos = dropIdx - 1; pos >= 0; pos--) {
+          const reord = baseFront.slice(), [moved] = reord.splice(dropIdx, 1);
+          reord.splice(pos, 0, moved); considerRun(reord);
+        }
+      }
+      for (let oi = 1; oi < frontierOrders.length; oi++) considerRun(frontierOrders[oi]);
+      if (bestRun.droppedMeasuredLabels.length > 0) {
+        const allMeasured = [...baseFront, ...measuredNonFront];
+        considerRun(allMeasured.slice().sort((a, b) => (nearestMarkDist.get(a.m.id) - nearestMarkDist.get(b.m.id)) || b.yv - a.yv), estItems);
+        let curOrder = allMeasured.slice();
+        for (let pass = 0; pass < 2 && bestRun.droppedMeasuredLabels.length > 0; pass++) {
+          const dropSet = new Set(curOrder.filter((m) => !bestRun.placedItems.some((pi) => pi.p.m.id === m.m.id)).map((m) => m.m.id));
+          if (!dropSet.size) break;
+          const promoted = [...curOrder.filter((m) => dropSet.has(m.m.id)), ...curOrder.filter((m) => !dropSet.has(m.m.id))];
+          considerRun(promoted, estItems);
+          curOrder = promoted;
+        }
+      }
+    }
+
+    const drawnMeta = [];
+    for (const item of bestRun.placedItems) {
+      const { p, txt, best, leaderCoords, weight } = item;
+      const isDim = dimmed(p);
+      const into = isDim ? faded : textLayer;
+      let leadEl = null;
+      if (leaderCoords) {
+        leadEl = svgEl('line', {
+          class: 'sub-leader', 'data-id': p.m.id, 'data-fam': p.m.family,
+          x1: leaderCoords.x1, y1: leaderCoords.y1, x2: leaderCoords.x2, y2: leaderCoords.y2,
+          stroke: C.axis, 'stroke-width': 1, 'stroke-opacity': isDim ? 0.35 : 0.75,
+        });
+        leaderLayer.append(leadEl);
+      }
+      const lblEl = svgEl('text', {
+        class: p.isLane2 ? 'lbl-lane2' : 'lbl-lane1', 'data-id': p.m.id, 'data-fam': p.m.family,
+        x: best.lx, y: best.ly, 'text-anchor': best.anchor,
+        fill: C.ink, stroke: C.surface, 'stroke-width': 3, 'paint-order': 'stroke fill',
+        'font-size': lblFont, 'font-weight': weight,
+        'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif',
+      }, txt);
+      into.append(lblEl);
+      let realBox = best.box;
+      try {
+        const bb = lblEl.getBBox();
+        if (bb && bb.width > 0 && bb.height > 0) realBox = { x1: bb.x, y1: bb.y, x2: bb.x + bb.width, y2: bb.y + bb.height };
+      } catch {}
+      // Cross-engine (WebKit/Chromium) real-bbox guard: drop a secondary estimate label if font metrics push it into a violation
+      if (p.isLane2) {
+        const cy = (realBox.y1 + realBox.y2) / 2, ownD = distPointToBox(p.px, p.py, realBox);
+        const badBbox = realBox.x1 < 0 || realBox.x2 > W ||
+          drawnMeta.some((d) => boxHit(realBox, d.realBox)) ||
+          dotBoxes.some((db) => db.id !== p.m.id && boxHit(realBox, db)) ||
+          points.some((o) => o.m.id !== p.m.id && Math.abs(cy - o.py) < 9 && Math.min(Math.abs(realBox.x1 - o.px), Math.abs(realBox.x2 - o.px)) < 18) ||
+          (!best.far && points.some((o) => o.m.id !== p.m.id && distPointToBox(o.px, o.py, realBox) < ownD + 4)) ||
+          drawnMeta.some((d) => d.leader && segHitsBox(d.leader.x1, d.leader.y1, d.leader.x2, d.leader.y2, realBox)) ||
+          (leaderCoords && drawnMeta.some((d) => segHitsBox(leaderCoords.x1, leaderCoords.y1, leaderCoords.x2, leaderCoords.y2, d.realBox)));
+        if (badBbox) { lblEl.remove(); leadEl?.remove(); continue; }
+      }
+      drawnMeta.push({ p, el: lblEl, leadEl, far: best.far, leader: leaderCoords, realBox });
+    }
+
+    let overlaps = 0, dotOverlaps = 0, misattached = 0, sameRowHits = 0, leaderThroughOtherMark = 0, leaderThroughOtherLabel = 0, leaderCrossLeader = 0, maxLeaderLenRaw = 0;
+    for (let i = 0; i < drawnMeta.length; i++) {
+      const it = drawnMeta[i], b = it.realBox, cy = (b.y1 + b.y2) / 2, ownD = distPointToBox(it.p.px, it.p.py, b);
+      if (dotBoxes.some((db) => db.id !== it.p.m.id && boxHit(b, db))) dotOverlaps++;
+      if (points.some((o) => o.m.id !== it.p.m.id && Math.abs(cy - o.py) < 9 && Math.min(Math.abs(b.x1 - o.px), Math.abs(b.x2 - o.px)) < 18)) sameRowHits++;
+      if (!it.far && points.some((o) => o.m.id !== it.p.m.id && distPointToBox(o.px, o.py, b) < ownD + 4)) misattached++;
+      if (it.leader) {
+        const len = Math.hypot(it.leader.x2 - it.leader.x1, it.leader.y2 - it.leader.y1);
+        if (len > maxLeaderLenRaw) maxLeaderLenRaw = len;
+        if (points.some((o) => o.m.id !== it.p.m.id && segDist(o.px, o.py, it.leader.x1, it.leader.y1, it.leader.x2, it.leader.y2) <= markPaintedR(o) + 2)) leaderThroughOtherMark++;
+      }
+      for (let j = 0; j < drawnMeta.length; j++) {
+        if (i === j) continue;
+        if (j > i && boxHit(b, drawnMeta[j].realBox)) overlaps++;
+        if (it.leader) {
+          const insetBox = { x1: drawnMeta[j].realBox.x1 + 1, y1: drawnMeta[j].realBox.y1 + 1, x2: drawnMeta[j].realBox.x2 - 1, y2: drawnMeta[j].realBox.y2 - 1 };
+          if (insetBox.x2 > insetBox.x1 && insetBox.y2 > insetBox.y1 && segHitsBox(it.leader.x1, it.leader.y1, it.leader.x2, it.leader.y2, insetBox)) leaderThroughOtherLabel++;
+          if (j > i && drawnMeta[j].leader && segsCross(it.leader, drawnMeta[j].leader)) leaderCrossLeader++;
+        }
+      }
+    }
+    return {
+      overlaps, dotOverlaps, misattached, sameRowHits, leaderThroughOtherMark, leaderThroughOtherLabel, leaderCrossLeader,
+      maxLeaderLenRaw, maxLeaderLen: +maxLeaderLenRaw.toFixed(1),
+      drawn: drawnMeta.length,
+      drawnMeasuredIds: drawnMeta.filter((d) => !d.p.isLane2).map((d) => d.p.m.id),
+      drawnEstimateIds: drawnMeta.filter((d) => d.p.isLane2).map((d) => d.p.m.id),
+      droppedFrontierCount: bestRun.droppedFrontierLabels.length,
+      droppedMeasuredCount: bestRun.droppedMeasuredLabels.length,
+    };
+  }
+
   function placeLabels(points, frontSet, layer, { M, PW, PH, C, X, Y, segs, ghosts = [], dimmed = () => false, ladder = false, narrow = false, anchors = [], rings = new Set(), valueIds = null }) {
     const H = 14, pad = 3, ladderPts = anchors.filter((p) => !points.some((q) => q.m.family === p.m.family && q.m.effort !== 'non-reasoning')); // a hollow dot whose reasoning line shows no dot gets its own row
     const xMax = M.left + PW + (ladder ? 0 : M.right - 4); // labels may use the right margin, unless the ladder's names are there
@@ -4616,7 +5740,7 @@
     } }
   }
 
-  function renderLegend(points, ghosts, zone, value) {
+  function renderLegend(points, ghosts, zone, value, subEval = null) {
     let items = [], key = '';
     colorKey = null;
     const dual = dualMode();
@@ -4657,9 +5781,13 @@
       extras.push(`<span><svg width="22" height="14">${S.connect ? `<line x1="1" x2="21" y1="7" y2="7" stroke="${k}" stroke-width="2" ${swatchDash(lineLook(false))}/>` : ''}${mark}<circle cx="11" cy="7" r="3.5" fill="${k}"/></svg>${EFFORT_LABEL[S.markEffort]} effort</span>`);
     }
     if (S.connect && points.some((p) => FAMILY.get(p.m.family)?.older)) { const look = lineLook(true); extras.push(`<span title="A newer version of the model is out, or the lab has moved on to a newer generation"><svg width="22" height="10"><line x1="1" x2="21" y1="5" y2="5" stroke="${css('--ink-2')}" stroke-width="${lineW(look)}" ${swatchDash(look)}/></svg>Older version</span>`); }
-    if (S.pareto !== 'off') {
+    if (S.pareto !== 'off' && (!subEval || subEval.comparable)) {
       const k = css('--ink'), how = { shade: 'shading: what it beats', fade: 'other models faded', rings: 'ringed points' }[S.frontStyle];
-      extras.push(`<span><svg width="22" height="12"><path d="M1 12 L1 7 L11 7 L11 2 L21 2 L21 12 Z" fill="${k}" fill-opacity="${S.frontStyle === 'shade' ? 0.09 : 0}"/><path d="M1 11 L1 7 L11 7 L11 2 L21 2" fill="none" stroke="${k}" stroke-opacity=".55" stroke-width="1.5"/></svg>Pareto frontier (${how})</span>`);
+      const fLabel = subEval ? subEval.frontierKeyLabel : `Pareto frontier (${how})`;
+      extras.push(`<span><svg width="22" height="12"><path d="M1 12 L1 7 L11 7 L11 2 L21 2 L21 12 Z" fill="${k}" fill-opacity="${S.frontStyle === 'shade' ? 0.09 : 0}"/><path d="M1 11 L1 7 L11 7 L11 2 L21 2" fill="none" stroke="${k}" stroke-opacity=".55" stroke-width="1.5"/></svg>${esc(fLabel)}</span>`);
+    }
+    if (subEval && subEval.lane2.length > 0) {
+      extras.push(`<span>${subBeadKeySvg(css('--ink'), css('--surface'), css('--accent'))}${esc(subEval.lane2KeyLabel)}</span>`);
     }
     if (ghosts) extras.push(`<span><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="${css('--ink-2')}" fill-opacity=".3" stroke="${css('--ink-2')}" stroke-opacity=".55"/></svg>Frontier model not selected</span>`);
     if (zone?.legend) {
@@ -6248,63 +7376,92 @@
   const times = (r) => !(r > 0 && Number.isFinite(r)) ? '—' : r >= 100 ? '>100×' : r < 0.01 ? '<0.01×' : (r >= 9.95 ? Math.round(r) : r >= 1 ? r.toFixed(1) : +r.toPrecision(2)) + '×';
   // good/bad ratio colours use readable() (see textColor): the theme's green and red, deepened until they read as text
   function compareBlock(ref, p, several) {
-    const a = ref.m, b = p.m, keys = [...new Set([S.y, S.x, ...CMP_KEYS])].filter((k) => METRICS[k] && a[k] != null && b[k] != null);
+    const a = ref.m, b = p.m, subOn = subLensActive();
+    const valOf = (pt, k) => (subOn && subAxisKey(k)) ? (k === S.x ? (pt.rawX ?? pt.xv) : k === S.y ? (pt.rawY ?? pt.yv) : pt.m[k]) : pt.m[k];
+    const keys = [...new Set([S.y, S.x, ...CMP_KEYS])].filter((k) => METRICS[k] && valOf(ref, k) != null && valOf(p, k) != null);
     if (!keys.length) return { keys, html: '' };
     const good = readable(css('--s3')), bad = readable(css('--s8'));
     const rows = keys.map((k) => {
-      const M = METRICS[k], r = b[k] / a[k], ok = r > 0 && Number.isFinite(r);
+      const M = effectiveMetric(k, subOn, S.price), av = valOf(ref, k), bv = valOf(p, k), r = bv / av, ok = r > 0 && Number.isFinite(r);
       const better = ok && Math.abs(r - 1) >= 0.005 ? (r < 1) === (M.better === 'low') : null;
       const title = !ok ? 'No ratio: a value is zero or below' : `This ÷ pinned: ${+r.toPrecision(3)}×` + (better == null ? '' : ` (${better ? 'better' : 'worse'}: ${M.better === 'low' ? 'lower' : 'higher'} is better)`);
-      return `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${esc(M.label)}</td><td class="pin">${M.fmt(a[k])}</td><td>${M.fmt(b[k])}</td><td class="x"${better == null ? '' : ` style="color:${better ? good : bad}"`} title="${esc(title)}">${times(r)}</td></tr>`;
+      const fmtA = (subOn && subAxisKey(k) && ref.isLane2) ? (S.price === 'pct' ? PM.fmtPct(av, true) : PM.fmtPlanUsd(av, true)) : M.fmt(av);
+      const fmtB = (subOn && subAxisKey(k) && p.isLane2) ? (S.price === 'pct' ? PM.fmtPct(bv, true) : PM.fmtPlanUsd(bv, true)) : M.fmt(bv);
+      return `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${esc(M.label)}</td><td class="pin">${fmtA}</td><td>${fmtB}</td><td class="x"${better == null ? '' : ` style="color:${better ? good : bad}"`} title="${esc(title)}">${times(r)}</td></tr>`;
     }).join('');
     return { keys, html: `<div class="t-cmp"><div class="t-cmp-head"><i style="background:${ref.color}"></i><span>vs <b>${esc(a.label)}</b>${several ? ', the last pinned' : ''}${isEst(a) ? ' · estimated' : ''}</span></div>
       <table><thead><tr><th></th><th>Pinned</th><th>This</th><th title="This one ÷ the pinned one">Ratio</th></tr></thead><tbody>${rows}</tbody></table></div>` };
   }
   // Mouse: hover inspects, click pins. Touch: first tap inspects (details dock at the bottom), second tap pins.
   let touch = false, inspected = null;
-  function clearHover() { inspected = null; tip.style.display = 'none'; $('hoverLayer')?.replaceChildren(); $('cmpGuide')?.remove(); svg.querySelectorAll('[data-fam]').forEach((el) => el.removeAttribute('opacity')); }
+  function clearHover() {
+    inspected = null; tip.style.display = 'none'; $('hoverLayer')?.replaceChildren(); $('cmpGuide')?.remove();
+    svg.querySelectorAll('[data-fam]').forEach((el) => el.removeAttribute('opacity'));
+    svg.querySelectorAll('.lane2-bead-ring').forEach((el) => { el.style.display = ''; });
+  }
   function inspect(evt) {
     const layer = $('hoverLayer'); if (!layer) return;
     const p = nearest(evt);
     layer.replaceChildren(); $('cmpGuide')?.remove();
+    svg.querySelectorAll('.lane2-bead-ring').forEach((el) => { el.style.display = ''; });
     if (!p) { clearHover(); return; }
     inspected = p.m.id;
-    const C = { surface: css('--surface'), ink: css('--ink') };
+    const C = { surface: css('--surface'), ink: css('--ink') }, dual = dualMode();
     // With dots pinned, this one is compared with the most recently pinned one still on the chart: its guides solid (with
     // the other guides, under the dots and labels) and its dot ringed
     const pins = [...S.pinned], pinPts = lastPoints.filter((q) => S.pinned.has(q.m.id));
     const ref = pinPts.filter((q) => q !== p).sort((a, b) => pins.indexOf(b.m.id) - pins.indexOf(a.m.id))[0];
     if (ref) {
       drawGuide(ref, $('guideLayer').appendChild(svgEl('g', { id: 'cmpGuide' })), null, 1, false, null, null);
-      layer.append(svgEl('circle', { cx: ref.px, cy: ref.py, r: 10, fill: 'none', stroke: ref.color, 'stroke-width': 1.5 }));
+      const refR = S.pinned.has(ref.m.id) ? 6.5 : ref.isEnd ? 5.5 : 4.25;
+      const pr = PM ? PM.pinnedCompareRadius(refR, dual, ref) : 10;
+      layer.append(svgEl('circle', { class: 'pinned-compare-circle', 'data-id': ref.m.id, cx: ref.px, cy: ref.py, r: pr, fill: 'none', stroke: ref.color, 'stroke-width': 1.5 }));
     }
     drawGuide(p, layer, layer, 1);
+    if (p.isLane2) {
+      svg.querySelectorAll(`.lane2-bead-ring[data-id="${CSS.escape(p.m.id)}"]`).forEach((el) => { el.style.display = 'none'; });
+      appendBeadRing(layer, p, 7, C.surface, C.ink, dual);
+    }
     layer.append(dotMark(p, 7, C.surface));
     // name + effort right at the dot
     const name = p.m.familyName, eff = p.m.effort === 'default' ? '' : `${EFFORT_LABEL[p.m.effort].toLowerCase()} effort`;
     const w = Math.max(textW(name, 13, 700), textW(eff, 11));
-    const right = p.px + 12 + w < lastGeom.M.left + lastGeom.PW;
-    const lx = right ? p.px + 12 : p.px - 12, anchor = right ? 'start' : 'end', hl = halo(4);
-    layer.append(svgEl('text', { ...hl, x: lx, y: p.py - (eff ? 10 : 4), 'text-anchor': anchor, fill: textColor(p), 'font-size': 13, 'font-weight': 700 }, name));
+    const hOff = PM ? PM.hoverLabelOffset(dual, p) : 12;
+    const right = p.px + hOff + w < lastGeom.M.left + lastGeom.PW;
+    const lx = right ? p.px + hOff : p.px - hOff, anchor = right ? 'start' : 'end', hl = halo(4);
+    layer.append(svgEl('text', { class: 'hover-label', ...hl, x: lx, y: p.py - (eff ? 10 : 4), 'text-anchor': anchor, fill: textColor(p), 'font-size': 13, 'font-weight': 700 }, name));
     if (eff) layer.append(svgEl('text', { ...hl, x: lx, y: p.py + 5, 'text-anchor': anchor, fill: textColor(p), 'font-size': 11 }, eff));
     // spotlight the hovered model's line
     svg.querySelectorAll('[data-fam]').forEach((el) => el.setAttribute('opacity', el.dataset.fam === p.m.family || el.dataset.fam === ref?.m.family ? 1 : 0.28));
 
     const m = p.m, cmp = ref ? compareBlock(ref, p, pinPts.length > 1) : { keys: [], html: '' };
+    const subOn = subLensActive(), pr = p.subPrice;
     const relOf = (k) => [['Y', S.y, lastGeom.Y, p.yv], ['X', S.x, lastGeom.X, p.xv]].filter(([, key, metric]) => key === k && metric.ref)
       .map(([axis, , metric, value]) => `${axis}: ${metric.fmt(value)} of ${refWord(metric.ref)}`).join(' · ');
+    let subBlock = '';
+    if (subOn && pr && !pr.omitted) {
+      const est = pr.lane === 2;
+      subBlock = `<div class="t-cmp" style="padding-top:6px"><div style="font-variant-numeric:tabular-nums">Plan $: <b>${esc(PM.fmtPlanUsd(pr.planCost, est))}</b> · % of week: <b>${esc(PM.fmtPct(pr.pctSelected, est))}</b></div>` +
+        `<div class="note" style="font-variant-numeric:tabular-nums">Plan capacity: ${esc(PM.fmtTasksWk(pr.tasksPerWeek, est))} tasks/wk${pr.hasSubCap ? ' (50% cap)' : ''} · ${esc(pr.poolLabel)}</div>` +
+        (pr.hasSubCap ? `<div class="note" style="font-variant-numeric:tabular-nums">Shared limit: ${esc(PM.fmtPlanUsd(pr.planCostShared))} (${esc(PM.fmtPct(pr.pctShared))}) · Fable-only 50% cap: ${esc(PM.fmtPlanUsd(pr.planCostOwn))} (${esc(PM.fmtPct(pr.pctOwn))}) — active: <b>${pr.fableCapMode === 'own' ? 'Fable-only' : 'Shared limit'}</b></div>` : '') +
+        (pr.caveat ? `<div class="note">${esc(pr.caveat)}</div>` : pr.note ? `<div class="note">${esc(pr.note)}</div>` : '') +
+        `<div class="note">Source: ${esc(pr.sourceLabel)} · measured ${esc(pr.dataDate || '')}</div></div>`;
+    }
     // the rows the comparison already shows (in its "This" column) aren't repeated below it
     const rows = [S.y, S.x, ...['intelligence', 'costPerTask', 'costToRun', 'priceBlended', 'tokensPerTask', 'outputSpeed', 'e2eMean'].filter((k) => k !== S.x && k !== S.y)]
       .filter((k) => m[k] != null && !cmp.keys.includes(k))
       .map((k) => {
-        const relative = relOf(k);
-        return `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${esc(METRICS[k].label)}</td><td>${METRICS[k].fmt(m[k])}${relative ? `<br><span class="note">${esc(relative)}</span>` : ''}</td></tr>${k === 'planCost' && m.planInfo ? `<tr class="plan-info"><td colspan="2" class="note">${esc(m.planInfo).replace(/\n/g, '<br>')}</td></tr>` : ''}`;
+        const relative = relOf(k), mk = effectiveMetric(k, subOn, S.price);
+        const val = (subOn && subAxisKey(k) && pr && !pr.omitted)
+          ? (S.price === 'pct' ? PM.fmtPct(pr.pctSelected, pr.lane === 2) : PM.fmtPlanUsd(pr.planCost, pr.lane === 2))
+          : mk.fmt(m[k]);
+        return `<tr class="${k === S.x || k === S.y ? 'hl' : ''}"><td>${esc(mk.label)}</td><td>${val}${relative ? `<br><span class="note">${esc(relative)}</span>` : ''}</td></tr>${k === 'planCost' && m.planInfo ? `<tr class="plan-info"><td colspan="2" class="note">${esc(m.planInfo).replace(/\n/g, '<br>')}</td></tr>` : ''}`;
       }).join('');
     const cmpRel = cmp.keys.map(relOf).filter(Boolean).join(' · ');
-    const sw = dualMode() !== 'off' ? `background:${p.val};box-shadow:0 0 0 2px ${p.lab}` : `background:${p.color}`;
+    const sw = dual !== 'off' ? `background:${p.val};box-shadow:0 0 0 2px ${p.lab}` : `background:${p.color}`;
     tip.innerHTML = `<div class="t-name"><i style="${sw}"></i>${esc(m.label)}</div>
       <div class="t-sub">${esc(m.creator)} · ${EFFORT_LABEL[m.effort]} effort${p.anchorOnly ? ` (shown for the ladder; your effort filter hides ${EFFORT_LABEL[m.effort]})` : ''}${p.auto ? ' · shown by Also show, not selected' : ''} · ${m.openWeights ? 'open weights' : 'proprietary'}${m.releaseDate ? ' · ' + m.releaseDate : ''}${m.estimated ? ' · Intelligence Index estimated by Artificial Analysis' : ''}${m.myEst && [S.x, S.y].some((k) => MY_SCORED.has(k)) ? ` · ${Math.round(m.myEst * 100)}% of Your index filled from another effort` : ''}${S.pinned.has(m.id) ? ' · pinned' : ''}</div>
-      ${cmp.html}${cmpRel ? `<div class="note" style="margin:-2px 0 6px">${esc(cmpRel)}</div>` : ''}${rows ? `<table>${rows}</table>` : ''}${[...new Set([S.y, S.x].map((k) => METRICS[k].ext).filter(Boolean))].map((e) => { const r = m.ext?.[e.key]; return r ? `<div class="t-foot">${esc(e.label)} lists it as “${esc(r.name)}”${r.guessed ? ' (effort not stated)' : ''}</div>` : ''; }).join('')}<div class="t-foot">${p.ghost ? `On the frontier but not selected · ${touch ? 'tap again' : 'click'} to add it` : `${touch ? 'Tap again' : 'Click'} to ${S.pinned.has(m.id) ? 'unpin' : 'pin'}`}</div>`;
+      ${subBlock}${cmp.html}${cmpRel ? `<div class="note" style="margin:-2px 0 6px">${esc(cmpRel)}</div>` : ''}${rows ? `<table>${rows}</table>` : ''}${[...new Set([S.y, S.x].map((k) => METRICS[k].ext).filter(Boolean))].map((e) => { const r = m.ext?.[e.key]; return r ? `<div class="t-foot">${esc(e.label)} lists it as “${esc(r.name)}”${r.guessed ? ' (effort not stated)' : ''}</div>` : ''; }).join('')}<div class="t-foot">${p.ghost ? `On the frontier but not selected · ${touch ? 'tap again' : 'click'} to add it` : `${touch ? 'Tap again' : 'Click'} to ${S.pinned.has(m.id) ? 'unpin' : 'pin'}`}</div>`;
     tip.classList.toggle('docked', touch); tip.classList.toggle('cmp', !!cmp.html);
     tip.style.display = 'block';
     const r = tip.getBoundingClientRect();
@@ -6462,7 +7619,211 @@
     lines.forEach((t, i) => g.append(svgEl('text', { x: x0 + sw + 8, y: cy + 4 + (i - (lines.length - 1) / 2) * 15, fill: css('--ink-2'), 'font-size': size }, t)));
     clone.append(g);
   }
-  function svgString() {
+  function renderIsolatedExportSvg(opts = {}) {
+    const isSub = subLensActive(), isLeg = legacyAxisActive();
+    const expW = opts.width || Math.max(320, Math.round(+svg.getAttribute('width') || $('chartCard').clientWidth || 780));
+    const narrow = expW < 460;
+    const C = { surface: css('--surface'), ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis'), accent: css('--accent') };
+    const dual = dualMode();
+    const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort) && !superseded(m));
+    const pubEst = opts.pubEst !== undefined ? !!opts.pubEst : (subPubDefaultEstOverride !== null ? subPubDefaultEstOverride : PM.PUBLIC_DEFAULT_ESTIMATES);
+    const pubProfile = PM.getExampleProfile(PLAN_CAT, 'entry', pubEst);
+
+    let prevSubPlans = SUB_PLANS, prevPlanFee = PLAN_FEE;
+    const hostDiv = document.createElement('div');
+    hostDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none';
+    const isoSvg = svgEl('svg', { xmlns: 'http://www.w3.org/2000/svg', 'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif' });
+    hostDiv.append(isoSvg);
+    document.body.append(hostDiv);
+
+    try {
+      if (isLeg) { SUB_PLANS = {}; PLAN_FEE = 20; derive(); }
+      const X = effectiveMetric(S.x, isSub, S.price), Y = effectiveMetric(S.y, isSub, S.price);
+      const subX = isSub && subAxisKey(S.x), subY = isSub && subAxisKey(S.y);
+      const valOf = (m, k) => {
+        if (!isSub || !subAxisKey(k)) return m[k];
+        const pr = subPriceOf(m, k, pubProfile, S.price);
+        return pr && !pr.omitted ? pr.val : null;
+      };
+      const pts = [], omitted = [];
+      for (const m of chosen) {
+        const pr = isSub ? subPriceOf(m, subX ? S.x : S.y, pubProfile, S.price) : null;
+        if (isSub && pr?.omitted) {
+          const otherOk = subX ? scaleOk(S.yScale, m[S.y]) : scaleOk(S.xScale, m[S.x]);
+          if (otherOk && (pr.reasonCode !== 'unavailable_cost' || (BASIS !== 'aa' && m.costPerTask > 0))) {
+            omitted.push({ id: m.id, m, name: m.familyName, short: subShortName(m, true), effort: m.effort, price: pr });
+          }
+          continue;
+        }
+        const xv = valOf(m, S.x), yv = valOf(m, S.y);
+        if (scaleOk(S.xScale, xv) && scaleOk(S.yScale, yv)) {
+          pts.push({ m, xv, yv, rawX: xv, rawY: yv, subPrice: pr, isLane2: !!(isSub && pr?.lane === 2), lab: idColorOf(m), val: idColorOf(m), color: colorOf(m) });
+        }
+      }
+      if (opts.extraOmitted?.length) omitted.push(...opts.extraOmitted);
+
+      const expEval = isSub ? PM.evaluateComparison(
+        pts.map((p) => ({ id: p.m.id, m: p.m, name: p.m.familyName, short: subShortName(p.m, true), effort: p.m.effort, xv: p.xv, yv: p.yv, price: p.subPrice })).concat(omitted),
+        { mode: S.price, xField: 'xv', yField: 'yv', xBetter: X.better, yBetter: Y.better }
+      ) : null;
+
+      const caption = isLeg
+        ? (S.x === 'planTasks' || S.y === 'planTasks' ? PM.DISCLOSURES.legacyExportTitleTasks : PM.DISCLOSURES.legacyExportTitleCost)
+        : (S.price === 'pct' ? '% of week · Example entry plans' : 'Plan $ · Example entry plans');
+      const showEstKey = isSub && expEval && (expEval.lane2.length > 0 || (expEval.comparable && expEval.frontierSteps.length >= 2));
+      const hasLane2 = !!(isSub && expEval && expEval.lane2.length > 0);
+      const footerRes = (isSub && omitted.length)
+        ? PM.formatOmissionFooter(omitted, expW - 20, (t) => measureSvgText(t, narrow ? 8.5 : 10, 400), { useShortNames: narrow })
+        : null;
+
+      const topPad = showEstKey ? (narrow && hasLane2 ? 68 : 54) : 38;
+      const botPad = footerRes ? 64 : 46;
+      const M = { top: topPad, right: narrow ? 16 : 28, bottom: botPad, left: narrow ? 42 : 56 };
+      const expH = opts.height || (narrow ? 390 : 440);
+      const PW = expW - M.left - M.right, PH = expH - M.top - M.bottom;
+
+      isoSvg.setAttribute('width', expW); isoSvg.setAttribute('height', expH); isoSvg.setAttribute('viewBox', `0 0 ${expW} ${expH}`);
+      isoSvg.append(svgEl('rect', { x: 0, y: 0, width: expW, height: expH, fill: C.surface }));
+
+      // Export caption + inline frontier & bead-ring key (2-line stack on narrow widths so 0 text clips at 320px!)
+      const titleX = narrow ? 10 : M.left;
+      const titleSize = narrow ? 12 : 14;
+      isoSvg.append(svgEl('text', { id: 'exportCaption', x: titleX, y: 20, fill: C.ink, 'font-size': titleSize, 'font-weight': 700 }, caption));
+      if (showEstKey) {
+        const fTxt = expEval.comparable ? expEval.frontierKeyLabel : '';
+        const kFont = narrow ? 8.5 : 10.2;
+        if (narrow) {
+          let ky = 35;
+          if (fTxt) {
+            isoSvg.append(svgEl('line', { x1: titleX, y1: ky - 3, x2: titleX + 12, y2: ky - 3, stroke: C.ink, 'stroke-width': 1.5, 'stroke-opacity': 0.55, 'stroke-linecap': 'round' }));
+            isoSvg.append(svgEl('text', { x: titleX + 16, y: ky, fill: C.ink2, 'font-size': kFont }, fTxt));
+            ky += 14;
+          }
+          if (hasLane2) {
+            const bx = titleX + 6;
+            for (let i = 0; i < 10; i++) {
+              const a = (i * 36 - 90) * Math.PI / 180;
+              isoSvg.append(svgEl('circle', { cx: (bx + Math.cos(a) * 4.6).toFixed(2), cy: (ky - 3 + Math.sin(a) * 4.6).toFixed(2), r: 0.8, fill: C.ink, stroke: C.surface, 'stroke-width': 1.1, 'paint-order': 'stroke fill' }));
+            }
+            isoSvg.append(svgEl('circle', { cx: bx, cy: ky - 3, r: 2.2, fill: C.accent }));
+            isoSvg.append(svgEl('text', { x: bx + 9, y: ky, fill: C.ink2, 'font-size': kFont }, PM.DISCLOSURES.lane2Key));
+          }
+        } else {
+          const ky = 35;
+          let curX = titleX;
+          if (fTxt) {
+            isoSvg.append(svgEl('line', { x1: curX, y1: ky - 3, x2: curX + 13, y2: ky - 3, stroke: C.ink, 'stroke-width': 1.5, 'stroke-opacity': 0.55, 'stroke-linecap': 'round' }));
+            isoSvg.append(svgEl('text', { x: curX + 17, y: ky, fill: C.ink2, 'font-size': kFont }, fTxt));
+            curX += 17 + measureSvgText(fTxt, kFont, 400) + 18;
+          }
+          if (hasLane2) {
+            const bx = curX;
+            for (let i = 0; i < 10; i++) {
+              const a = (i * 36 - 90) * Math.PI / 180;
+              isoSvg.append(svgEl('circle', { cx: (bx + Math.cos(a) * 5).toFixed(2), cy: (ky - 3 + Math.sin(a) * 5).toFixed(2), r: 0.85, fill: C.ink, stroke: C.surface, 'stroke-width': 1.2, 'paint-order': 'stroke fill' }));
+            }
+            isoSvg.append(svgEl('circle', { cx: bx, cy: ky - 3, r: 2.4, fill: C.accent }));
+            isoSvg.append(svgEl('text', { x: bx + 10, y: ky, fill: C.ink2, 'font-size': kFont }, PM.DISCLOSURES.lane2Key));
+          }
+        }
+      }
+
+      let labelAudit = { overlaps: 0, dotOverlaps: 0, misattached: 0, sameRowHits: 0, leaderThroughOtherMark: 0, leaderThroughOtherLabel: 0, leaderCrossLeader: 0, maxLeaderLenRaw: 0, drawn: 0, drawnMeasuredIds: [], drawnEstimateIds: [], droppedFrontierCount: 0, droppedMeasuredCount: 0 };
+      if (pts.length) {
+        const sx = makeScale(pts.map((p) => p.xv), S.xScale, [M.left, M.left + PW], false, narrow ? 4 : 6);
+        const sy = makeScale(pts.map((p) => p.yv), S.yScale, [M.top + PH, M.top], false, 5);
+        for (const p of pts) { p.vx = sx.f(p.xv); p.vy = sy.f(p.yv); p.px = p.vx; p.py = p.vy; }
+
+        // Grid + ticks (anti-clipped)
+        const g = svgEl('g');
+        const thinT = (ticks, f, gap) => { const out = []; for (const t of ticks) if (out.every((v) => Math.abs(f(t) - f(v)) >= gap)) out.push(t); return out.sort((a, b) => a - b); };
+        sx.ticks = thinT(sx.ticks, sx.f, Math.max(...sx.ticks.map((t) => measureSvgText(X.fmt(t), 10.5, 400))) + 10);
+        sy.ticks = thinT(sy.ticks.slice().reverse(), sy.f, 20);
+        for (const t of sy.ticks) {
+          const y = sy.f(t);
+          g.append(svgEl('line', { x1: M.left, x2: M.left + PW, y1: y, y2: y, stroke: C.grid, 'stroke-width': 1 }));
+          g.append(svgEl('text', { x: M.left - 6, y: y + 4, 'text-anchor': 'end', fill: C.muted, 'font-size': 10.5 }, Y.fmt(t)));
+        }
+        for (const t of sx.ticks) {
+          const x = sx.f(t), txt = X.fmt(t), tw = measureSvgText(txt, 10.5, 400);
+          g.append(svgEl('line', { x1: x, x2: x, y1: M.top, y2: M.top + PH, stroke: C.grid, 'stroke-width': 1 }));
+          let tx = x, anchor = 'middle';
+          if (x + tw / 2 > expW - 2) { tx = Math.min(x, expW - 2); anchor = 'end'; }
+          else if (x - tw / 2 < 2) { tx = Math.max(x, 2); anchor = 'start'; }
+          g.append(svgEl('text', { x: tx, y: M.top + PH + 16, 'text-anchor': anchor, fill: C.muted, 'font-size': 10.5 }, txt));
+        }
+        g.append(svgEl('line', { x1: M.left, x2: M.left + PW, y1: M.top + PH, y2: M.top + PH, stroke: C.axis }));
+        g.append(svgEl('line', { x1: M.left, x2: M.left, y1: M.top, y2: M.top + PH, stroke: C.axis }));
+        const xTitle = isLeg
+          ? (S.x === 'planTasks' ? PM.DISCLOSURES.legacyExportAxisTasks : S.x === 'planCost' ? PM.DISCLOSURES.legacyExportAxisCost : X.label)
+          : `${X.label}  ${X.better === 'low' ? '← better' : 'better →'}`;
+        let xFont = narrow ? 10 : 11.5;
+        while (xFont > 7.5 && measureSvgText(xTitle, xFont, 500) > expW - 12) xFont -= 0.5;
+        g.append(svgEl('text', { class: 'export-x-axis', x: M.left + PW / 2, y: M.top + PH + 33, 'text-anchor': 'middle', fill: C.ink2, 'font-size': xFont, 'font-weight': 500 }, xTitle));
+        isoSvg.append(g);
+
+        // Series & frontier
+        const bySeries = new Map();
+        for (const p of pts) {
+          const k = p.m.family + (p.m.effort === 'non-reasoning' ? ':nr' : '');
+          (bySeries.get(k) || bySeries.set(k, []).get(k)).push(p);
+        }
+        const segs = [];
+        const lineLayer = svgEl('g'); isoSvg.append(lineLayer);
+        const front = (!isSub || expEval.comparable) && S.pareto !== 'off' ? paretoFront(isSub ? pts.filter((p) => !p.isLane2) : pts) : [];
+        const frontSet = new Set(front.map((p) => p.m.id));
+        if (front.length) {
+          const vs = [[front[0].px, front[0].py]];
+          for (let i = 1; i < front.length; i++) {
+            if (S.pareto === 'step') vs.push([front[i].px, front[i - 1].py]);
+            vs.push([front[i].px, front[i].py]);
+          }
+          for (let i = 1; i < vs.length; i++) segs.push([...vs[i - 1], ...vs[i]]);
+          if (S.frontStyle === 'shade') {
+            const xWorse = X.better === 'low' ? M.left + PW : M.left, yWorse = Y.better === 'low' ? M.top : M.top + PH;
+            lineLayer.append(svgEl('polygon', { points: [[front[0].px, yWorse], ...vs, [xWorse, front.at(-1).py], [xWorse, yWorse]].map((q) => q.join(',')).join(' '), fill: C.ink, 'fill-opacity': 0.045 }));
+          }
+          lineLayer.append(svgEl('polyline', { points: vs.map((q) => q.join(',')).join(' '), fill: 'none', stroke: C.ink, 'stroke-width': 1.5, 'stroke-opacity': 0.5, 'stroke-linejoin': 'round' }));
+        }
+        for (const ps of bySeries.values()) {
+          ps.sort((a, b) => a.m.effortLevel - b.m.effortLevel || a.xv - b.xv);
+          const endP = ps.at(-1);
+          ps.forEach((p) => { p.series = ps; p.isEnd = p === endP; });
+          if (S.connect && ps.length >= 2) {
+            for (let i = 1; i < ps.length; i++) segs.push([ps[i - 1].px, ps[i - 1].py, ps[i].px, ps[i].py]);
+            lineLayer.append(svgEl('polyline', { points: ps.map((p) => `${p.px},${p.py}`).join(' '), fill: 'none', stroke: familyColor(ps[0].m), 'stroke-width': 1.6, 'stroke-opacity': 0.75 }));
+          }
+        }
+        const dotLayer = svgEl('g'); isoSvg.append(dotLayer);
+        for (const p of pts) {
+          const r = p.isEnd ? 5.5 : 4.25;
+          if (p.isLane2) appendBeadRing(dotLayer, p, r, C.surface, C.ink, dual);
+          dotLayer.append(dotMark(p, r, C.surface, { 'data-id': p.m.id, 'data-fam': p.m.family }, dual));
+        }
+        const lblLayer = svgEl('g'); isoSvg.append(lblLayer);
+        labelAudit = placeSubLabels(pts, frontSet, lblLayer, { M, PW, PH, W: expW, C, X, Y, segs, dimmed: () => false, narrow, dual, subEval: expEval, isExport: true });
+      }
+      if (footerRes && footerRes.text) {
+        isoSvg.append(svgEl('text', { id: 'omissionFooter', x: 10, y: expH - 10, fill: C.ink2, 'font-size': narrow ? 8.5 : 10 }, footerRes.text));
+      }
+      const clippedTexts = [];
+      for (const t of isoSvg.querySelectorAll('text')) {
+        try {
+          const bb = t.getBBox();
+          if (bb.width > 0 && (bb.x < -0.5 || bb.x + bb.width > expW + 0.5)) {
+            clippedTexts.push({ text: t.textContent, x: +bb.x.toFixed(1), x2: +(bb.x + bb.width).toFixed(1), svgW: expW });
+          }
+        } catch {}
+      }
+      labelAudit.clippedTexts = clippedTexts;
+      return { text: new XMLSerializer().serializeToString(isoSvg), width: expW, height: expH, footerRes, caption, showEstKey, labelAudit };
+    } finally {
+      hostDiv.remove();
+      if (isLeg) { SUB_PLANS = prevSubPlans; PLAN_FEE = prevPlanFee; derive(); }
+    }
+  }
+  function svgString(opts = {}) {
+    if (PM && (subLensActive() || legacyAxisActive())) return renderIsolatedExportSvg(opts);
     const clone = svg.cloneNode(true);
     clone.querySelector('#hoverLayer')?.remove(); clone.querySelector('#hit')?.remove();
     addColorKey(clone);
@@ -6721,6 +8082,17 @@
   // URL overrides, e.g. ?theme=dark&x=costPerTask&xScale=log&pin=claude-opus-5-5:low
   const qp = new URLSearchParams(location.search);
   for (const k of ['theme', 'x', 'y', 'xScale', 'yScale', 'pareto', 'guides', 'labels', 'ladderAt', 'colorBy', 'idColor', 'dual', 'markEffort', 'markStyle', 'grid', 'axisText', 'focus', 'halo', 'rowMetric', 'rowScale', 'rowLayout', 'basis', 'planView', 'planScope', 'lineStyle', 'valueLabels', 'xRel', 'yRel', 'ramp', 'zone', 'zoneStyle', 'frontStyle', 'shape', 'glow', 'guideAxes', 'guideBox', 'guideBoxColor', 'zoneColor']) if (qp.get(k) && !(qp.get(k) in Object.prototype)) S[k] = qp.get(k); // names like ?x=constructor would reach inherited properties
+  if (PM) {
+    S.price = PM.resolveInitialPrice({
+      hasSavedState: hadSavedState,
+      savedPrice: savedState.price,
+      urlX: qp.get('x'),
+      urlY: qp.get('y'),
+      urlPrice: qp.get('price'),
+    });
+    const rawNow = qp.get('now');
+    if (rawNow && Number.isFinite(Date.parse(rawNow))) subClockOverride = rawNow;
+  }
   if (qp.has('mix')) S.customWeights = PriorsFit.parseMix(qp.get('mix'), mixKeys());
   if (qp.has('mixCover')) S.customCover = mixCover(qp.get('mixCover'));
   if (['0', '1'].includes(qp.get('mixFill'))) S.basisFill = qp.get('mixFill') === '1';
@@ -6738,6 +8110,87 @@
   for (const k of ['autoBest', 'autoBase']) if (qp.get(k)) S[k] = qp.get(k) === '1';
   if (qp.get('lineStyle')) S.connect = qp.get('lineStyle') !== 'off'; // ?lineStyle=off|solid|dashed|dotted
   if (qp.get('pin')) S.pinned = new Set(qp.get('pin').split(',').map((t) => { const [fam, eff] = t.split(':'); return ALL.find((m) => m.family === fam && m.effort === eff)?.id; }).filter(Boolean));
+  // Bind Price lens, Your plans popover/sheet, omissions, and Tasks / week controls
+  if (PM && $('priceSeg')) {
+    $('priceSeg').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-price]'); if (!btn) return;
+      const sw = PM.switchFromLegacyAxes({ x: S.x, y: S.y, targetPrice: btn.dataset.price });
+      S.x = sw.x; S.y = sw.y; S.price = sw.price;
+      if (sw.switched) {
+        S.xScale = METRICS[S.x].scale || 'linear'; S.yScale = METRICS[S.y].scale || 'linear';
+        subLegacyNotice = sw.notice;
+      } else {
+        subLegacyNotice = null;
+      }
+      markDirty(); syncControls(); save(); renderList(); render();
+    });
+    $('plansBtn').addEventListener('click', () => { if (subPopOpen) closePlansPop(true); else openPlansPop(); });
+    $('popClose').addEventListener('click', () => closePlansPop(true));
+    $('popBackdrop').addEventListener('click', () => closePlansPop(true));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && subPopOpen) { e.preventDefault(); closePlansPop(true); } });
+    document.addEventListener('pointerdown', (e) => {
+      if (subPopOpen && window.innerWidth > 640 && !$('plansPop').contains(e.target) && !$('plansBtn').contains(e.target)) closePlansPop(false);
+    });
+    $('presetEntryBtn').addEventListener('click', () => {
+      subFeeErrors = {};
+      subProfile = PM.getExampleProfile(PLAN_CAT, 'entry', subProfile.estimate);
+      saveSubProfile(); render();
+    });
+    $('presetHeavyBtn').addEventListener('click', () => {
+      subFeeErrors = {};
+      subProfile = PM.getExampleProfile(PLAN_CAT, 'heavy', subProfile.estimate);
+      saveSubProfile(); render();
+    });
+    $('useChips').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-use]'); if (!b) return;
+      subProfile.use = Number(b.dataset.use) || 1;
+      saveSubProfile(); render();
+    });
+    $('fableChips').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-fable]'); if (!b) return;
+      subProfile.fableCap = b.dataset.fable === 'own' ? 'own' : 'shared';
+      saveSubProfile(); render();
+    });
+    $('estToggle').addEventListener('change', (e) => {
+      subProfile.estimate = !!e.target.checked;
+      saveSubProfile(); render();
+    });
+    const openTasksView = (moveFocus) => {
+      subTasksOpen = true;
+      render();
+      const panel = $('tasksPanel'), btn = $('toggleTasksChartBtn');
+      panel.scrollIntoView({ block: 'start', behavior: 'instant' });
+      if (moveFocus) {
+        btn.focus({ preventScroll: true });
+        const br = btn.getBoundingClientRect();
+        if (br.top < 0 || br.bottom > window.innerHeight) btn.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      }
+    };
+    $('tasksBtn').addEventListener('click', () => {
+      subTasksOpen = !subTasksOpen; render();
+      if (subTasksOpen) $('tasksPanel').scrollIntoView({ block: 'start', behavior: 'instant' });
+    });
+    $('openTasksFromPop').addEventListener('click', () => { closePlansPop(false); openTasksView(true); });
+    $('toggleTasksChartBtn').addEventListener('click', () => { subTasksChartOpen = !subTasksChartOpen; render(); });
+    $('omApiBtn').addEventListener('click', () => { S.price = 'api'; subLegacyNotice = null; markDirty(); syncControls(); save(); render(); });
+    $('zeroApiBtn').addEventListener('click', () => { S.price = 'api'; subLegacyNotice = null; markDirty(); syncControls(); save(); render(); });
+    addEventListener('resize', () => { if (subPopOpen) positionPlansPop(); });
+  }
+  window.__AIMF_SUB = {
+    getState: () => ({ x: S.x, y: S.y, price: S.price, basis: BASIS, activeSet: S.activeSet, selected: [...S.selected] }),
+    getProfile: () => JSON.parse(JSON.stringify(subProfile)),
+    setProfile: (next) => { subProfile = PM.sanitizeProfile(next, PLAN_CAT, PM.PUBLIC_DEFAULT_ESTIMATES); saveSubProfile(); render(); },
+    setSelection: (ids) => { S.selected = new Set(ids.filter((id) => BY_ID.has(id))); save(); renderList(); render(); },
+    setPrice: (mode) => { const sw = PM.switchFromLegacyAxes({ x: S.x, y: S.y, targetPrice: mode }); S.x = sw.x; S.y = sw.y; S.price = sw.price; subLegacyNotice = sw.switched ? sw.notice : null; syncControls(); save(); render(); },
+    setClock: (iso) => { subClockOverride = iso || undefined; render(); },
+    setPublicDefaultEst: (v) => { subPubDefaultEstOverride = v === null ? null : !!v; },
+    getCatalogMeta: () => ({ catalogDate: PLAN_CAT.catalogDate, sourceRevision: PLAN_CAT.sourceRevision, totalRows: PLAN_CAT.accounting?.totalCompiledRows || 0 }),
+    getLastRender: () => lastSubRender,
+    getLastLabelAudit: () => lastLabelAudit,
+    getSetsRaw: () => ({ local: JSON.parse(JSON.stringify(sets)), wire: publicSets(sets), unsynced: unsynced() }),
+    mergeTest: (remote) => merge(remote),
+    svgString: (opts) => svgString(opts),
+  };
   fixAxes(); fixMarks(); syncControls(); applyWide(); applyTheme(); renderSetSelect(); renderList(); render(); renderAgents();
   checkNews(qp.has('celebrate')); // ?celebrate previews the celebration (the latest feed entries and benchmark updates)
   sync(false);

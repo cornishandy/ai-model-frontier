@@ -93,7 +93,7 @@ const OPUS = 'model:claude-opus-5-5:xhigh';
     assert.equal(await ev(page, () => __t.S.xRel), 'off');
   });
 
-  await scenario('model list right-click: any effort as 1.0 on both axes', '?theme=light', async (page) => {
+  await scenario('model list right-click: any effort as 1.0 on both axes', '?theme=light&price=api', async (page) => {
     await page.locator('#modelList .fam-name[data-fam="claude-fable-5-1"]').first().click({ button: 'right' });
     const items = await page.locator('.ctx-item').allTextContents();
     assert.ok(items.some((t) => /^Use .+ as 1\.0 on both axes$/.test(t)), items.join(' | '));

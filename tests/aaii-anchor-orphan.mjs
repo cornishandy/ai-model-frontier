@@ -29,7 +29,7 @@ const out = await page.evaluate(() => {
   const xh = terra.find((m) => m.effort === 'xhigh');
   const nr = terra.find((m) => m.effort === 'non-reasoning');
   S.labels = 'ladder'; S.ladderAt = 'xhigh'; S.shape = 'standard';
-  S.x = 'costPerTask'; S.y = 'intelligence'; S.xRel = 'off'; S.yRel = 'off'; S.basis = 'aa';
+  S.x = 'costPerTask'; S.y = 'intelligence'; S.price = 'api'; S.xRel = 'off'; S.yRel = 'off'; S.basis = 'aa';
   S.selected = new Set([xh.id, nr.id]);
   S.efforts = new Set(EFFORTS); S.efforts.delete('xhigh');
   render();

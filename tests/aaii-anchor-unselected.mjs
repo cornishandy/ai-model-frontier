@@ -21,7 +21,7 @@ const out = await page.evaluate(() => {
   const high = BY_ID.get('ea3e1f50-f62d-41d2-849a-9af0413e4d37');
   const xh = BY_ID.get('e8d443ba-8aca-4830-a186-ae869bb9c6fe');
   S.labels = 'ladder'; S.ladderAt = 'xhigh'; S.shape = 'standard';
-  S.x = 'costPerTask'; S.y = 'intelligence'; S.xRel = 'off'; S.yRel = 'off'; S.basis = 'aa';
+  S.x = 'costPerTask'; S.y = 'intelligence'; S.price = 'api'; S.xRel = 'off'; S.yRel = 'off'; S.basis = 'aa';
   S.selected = new Set([high.id]); S.efforts = new Set(EFFORTS);
   render();
   const tip = document.querySelector('#chartFoot').textContent.includes('effort filter hides');

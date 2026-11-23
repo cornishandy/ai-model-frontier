@@ -45,6 +45,7 @@ const report = await page.evaluate(() => {
     S.shape = 'standard';
     S.x = 'costPerTask';
     S.y = 'intelligence';
+    S.price = 'api';
     S.xRel = 'off';
     S.yRel = 'off';
     S.basis = 'aa';

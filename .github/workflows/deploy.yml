@@ -45,7 +45,8 @@ jobs:
         run: |
           mkdir -p _site/data
           cp index.html aa-data.js scoring.js priors-fit.js _site/
-          cp data/models.js data/external.js data/plan-shares.js _site/data/
+          cp plan-math.js _site/
+          cp data/models.js data/external.js data/plan-shares.js data/plan-allowances.js _site/data/
       - uses: actions/configure-pages@v5
         if: steps.refresh.outputs.deploy == 'true'
       - uses: actions/upload-pages-artifact@v4
