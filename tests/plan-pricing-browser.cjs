@@ -274,7 +274,7 @@ async function independentDomAudit(page, selector = '#chart') {
         if (markList.some((o) => o.id !== a.id && distPtBox(o.px, o.py, a.box) < ownD + 4)) misattached++;
       }
     }
-    return { clipped, overlaps, dotOverlaps, quadHintOverlaps, misattached, sameRowHits, leaderThroughMark, leaderThroughLabel, leaderCrossLeader, maxLeader: +maxLeader.toFixed(1), labelCount: lbls.length };
+    return { clipped, overlaps, dotOverlaps, quadHintOverlaps, misattached, sameRowHits, leaderThroughMark, leaderThroughLabel, leaderCrossLeader, maxLeader, labelCount: lbls.length };
   }, selector);
 }
 
@@ -1268,7 +1268,7 @@ async function runAt04(chromium, webkit) {
   assert.equal(siteCatSha, '4af5bdbd', `Expected _site catalog SHA 4af5bdbd, got ${siteCatSha}`);
   const standaloneRaw = fs.readFileSync(standalonePath, 'utf8');
   assert.equal(standaloneRaw.includes(repoCatRaw.trim()), true, 'Standalone AI Model Frontier.html must inline exact data/plan-allowances.js');
-  assert.equal(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*(?:[\s/]|(?<=["']))src\s*=/i.test(standaloneRaw), false, 'Standalone AI Model Frontier.html must contain zero external <script src=> tags');
+  assert.equal(/<script(?=[\s/])(?:[^>"']|"[^"]*"|'[^']*')*(?:[\s/]|(?<=["']))src\s*=/i.test(standaloneRaw), false, 'Standalone AI Model Frontier.html must contain zero external <script src=> tags');
   assert.equal(/window\.__AIMF_SUB\b/.test(standaloneRaw), false, 'Standalone bundle must not contain production test hooks');
 
   const { srv, url } = await startServer(siteDir);

@@ -28,7 +28,7 @@ export function buildStandalone({ rootDir = ROOT_DIR, modelsJs = null, outPath =
     const js = rel === 'data/models.js' ? (modelsJs ?? read(rel)) : read(rel);
     page = page.replace(tag, () => inlineScript(js));
   }
-  const leftover = page.match(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*(?:[\s/]|(?<=["']))src\s*=/gi);
+  const leftover = page.match(/<script(?=[\s/])(?:[^>"']|"[^"]*"|'[^']*')*(?:[\s/]|(?<=["']))src\s*=/gi);
   if (leftover && leftover.length) {
     throw new Error(`Standalone bundle still contains ${leftover.length} external <script src=> tag(s)`);
   }

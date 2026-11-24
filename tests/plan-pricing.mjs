@@ -436,6 +436,9 @@ test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed
     fs.writeFileSync(path.join(tmpDir, 'index.html'), html.replace('</body>', '<script data-src="inert.js">/* inert */</script></body>'));
     const okInert = buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out-inert.html') });
     assert.ok(okInert.bytes > 100000, 'Inert data-src attribute on inline script must not false-positive');
+    fs.writeFileSync(path.join(tmpDir, 'index.html'), html.replace('</body>', '<script-figure src="cover.png"></script-figure></body>'));
+    const okCustom = buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out-custom.html') });
+    assert.ok(okCustom.bytes > 100000, 'Custom element <script-figure src=...> must not false-positive');
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

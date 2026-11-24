@@ -4718,7 +4718,9 @@
     // plot is (width = height ÷ ratio); at 220 px wide it stops narrowing and grows taller instead.
     const visH = (() => { const main = document.querySelector('main'), bar = document.querySelector('.toolbar.axes');
       const view = main && main.clientHeight > 0 && main.clientHeight < innerHeight ? main.clientHeight : innerHeight;
-      const note = $('autoNote'); return view - (bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0) - (!tallSubDesk && note && !note.hidden ? note.offsetHeight + 4 : 0) - 12; })();
+      const note = $('autoNote');
+      const noteReserve = tallSubDesk ? ((S.autoBest || S.autoBase) ? 44 : 0) : (note && !note.hidden ? note.offsetHeight + 4 : 0);
+      return view - (bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0) - noteReserve - 12; })();
     const tallPH = tall && !narrow ? Math.max(480, Math.min(1040, visH)) - 74 : 0;
     const tallPW = tall && !narrow ? Math.min(Math.max(220, Math.round(tallPH / S.tallRatio)), Math.max(220, availW - 70 - 150)) : 0;
     let H = tall ? Math.round((narrow ? W - 58 : tallPW) * S.tallRatio) + (narrow ? 70 : 74)
@@ -4932,7 +4934,7 @@
       $('relativeNote').textContent = refCtx.notes.concat(baseNotes).join(' ');
       const noteEl = $('autoNote'), noteHBefore = noteEl.hidden ? 0 : noteEl.offsetHeight;
       noteEl.hidden = !auto.note; noteEl.innerHTML = auto.note;
-      if (tall && !narrow && !render.refit && (noteEl.hidden ? 0 : noteEl.offsetHeight) !== noteHBefore) { render.refit = true; queueMicrotask(() => { try { render(); } finally { render.refit = false; } }); }
+      if (tall && !narrow && !tallSubDesk && !render.refit && (noteEl.hidden ? 0 : noteEl.offsetHeight) !== noteHBefore) { render.refit = true; queueMicrotask(() => { try { render(); } finally { render.refit = false; } }); }
       const basisTag = ` (${BASIS_SHORT[BASIS]})`, sharedBasis = usesYourIndex() && Y.label.includes(basisTag) && X.label.includes(basisTag);
       const liveTitleTxt = sharedBasis ? `${Y.label.replace(basisTag, '')} vs. ${X.label.replace(basisTag, '')}, ${BASIS_PHRASE[BASIS]}` : `${Y.label} vs. ${X.label}`;
       $('chartTitle').textContent = liveTitleTxt;
@@ -5608,25 +5610,35 @@
 
     const markOuterR = (o) => dotOuter(S.pinned.has(o.m.id) ? 6.5 : o.isEnd ? 5.5 : 4.25, dual, o);
     const markPaintedR = (o) => o.isLane2 ? markOuterR(o) : (markOuterR(o) + 1.0);
+    const paintedRMap = new Map();
+    for (const o of points) paintedRMap.set(o.m.id, markPaintedR(o));
     const dotBoxes = points.map((d) => {
-      const rr = markPaintedR(d) + 1.5;
+      const rr = paintedRMap.get(d.m.id) + 1.5;
       return { id: d.m.id, px: d.px, py: d.py, x1: d.px - rr, y1: d.py - rr, x2: d.px + rr, y2: d.py + rr };
     });
     const dotBoxesStrict = points.map((d) => {
-      const rr = markPaintedR(d) + 1.85;
+      const rr = paintedRMap.get(d.m.id) + 1.85;
       return { id: d.m.id, px: d.px, py: d.py, x1: d.px - rr, y1: d.py - rr, x2: d.px + rr, y2: d.py + rr };
     });
     const boxHit = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
     const segHitsBox = (x1, y1, x2, y2, b) => {
       let t0 = 0, t1 = 1;
       const dx = x2 - x1, dy = y2 - y1;
-      for (const [pv, qv] of [[-dx, x1 - b.x1], [dx, b.x2 - x1], [-dy, y1 - b.y1], [dy, b.y2 - y1]]) {
-        if (pv === 0) { if (qv < 0) return false; }
-        else {
-          const rv = qv / pv;
-          if (pv < 0) { if (rv > t1) return false; if (rv > t0) t0 = rv; }
-          else { if (rv < t0) return false; if (rv < t1) t1 = rv; }
-        }
+      if (dx === 0) { if (x1 < b.x1 || x1 > b.x2) return false; }
+      else {
+        let r1 = (b.x1 - x1) / dx, r2 = (b.x2 - x1) / dx;
+        if (r1 > r2) { const t = r1; r1 = r2; r2 = t; }
+        if (r1 > t0) t0 = r1;
+        if (r2 < t1) t1 = r2;
+        if (t0 > t1) return false;
+      }
+      if (dy === 0) { if (y1 < b.y1 || y1 > b.y2) return false; }
+      else {
+        let r1 = (b.y1 - y1) / dy, r2 = (b.y2 - y1) / dy;
+        if (r1 > r2) { const t = r1; r1 = r2; r2 = t; }
+        if (r1 > t0) t0 = r1;
+        if (r2 < t1) t1 = r2;
+        if (t0 > t1) return false;
       }
       return t0 <= t1;
     };
@@ -5707,30 +5719,38 @@
     // Deterministic work bound (zero wall-clock dependence so renders and downloads are bit-for-bit repeatable across CPU speeds)
     const largeCrowd = baseQueue.length > 24 || points.length > 28;
     let gridEvals = 0;
-    const maxGridEvals = largeCrowd ? 24000 : Infinity;
+    const maxGridEvals = largeCrowd ? 24000 : 180000;
     const isOverBudget = () => gridEvals >= maxGridEvals;
 
     const findBestPlacementFor = (p, txt, weight, placedBoxes, drawnLeaders, unplacedMeasured = [], allowNear = true, fine = false) => {
       const tw = measureSvgText(txt, lblFont, weight) + 4;
       const th = lblFont + 2.2;
-      const off = markPaintedR(p) + 4.5;
+      const pOuterR = markOuterR(p);
+      const pPaintedR = paintedRMap.get(p.m.id);
+      const off = pPaintedR + 4.5;
       const ownDotR = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25;
       const xReach = tw + 180, yReach = th + 180;
-      const others = points.filter((o) => o.m.id !== p.m.id && Math.abs(o.px - p.px) <= xReach && Math.abs(o.py - p.py) <= yReach);
-      const ownR = markPaintedR(p) + (fine ? 1.15 : 1.5);
+      const others = [];
+      for (const o of points) {
+        if (o.m.id !== p.m.id && Math.abs(o.px - p.px) <= xReach && Math.abs(o.py - p.py) <= yReach) {
+          others.push({ px: o.px, py: o.py, pr: paintedRMap.get(o.m.id), dOp: Math.hypot(o.px - p.px, o.py - p.py) });
+        }
+      }
+      const ownR = pPaintedR + (fine ? 1.15 : 1.5);
       const ownOb = { x1: p.px - ownR, y1: p.py - ownR, x2: p.px + ownR, y2: p.py + ownR };
       const dBoxes = (fine ? dotBoxes : dotBoxesStrict).filter((db) => db.id !== p.m.id && db.x2 >= p.px - tw - 95 && db.x1 <= p.px + tw + 95 && db.y2 >= p.py - th - 95 && db.y1 <= p.py + th + 95);
       const segPad = fine ? 2.05 : 2.2;
       const sameRowHard = fine ? 18.2 : 19.5;
+      const boxPadD = fine ? 1.0 : 1.5;
+      const placedPadded = placedBoxes.map((pb) => ({ x1: pb.x1 - boxPadD, y1: pb.y1 - boxPadD, x2: pb.x2 + boxPadD, y2: pb.y2 + boxPadD }));
       const leaderSeg = (ax, ay) => {
         const dx = ax - p.px, dy = ay - p.py, len = Math.hypot(dx, dy) || 1;
-        let sr = p.isLane2 ? markOuterR(p) - 0.5 : (fine ? ownDotR + 1.5 : ownDotR + 1.5);
+        let sr = p.isLane2 ? pOuterR - 0.5 : ownDotR + 1.5;
         if (!p.isLane2) {
           const ux = dx / len, uy = dy / len;
           for (const o of others) {
-            const dOp = Math.hypot(o.px - p.px, o.py - p.py);
-            const need = markPaintedR(o) + 2.15;
-            if (dOp < need + sr && ((p.px - o.px) * ux + (p.py - o.py) * uy) > 0) {
+            const need = o.pr + 2.15;
+            if (o.dOp < need + sr && ((p.px - o.px) * ux + (p.py - o.py) * uy) > 0) {
               sr = Math.max(sr, Math.min(ownDotR + 4.8, len * 0.45));
             }
           }
@@ -5747,57 +5767,63 @@
         }
         for (const pb of placedBoxes) if (boxHit(box, pb)) return 30000;
         if (boxHit(box, ownOb)) return 25000;
-        for (const db of dBoxes) if (db.id !== p.m.id && boxHit(box, db)) return 25000;
+        for (const db of dBoxes) if (boxHit(box, db)) return 25000;
         const cy = (box.y1 + box.y2) / 2;
         for (const o of others) {
           if (Math.abs(cy - o.py) < 10) {
             const dx = Math.min(Math.abs(box.x1 - o.px), Math.abs(box.x2 - o.px));
             if (dx < sameRowHard) return 15000;
-            if (dx < markPaintedR(o) + 34) pen += 2800;
+            if (dx < o.pr + 34) pen += 2800;
           }
         }
-        const boxPad = { x1: box.x1 - (fine ? 1.0 : 1.5), y1: box.y1 - (fine ? 1.0 : 1.5), x2: box.x2 + (fine ? 1.0 : 1.5), y2: box.y2 + (fine ? 1.0 : 1.5) };
-        for (const dl of drawnLeaders) if (segHitsBox(dl.x1, dl.y1, dl.x2, dl.y2, boxPad)) return 25000;
+        if (drawnLeaders.length) {
+          const boxPad = { x1: box.x1 - boxPadD, y1: box.y1 - boxPadD, x2: box.x2 + boxPadD, y2: box.y2 + boxPadD };
+          for (const dl of drawnLeaders) if (segHitsBox(dl.x1, dl.y1, dl.x2, dl.y2, boxPad)) return 25000;
+        }
         for (const fs of segs) if (segHitsBox(fs[0], fs[1], fs[2], fs[3], box)) pen += 300;
         if (unplacedMeasured.length) {
           for (const um of unplacedMeasured) if (distPointToBox(um.px, um.py, box) < 22) pen += 500;
         }
         return pen;
       };
-      const evalCand = (c, preBox = null, prePen = null) => {
+      const evalCand = (c, preBox = null, prePen = null, preOwnBoxD = null) => {
         const box = preBox || { x1: c.bx1 - 1, y1: c.by1 - 1, x2: c.bx1 + tw + 1, y2: c.by1 + th + 1 };
         let pen = prePen != null ? prePen : boxBasePen(box);
-        if (pen >= 10000) return { ...c, box, pen, seg: null };
+        if (pen >= 10000) return null;
         const seg = c.far ? leaderSeg(c.ax, c.ay) : null;
         const lDist = seg ? Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1) : 0;
-        if (c.far && lDist > 79.5) return { ...c, box, pen: pen + 25000, seg };
-        const ownBoxD = distPointToBox(p.px, p.py, box);
+        if (c.far && lDist > 79.5) return null;
+        const ownBoxD = preOwnBoxD != null ? preOwnBoxD : distPointToBox(p.px, p.py, box);
         const cy = (box.y1 + box.y2) / 2;
-        if (c.far) pen += 22 + lDist * 0.42 + Math.abs((box.x1 + box.x2) / 2 - p.px) * 0.22 + Math.abs(cy - p.py) * 0.55;
+        if (c.far) {
+          pen += 22 + lDist * 0.42 + Math.abs((box.x1 + box.x2) / 2 - p.px) * 0.22 + Math.abs(cy - p.py) * 0.55;
+          if (pen >= bestPen) return null;
+        }
         if (!c.far) {
-          for (const o of others) if (distPointToBox(o.px, o.py, box) < ownBoxD + (fine ? 4.8 : 7.5)) return { ...c, box, pen: pen + 15000, seg };
+          const nearReq = ownBoxD + (fine ? 4.8 : 7.5);
+          for (const o of others) if (distPointToBox(o.px, o.py, box) < nearReq) return null;
         } else {
-          for (const o of others) if (segDist(o.px, o.py, seg.x1, seg.y1, seg.x2, seg.y2) <= markPaintedR(o) + segPad) return { ...c, box, pen: pen + 25000, seg };
-          for (const pb of placedBoxes) {
-            const pbPad = { x1: pb.x1 - (fine ? 1.0 : 1.5), y1: pb.y1 - (fine ? 1.0 : 1.5), x2: pb.x2 + (fine ? 1.0 : 1.5), y2: pb.y2 + (fine ? 1.0 : 1.5) };
-            if (segHitsBox(seg.x1, seg.y1, seg.x2, seg.y2, pbPad)) return { ...c, box, pen: pen + 25000, seg };
+          for (const o of others) if (segDist(o.px, o.py, seg.x1, seg.y1, seg.x2, seg.y2) <= o.pr + segPad) return null;
+          for (const pbPad of placedPadded) {
+            if (segHitsBox(seg.x1, seg.y1, seg.x2, seg.y2, pbPad)) return null;
           }
-          for (const dl of drawnLeaders) if (segsCross(seg, dl)) return { ...c, box, pen: pen + 25000, seg };
+          for (const dl of drawnLeaders) if (segsCross(seg, dl)) return null;
           if (others.length) {
             let minOtherD = Infinity;
             const ownStartD = Math.hypot(p.px - seg.x1, p.py - seg.y1);
             for (const o of others) {
-              if (Math.hypot(o.px - seg.x1, o.py - seg.y1) <= ownStartD + 0.2) return { ...c, box, pen: pen + 25000, seg };
+              if (Math.hypot(o.px - seg.x1, o.py - seg.y1) <= ownStartD + 0.2) return null;
               const od = distPointToBox(o.px, o.py, box);
               if (od < minOtherD) minOtherD = od;
             }
             if (ownBoxD > minOtherD) pen += 18 + (ownBoxD - minOtherD) * 0.4;
           }
+          if (pen >= bestPen) return null;
           if (unplacedMeasured.length) {
             for (const um of unplacedMeasured) if (segDist(um.px, um.py, seg.x1, seg.y1, seg.x2, seg.y2) < 14) pen += 350;
           }
         }
-        return { ...c, box, pen, seg };
+        return pen < bestPen ? { ...c, box, pen, seg } : null;
       };
 
       let best = null, bestPen = Infinity;
@@ -5814,30 +5840,36 @@
         ];
         for (const c of nearCands) {
           const r = evalCand(c);
-          if (r.pen < bestPen) { bestPen = r.pen; best = r; if (r.pen === 0) break; }
+          if (r) { bestPen = r.pen; best = r; if (r.pen === 0) break; }
         }
       }
-      if ((!best || bestPen >= 10000) && (!largeCrowd || !isOverBudget())) {
+      if ((!best || bestPen >= 10000) && !isOverBudget()) {
         const yMin = Math.max(Math.ceil(th) + 4, minTopY + Math.ceil(th) - 1);
         const yMax = M.top + PH - 4;
         const stepX = fine ? 2 : largeCrowd ? (narrow ? 10 : 14) : (narrow ? 3 : 6);
         const stepY = fine ? 2 : largeCrowd ? (narrow ? 8 : 10) : (narrow ? 2 : 4);
         const yLo = Math.max(yMin, yMin + Math.max(0, Math.floor((p.py - 84 - yMin) / stepY)) * stepY);
         const yHi = Math.min(yMax, Math.ceil(p.py + th + 84));
+        const xMin = narrow ? 6 : Math.max(6, M.left + 2);
+        const xMax = Math.max(xMin, W - 6 - tw);
+        const xLo = Math.max(xMin, xMin + Math.max(0, Math.floor((p.px - tw - 84 - xMin) / stepX)) * stepX);
+        const xHi = Math.min(xMax, Math.ceil(p.px + 84));
         for (let ly = yLo; ly <= yHi; ly += stepY) {
-          if (largeCrowd && isOverBudget()) break;
+          if (isOverBudget()) break;
           const by1 = ly - th + 2;
-          const xMin = narrow ? 6 : Math.max(6, M.left + 2);
-          const xMax = Math.max(xMin, W - 6 - tw);
-          const xLo = Math.max(xMin, xMin + Math.max(0, Math.floor((p.px - tw - 84 - xMin) / stepX)) * stepX);
-          const xHi = Math.min(xMax, Math.ceil(p.px + 84));
+          const bCy = by1 + th / 2;
+          const yPenBase = 22 + Math.abs(bCy - p.py) * 0.55;
+          if (yPenBase >= bestPen) continue;
           for (let lx = xLo; lx <= xHi; lx += stepX) {
-            if (largeCrowd && isOverBudget()) break;
+            if (isOverBudget()) break;
             const b = { x1: lx - 1, y1: by1 - 0.5, x2: lx + tw + 1, y2: by1 + th + 0.5 };
-            if (distPointToBox(p.px, p.py, b) > 84) continue;
-            if (largeCrowd) gridEvals++;
+            const ownBoxD = distPointToBox(p.px, p.py, b);
+            if (ownBoxD > 84) continue;
+            const minGeoPen = yPenBase + Math.abs((b.x1 + b.x2) / 2 - p.px) * 0.22;
+            if (minGeoPen >= bestPen) continue;
+            gridEvals++;
             const bp = boxBasePen(b);
-            if (bp >= 10000 || bp >= bestPen) continue;
+            if (bp >= 10000 || bp + minGeoPen >= bestPen) continue;
             const cx = Math.max(b.x1, Math.min(b.x2, p.px)), cy = Math.max(b.y1, Math.min(b.y2, p.py));
             const candAnchors = [[cx, cy]];
             if (p.py < b.y1 || p.py > b.y2) {
@@ -5849,9 +5881,13 @@
               if (p.px <= b.x1) candAnchors.push([b.x1, b.y1], [b.x1, b.y2], [b.x1, (b.y1 + b.y2) / 2]);
               else if (p.px >= b.x2) candAnchors.push([b.x2, b.y1], [b.x2, b.y2], [b.x2, (b.y1 + b.y2) / 2]);
             }
-            for (const [ax, ay] of candAnchors) {
-              const r = evalCand({ lx, ly, anchor: 'start', bx1: lx, by1, ax, ay, far: true }, b, bp);
-              if (r.pen < bestPen) { bestPen = r.pen; best = r; }
+            for (let ai = 0; ai < candAnchors.length; ai++) {
+              const ax = candAnchors[ai][0], ay = candAnchors[ai][1];
+              let dup = false;
+              for (let aj = 0; aj < ai; aj++) if (candAnchors[aj][0] === ax && candAnchors[aj][1] === ay) { dup = true; break; }
+              if (dup) continue;
+              const r = evalCand({ lx, ly, anchor: 'start', bx1: lx, by1, ax, ay, far: true }, b, bp, ownBoxD);
+              if (r) { bestPen = r.pen; best = r; }
             }
           }
         }
@@ -5862,7 +5898,7 @@
       return best && bestPen < 10000 ? best : null;
     };
 
-    const runPlacement = (queue) => {
+    const runPlacement = (queue, maxDropF = Infinity, maxDropM = Infinity) => {
       const placedBoxes = quadHintBox ? [quadHintBox] : [];
       const drawnLeaders = [], drawnLabels = [], droppedLabels = [], droppedFrontierLabels = [], droppedMeasuredLabels = [], placedItems = [];
       let runMaxLeader = 0;
@@ -5878,6 +5914,7 @@
           droppedLabels.push(txt);
           if (isFront) droppedFrontierLabels.push(txt);
           if (!p.isLane2) droppedMeasuredLabels.push(txt);
+          if (droppedFrontierLabels.length > maxDropF || (droppedFrontierLabels.length === maxDropF && droppedMeasuredLabels.length > maxDropM)) return null;
           continue;
         }
         placedBoxes.push({ ...best.box, id: p.m.id, isLane2: p.isLane2 });
@@ -5902,10 +5939,16 @@
       frontItems.slice().sort((a, b) => b.xv - a.xv),
       frontItems.slice().sort((a, b) => a.yv - b.yv),
     ];
+    const orderKey = (order, tail) => order.map((x) => x.m.id).join('\x1f') + '|' + tail.map((x) => x.m.id).join('\x1f');
+    const seenOrders = new Set([orderKey(frontierOrders[0], nonFrontItems)]);
     let bestRun = runPlacement([...frontierOrders[0], ...nonFrontItems]);
     const considerRun = (order, tail = nonFrontItems) => {
       if (isOverBudget()) return;
-      const cand = runPlacement([...order, ...tail]);
+      const k = orderKey(order, tail);
+      if (seenOrders.has(k)) return;
+      seenOrders.add(k);
+      const cand = runPlacement([...order, ...tail], bestRun.droppedFrontierLabels.length, bestRun.droppedMeasuredLabels.length);
+      if (!cand) return;
       if (
         cand.droppedFrontierLabels.length < bestRun.droppedFrontierLabels.length ||
         (cand.droppedFrontierLabels.length === bestRun.droppedFrontierLabels.length && (
@@ -5917,15 +5960,16 @@
         ))
       ) bestRun = cand;
     };
-    if ((bestRun.droppedFrontierLabels.length > 0 || bestRun.droppedMeasuredLabels.length > 0) && !largeCrowd && !isOverBudget()) {
+    const hasMeasuredDrops = () => bestRun.droppedFrontierLabels.length > 0 || bestRun.droppedMeasuredLabels.length > 0;
+    if (hasMeasuredDrops() && !largeCrowd && !isOverBudget()) {
       const dropIdx = baseFront.findIndex((f) => !bestRun.placedItems.some((pi) => pi.p.m.id === f.m.id));
       if (dropIdx > 0) {
-        for (let pos = dropIdx - 1; pos >= 0 && !isOverBudget(); pos--) {
+        for (let pos = dropIdx - 1; pos >= 0 && hasMeasuredDrops() && !isOverBudget(); pos--) {
           const reord = baseFront.slice(), [moved] = reord.splice(dropIdx, 1);
           reord.splice(pos, 0, moved); considerRun(reord);
         }
       }
-      for (let oi = 1; oi < frontierOrders.length && !isOverBudget(); oi++) considerRun(frontierOrders[oi]);
+      for (let oi = 1; oi < frontierOrders.length && hasMeasuredDrops() && !isOverBudget(); oi++) considerRun(frontierOrders[oi]);
       if (bestRun.droppedMeasuredLabels.length > 0 && !isOverBudget()) {
         const allMeasured = [...baseFront, ...measuredNonFront];
         considerRun(allMeasured.slice().sort((a, b) => (nearestMarkDist.get(a.m.id) - nearestMarkDist.get(b.m.id)) || b.yv - a.yv), estItems);
