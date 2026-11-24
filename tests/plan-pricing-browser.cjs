@@ -217,7 +217,22 @@ async function independentDomAudit(page, selector = '#chart') {
       return t0 <= t1;
     };
 
-    let overlaps = 0, dotOverlaps = 0, quadHintOverlaps = 0, misattached = 0, sameRowHits = 0, leaderThroughMark = 0, leaderThroughLabel = 0, maxLeader = 0;
+    const segsCross = (a, b) => {
+      const ccw = (ax, ay, bx, by, cx, cy) => (cx - ax) * (by - ay) - (cy - ay) * (bx - ax);
+      const onSeg = (ax, ay, bx, by, px, py) =>
+        Math.min(ax, bx) - 1e-6 <= px && px <= Math.max(ax, bx) + 1e-6 &&
+        Math.min(ay, by) - 1e-6 <= py && py <= Math.max(ay, by) + 1e-6;
+      const d1 = ccw(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1), d2 = ccw(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2);
+      const d3 = ccw(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1), d4 = ccw(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2);
+      if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+      if (Math.abs(d1) < 1e-6 && onSeg(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1)) return true;
+      if (Math.abs(d2) < 1e-6 && onSeg(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2)) return true;
+      if (Math.abs(d3) < 1e-6 && onSeg(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1)) return true;
+      if (Math.abs(d4) < 1e-6 && onSeg(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2)) return true;
+      return false;
+    };
+
+    let overlaps = 0, dotOverlaps = 0, quadHintOverlaps = 0, misattached = 0, sameRowHits = 0, leaderThroughMark = 0, leaderThroughLabel = 0, leaderCrossLeader = 0, maxLeader = 0;
     for (let i = 0; i < lbls.length; i++) {
       const a = lbls[i], pa = marks.get(a.id);
       if (qhBox && hit(a.box, qhBox)) quadHintOverlaps++;
@@ -225,20 +240,28 @@ async function independentDomAudit(page, selector = '#chart') {
       const cy = (a.box.y1 + a.box.y2) / 2;
       for (const m of markList) {
         if (m.id === a.id) continue;
-        if (distPtBox(m.px, m.py, a.box) < m.r - 0.5) dotOverlaps++;
-        if (Math.abs(cy - m.py) < 8.5 && Math.min(Math.abs(a.box.x1 - m.px), Math.abs(a.box.x2 - m.px)) < 17.5) sameRowHits++;
+        if (distPtBox(m.px, m.py, a.box) < m.r) dotOverlaps++;
+        if (Math.abs(cy - m.py) < 9 && Math.min(Math.abs(a.box.x1 - m.px), Math.abs(a.box.x2 - m.px)) < 18) sameRowHits++;
       }
       const l = leaderById.get(a.id);
       if (l) {
         maxLeader = Math.max(maxLeader, Math.hypot(l.x2 - l.x1, l.y2 - l.y1));
-        for (const m of markList) if (m.id !== a.id && segDist(m.px, m.py, l.x1, l.y1, l.x2, l.y2) < m.r - 0.5) leaderThroughMark++;
-        for (const b of lbls) if (b.id !== a.id && segHitsBox(l.x1, l.y1, l.x2, l.y2, b.box)) leaderThroughLabel++;
+        for (const m of markList) if (m.id !== a.id && segDist(m.px, m.py, l.x1, l.y1, l.x2, l.y2) < m.r + 2) leaderThroughMark++;
+        for (const b of lbls) {
+          if (b.id === a.id) continue;
+          const inset = { x1: b.box.x1 + 1, y1: b.box.y1 + 1, x2: b.box.x2 - 1, y2: b.box.y2 - 1 };
+          if (inset.x2 > inset.x1 && inset.y2 > inset.y1 && segHitsBox(l.x1, l.y1, l.x2, l.y2, inset)) leaderThroughLabel++;
+        }
+        for (let j = i + 1; j < lbls.length; j++) {
+          const lj = leaderById.get(lbls[j].id);
+          if (lj && segsCross(l, lj)) leaderCrossLeader++;
+        }
       } else if (pa) {
         const ownD = distPtBox(pa.px, pa.py, a.box);
-        if (markList.some((o) => o.id !== a.id && distPtBox(o.px, o.py, a.box) < ownD + 3.8)) misattached++;
+        if (markList.some((o) => o.id !== a.id && distPtBox(o.px, o.py, a.box) < ownD + 4)) misattached++;
       }
     }
-    return { clipped, overlaps, dotOverlaps, quadHintOverlaps, misattached, sameRowHits, leaderThroughMark, leaderThroughLabel, maxLeader: +maxLeader.toFixed(1), labelCount: lbls.length };
+    return { clipped, overlaps, dotOverlaps, quadHintOverlaps, misattached, sameRowHits, leaderThroughMark, leaderThroughLabel, leaderCrossLeader, maxLeader: +maxLeader.toFixed(1), labelCount: lbls.length };
   }, selector);
 }
 
@@ -336,10 +359,30 @@ async function runAt01(chromium, webkit, baseUrl) {
     assert.equal(tallSvg1, tallSvg2, 'Desktop Tall real #downloadSvg must be byte-identical across distinct local profiles');
     const tallExpAudit = await p2.evaluate(() => window.__AIMF_TEST.svgString());
     assert.equal(tallExpAudit.width, tallLive2.w, `Desktop Tall export width ${tallExpAudit.width} != Example entry live ${tallLive2.w}`);
+    assert.equal(tallExpAudit.width, await p1.evaluate(() => +document.getElementById('chart').getAttribute('width')), 'Desktop Tall export width must also match custom-profile live width');
     assert.ok(tallSvg1.includes('rotate(-90)'), 'Desktop Tall export must preserve rotated desktop Y-axis title (not switch to phone layout)');
     assert.ok(tallExpAudit.height < tallLive2.h + 120, `Desktop Tall export height ${tallExpAudit.height} unexpectedly expanded vs live ${tallLive2.h}`);
     assert.equal(tallExpAudit.labelAudit.clippedTexts.length, 0, `Desktop Tall export clipped text: ${JSON.stringify(tallExpAudit.labelAudit.clippedTexts)}`);
-    await p2.evaluate(() => window.__AIMF_TEST.setStatePatch({ shape: 'standard' }));
+
+    // Desktop Tall + Ladder with 3 labs set to No plan must STILL match live width and produce byte-identical SVG across profiles!
+    await p1.evaluate(() => {
+      window.__AIMF_TEST.setStatePatch({ labels: 'ladder', shape: 'tall', tallRatio: 3 });
+      window.__AIMF_TEST.setProfile({ plans: { anthropic: { id: 'none', fee: null }, openai: { id: 'none', fee: null }, google: { id: 'none', fee: null }, xai: { id: 'supergrok', fee: null } }, use: 1, fableCap: 'shared', estimate: true });
+    });
+    await p2.evaluate(() => window.__AIMF_TEST.setStatePatch({ labels: 'ladder', shape: 'tall', tallRatio: 3 }));
+    const tallLadLive1 = await p1.evaluate(() => +document.getElementById('chart').getAttribute('width'));
+    const tallLadLive2 = await p2.evaluate(() => +document.getElementById('chart').getAttribute('width'));
+    const tallLadExp1 = await p1.evaluate(() => window.__AIMF_TEST.svgString());
+    const tallLadExp2 = await p2.evaluate(() => window.__AIMF_TEST.svgString());
+    assert.equal(tallLadLive1, tallLadLive2, `Desktop Tall Ladder live width diverged across profiles: ${tallLadLive1} vs ${tallLadLive2}`);
+    assert.equal(tallLadExp1.width, tallLadLive1, `Desktop Tall Ladder export width ${tallLadExp1.width} != live ${tallLadLive1}`);
+    assert.equal(tallLadExp1.text, tallLadExp2.text, 'Desktop Tall Ladder export must be byte-identical across profiles');
+    assert.equal(tallLadExp1.labelAudit.clippedTexts.length, 0, `Desktop Tall Ladder clipped text: ${JSON.stringify(tallLadExp1.labelAudit.clippedTexts)}`);
+    await p2.evaluate(() => window.__AIMF_TEST.setStatePatch({ shape: 'standard', labels: 'auto' }));
+    await p1.evaluate(() => {
+      window.__AIMF_TEST.setStatePatch({ labels: 'auto' });
+      window.__AIMF_TEST.setProfile({ plans: { anthropic: { id: 'claude_max_20x', fee: 4321.77 }, openai: { id: 'chatgpt_pro_20x', fee: 199 }, google: { id: 'google_ai_ultra_20x_us', fee: 0 }, xai: { id: 'none', fee: null } }, use: 0.25, fableCap: 'own', estimate: false });
+    });
 
     // Diamond shape under Plan $: live & export zero clipped endpoint ticks ($0.00, 65.0)
     await p1.evaluate(() => window.__AIMF_TEST.setStatePatch({ shape: 'diamond' }));
@@ -490,7 +533,8 @@ async function runAt01(chromium, webkit, baseUrl) {
       assert.notEqual(rTask[1], rMy[1], `Dual-cost tooltip reused X value for Y: ${rTask[1]} vs ${rMy[1]}`);
     }
 
-    // $0 fee on log scale explains $0.00 clearly & splits mixed non-zero missing models separately; pre-feature set restores API $
+    // $0 fee on log scale explains $0.00 clearly & splits mixed non-zero missing models separately (no skip!);
+    // API $ negative/zero benchmark scores on log scale must NEVER print "$0.00" or "$0 plans"!
     await pFirst.goto(`${baseUrl}/index.html?noAutoUpdate=1&xScale=log&price=plan`, { waitUntil: 'networkidle' });
     const zeroLogNote = await pFirst.evaluate(() => {
       const prof = window.__AIMF_TEST.getProfile();
@@ -499,18 +543,24 @@ async function runAt01(chromium, webkit, baseUrl) {
       return document.getElementById('chartNote').textContent;
     });
     assert.match(zeroLogNote, /\$0\.00/, `$0 fee on log scale must explain $0.00, got: ${zeroLogNote}`);
-    // Mixed log-scale hide: one $0.00 Anthropic model + one missing-Y model must NOT blame the missing-Y model on $0.00
+    // Deterministic mixed log-scale hide: 1 Anthropic $0.00 row + 1 real row with null costPerTask (never skipped!)
     const mixedLogNote = await pFirst.evaluate(() => {
       const anthZero = window.AA_DATA.models.find(m => m.creatorSlug === 'anthropic' && m.family === 'claude-opus-5-5' && m.effort === 'xhigh');
-      const noIntel = window.AA_DATA.models.find(m => m.intelligence == null && m.costPerTask > 0 && m.creatorSlug === 'google');
-      if (!anthZero || !noIntel) return { skip: true };
-      window.__AIMF_TEST.setSelection([anthZero.id, noIntel.id]);
-      return { skip: false, note: document.getElementById('chartNote').textContent, zeroLabel: anthZero.label, missLabel: noIntel.label };
+      const noCost = window.AA_DATA.models.find(m => m.costPerTask == null && m.intelligence != null && !m.deprecated && m.effort === 'low');
+      if (!anthZero || !noCost) return { missingFixture: true };
+      window.__AIMF_TEST.setSelection([anthZero.id, noCost.id]);
+      const lbl = (m) => m.shortName.replace(/ with fallback\)/, ')');
+      return { missingFixture: false, note: document.getElementById('chartNote').textContent, zeroLabel: lbl(anthZero), missLabel: lbl(noCost) };
     });
-    if (!mixedLogNote.skip) {
-      assert.match(mixedLogNote.note, /1 selected model-effort variant is hidden on a log scale because .*\$0\.00/);
-      assert.match(mixedLogNote.note, /1 selected model-effort variant has no/);
-    }
+    assert.equal(mixedLogNote.missingFixture, false, 'Expected real deterministic $0.00 + null-cost models in committed fixture');
+    assert.match(mixedLogNote.note, /1 selected model-effort variant is hidden on a log scale because Plan \$ per task is \$0\.00/);
+    assert.match(mixedLogNote.note, /1 selected model-effort variant has no Plan \$ per task data/);
+    assert.ok(mixedLogNote.note.includes(mixedLogNote.zeroLabel) && mixedLogNote.note.includes(mixedLogNote.missLabel));
+    // API $ log scale on AA-Omniscience (negative scores) must NEVER claim "$0.00" or "$0 plans"
+    await pFirst.goto(`${baseUrl}/index.html?noAutoUpdate=1&price=api&x=intelligence&y=omniscience&yScale=log`, { waitUntil: 'networkidle' });
+    const omniApiNote = await pFirst.locator('#chartNote').innerText();
+    assert.equal(omniApiNote.includes('$0 plans'), false, `API log Omniscience wrongly claimed "$0 plans": ${omniApiNote}`);
+    assert.equal(omniApiNote.includes('$0.00'), false, `API log Omniscience wrongly claimed "$0.00": ${omniApiNote}`);
     const preFeatureRes = await pFirst.evaluate(() => {
       window.__AIMF_TEST.applySet({ x: 'costPerTask', y: 'intelligence', xScale: 'linear', yScale: 'linear' }, false);
       return window.__AIMF_TEST.getState().price;
@@ -552,8 +602,13 @@ async function runAt01(chromium, webkit, baseUrl) {
               assert.ok(audit, `Missing audit ${tag}`);
               assert.equal(dom.clipped.length, 0, `Clipped SVG text ${tag}: ${JSON.stringify(dom.clipped)}`);
               assert.equal(dom.overlaps, 0, `DOM label overlap ${tag}`);
+              assert.equal(dom.dotOverlaps, 0, `DOM dot overlap ${tag}`);
               assert.equal(dom.quadHintOverlaps, 0, `DOM quad-hint overlap ${tag}`);
               assert.equal(dom.misattached, 0, `DOM misattached label ${tag}`);
+              assert.equal(dom.sameRowHits, 0, `DOM same-row hit ${tag}`);
+              assert.equal(dom.leaderThroughMark, 0, `DOM leader through mark ${tag}`);
+              assert.equal(dom.leaderThroughLabel, 0, `DOM leader through label ${tag}`);
+              assert.equal(dom.leaderCrossLeader, 0, `DOM leader cross leader ${tag}`);
               assert.ok(dom.maxLeader <= 80, `DOM maxLeader ${dom.maxLeader} > 80 ${tag}`);
               assert.equal(audit.overlaps, 0, `Audit overlap ${tag}`);
               assert.equal(audit.dotOverlaps, 0, `Dot overlap ${tag}`);
@@ -571,13 +626,32 @@ async function runAt01(chromium, webkit, baseUrl) {
               assert.ok(measuredIds.true.has(id), `Measured label ${id} dropped when est=ON (${engineName}/${ds.label} ${vp.w}px ${preset})`);
             }
           }
-          // Public export at this width (780 when w===960)
+          // Public export at this width (780 when w===960) — verified via BOTH app audit AND independent rendered-DOM audit!
           const expW = vp.w === 960 ? 780 : vp.w;
           const expMeasured = {};
           for (const est of [false, true]) {
-            const exp = await pLbl.evaluate(({ expW, est }) => window.__AIMF_TEST.svgString({ width: expW, pubEst: est }), { expW, est });
+            const exp = await pLbl.evaluate(({ expW, est }) => {
+              const o = window.__AIMF_TEST.svgString({ width: expW, pubEst: est });
+              let host = document.getElementById('expAuditHost');
+              if (!host) { host = document.createElement('div'); host.id = 'expAuditHost'; document.body.appendChild(host); }
+              host.style.cssText = `position:absolute;left:0;top:0;width:${o.width}px;pointer-events:none;z-index:-1`;
+              host.innerHTML = o.text;
+              return { labelAudit: o.labelAudit, width: o.width };
+            }, { expW, est });
+            const edom = await independentDomAudit(pLbl, '#expAuditHost svg');
+            await pLbl.evaluate(() => document.getElementById('expAuditHost')?.remove());
             const a = exp.labelAudit;
             const tag = `${engineName}/${ds.label} export ${expW}px est=${est}`;
+            assert.equal(edom.clipped.length, 0, `${tag} DOM clipped: ${JSON.stringify(edom.clipped)}`);
+            assert.equal(edom.overlaps, 0, `${tag} DOM overlaps`);
+            assert.equal(edom.dotOverlaps, 0, `${tag} DOM dotOverlaps`);
+            assert.equal(edom.quadHintOverlaps, 0, `${tag} DOM quadHintOverlaps`);
+            assert.equal(edom.misattached, 0, `${tag} DOM misattached`);
+            assert.equal(edom.sameRowHits, 0, `${tag} DOM sameRowHits`);
+            assert.equal(edom.leaderThroughMark, 0, `${tag} DOM leaderThroughMark`);
+            assert.equal(edom.leaderThroughLabel, 0, `${tag} DOM leaderThroughLabel`);
+            assert.equal(edom.leaderCrossLeader, 0, `${tag} DOM leaderCrossLeader`);
+            assert.ok(edom.maxLeader <= 80, `${tag} DOM maxLeader=${edom.maxLeader}`);
             assert.equal(a.clippedTexts.length, 0, `${tag} clipped: ${JSON.stringify(a.clippedTexts)}`);
             assert.equal(a.overlaps, 0, `${tag} overlaps`);
             assert.equal(a.dotOverlaps, 0, `${tag} dotOverlaps`);
@@ -595,11 +669,11 @@ async function runAt01(chromium, webkit, baseUrl) {
             assert.ok(expMeasured.true.has(id), `Export measured label ${id} dropped when est=ON (${engineName}/${ds.label} ${expW}px)`);
           }
         }
-        // Width sweep for Heavy est-ON across narrow/mid/laptop/Values=both widths (catches between-breakpoint drops!)
+        // Real width stride sweep for Heavy est-ON across narrow/mid/laptop/Values=both widths (catches between-breakpoint drops!)
         if (ds.canonical) {
-          for (const sw of [330, 760, 780, 1120, 1160]) {
+          for (const sw of [320, 330, 360, 380, 400, 420, 440, 760, 780, 960, 1040, 1120, 1160, 1280]) {
             await pLbl.setViewportSize({ width: sw, height: sw < 560 ? 640 : 860 });
-            await pLbl.waitForTimeout(40);
+            await pLbl.waitForTimeout(30);
             await pLbl.evaluate(() => {
               window.__AIMF_TEST.setStatePatch({ labels: 'auto', valueLabels: 'off' });
               window.__AIMF_TEST.setProfile(window.PlanMath.getExampleProfile(window.PLAN_ALLOWANCES, 'heavy', true));
@@ -608,7 +682,7 @@ async function runAt01(chromium, webkit, baseUrl) {
             const dom = await independentDomAudit(pLbl, '#chart');
             assert.equal(a.droppedFrontierCount, 0, `${engineName} sweep ${sw}px Heavy ON dropped frontier`);
             assert.equal(a.droppedMeasuredCount, 0, `${engineName} sweep ${sw}px Heavy ON dropped measured`);
-            assert.equal(dom.overlaps + dom.dotOverlaps + dom.quadHintOverlaps + dom.misattached + dom.clipped.length, 0, `${engineName} sweep ${sw}px Heavy ON DOM issue: ${JSON.stringify(dom)}`);
+            assert.equal(dom.overlaps + dom.dotOverlaps + dom.quadHintOverlaps + dom.misattached + dom.sameRowHits + dom.leaderThroughMark + dom.leaderThroughLabel + dom.leaderCrossLeader + dom.clipped.length, 0, `${engineName} sweep ${sw}px Heavy ON DOM issue: ${JSON.stringify(dom)}`);
           }
           for (const sw of [760, 780]) {
             await pLbl.setViewportSize({ width: sw, height: 860 });
@@ -1086,7 +1160,7 @@ async function runAt04(chromium, webkit) {
   assert.equal(siteCatSha, '4af5bdbd', `Expected _site catalog SHA 4af5bdbd, got ${siteCatSha}`);
   const standaloneRaw = fs.readFileSync(standalonePath, 'utf8');
   assert.equal(standaloneRaw.includes(repoCatRaw.trim()), true, 'Standalone AI Model Frontier.html must inline exact data/plan-allowances.js');
-  assert.equal(/<script\b[^>]*\bsrc\s*=/i.test(standaloneRaw), false, 'Standalone AI Model Frontier.html must contain zero external <script src=> tags');
+  assert.equal(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*\bsrc\s*=/i.test(standaloneRaw), false, 'Standalone AI Model Frontier.html must contain zero external <script src=> tags');
   assert.equal(/window\.__AIMF_SUB\b/.test(standaloneRaw), false, 'Standalone bundle must not contain production test hooks');
 
   const { srv, url } = await startServer(siteDir);

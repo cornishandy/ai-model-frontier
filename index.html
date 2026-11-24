@@ -4948,15 +4948,25 @@
       svg.setAttribute('aria-label', $('chartTitle').textContent);
     }
     // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
+    // On desktop Tall under a subscription lens, size margins from the selected model set (profile-invariant)
+    // so live SVG width always matches reproducible public exports across any personal plan/omission choice.
+    const tallSubDesk = tall && !narrow && subActive;
     if (!diamond && (!narrow || subActive)) {
-      const yw = Math.max(0, ...points.map((p) => textW(Y.fmt(p.yv), narrow ? 11 : 12, narrow ? 400 : 700)));
+      const yFmtVals = tallSubDesk
+        ? (subY ? ['$100.00', '100.0%']
+          : Y.ref ? ['100.0×', '+100.0', '−100.0']
+          : chosen.filter((m) => scaleOk(S.yScale, m[S.y])).map((m) => Y.fmt(m[S.y])))
+        : points.map((p) => Y.fmt(p.yv));
+      const yw = Math.max(0, ...yFmtVals.map((s) => textW(s, narrow ? 11 : 12, narrow ? 400 : 700)));
       const pinYw = (narrow && S.pinned.size) ? Math.max(0, ...points.filter((p) => S.pinned.has(p.m.id)).map((p) => textW(Y.fmt(p.yv), 12, 700))) : 0;
       const needLeft = narrow ? Math.max(Math.ceil(yw + 10), pinYw ? Math.ceil(pinYw + 14) : 0) : Math.ceil(yw + 44);
       if (needLeft > M.left) { M.left = needLeft; if (tall && !narrow) W = Math.min(availW, M.left + tallPW + M.right); PW = W - M.left - M.right; }
     }
     // "Ladder" labels: model names in a column to the right of the plot, so they never sit on the data
     if (ladder) {
-      const names = [...new Set(points.concat(anchors).map((p) => p.m.familyName))];
+      const names = tallSubDesk
+        ? [...new Set(chosen.map((m) => m.familyName))]
+        : [...new Set(points.concat(anchors).map((p) => p.m.familyName))];
       const maxName = Math.max(0, ...names.map((n) => textW(n, narrow ? 11 : 12, 600)));
       // one ladder row per line (a non-reasoning dot is its own line), plus a hollow dot whose reasoning line shows no dot
       const lineOf = (p) => p.m.family + (p.m.effort === 'non-reasoning' ? ':nr' : '');
@@ -4964,7 +4974,15 @@
         const ps = points.filter((p) => lineOf(p) === line).sort((a,b) => a.m.effortLevel - b.m.effortLevel), fam = ps[0].m.family;
         return S.ladderAt === 'top' ? ps.at(-1) : ps.find((p) => p.m.effort === S.ladderAt) || (line.endsWith(':nr') ? null : anchors.find((p) => p.m.family === fam)) || ps.slice().sort((a,b) => Math.abs(a.m.effortLevel-EFFORT_LEVEL[S.ladderAt])-Math.abs(b.m.effortLevel-EFFORT_LEVEL[S.ladderAt]) || a.m.effortLevel-b.m.effortLevel)[0];
       }).filter(Boolean).concat(anchors.filter((p) => !points.some((q) => q.m.family === p.m.family && q.m.effort !== 'non-reasoning')));
-      const maxValue = Math.max(0, ...valuePoints.map((p) => textW(ladderValue(p, Y).text, narrow ? 11 : 12, 500)));
+      const ladValTexts = tallSubDesk
+        ? (subY ? (S.ladderAt !== 'top' ? ['≈$100.00 (medium)', '≈100.0% (medium)'] : ['≈$100.00', '≈100.0%'])
+          : Y.ref ? (S.ladderAt !== 'top' ? ['100.0× (medium)', '+100.0 (medium)'] : ['100.0×', '+100.0'])
+          : chosen.filter((m) => scaleOk(S.yScale, m[S.y])).map((m) => {
+              const base = Y.fmt(m[S.y]);
+              return S.ladderAt !== 'top' && m.effort && m.effort !== S.ladderAt ? `${base} (${EFFORT_LABEL[m.effort] || m.effort})` : base;
+            }))
+        : valuePoints.map((p) => ladderValue(p, Y).text);
+      const maxValue = Math.max(0, ...ladValTexts.map((t) => textW(t, narrow ? 11 : 12, 500)));
       const need = Math.ceil(maxName + 10 + maxValue + 24);
       if (tall && !narrow) { M.right = Math.max(28, Math.min(need, availW - M.left - tallPW)); W = Math.min(availW, M.left + tallPW + M.right); }
       else M.right = Math.min(need, Math.round(W * (narrow ? 0.45 : 0.32)));
@@ -4981,8 +4999,8 @@
       const planNamed = (m) => [S.x, S.y].includes('planCost') && m.planInfo?.startsWith('No plan data') && m[S.x === 'planCost' ? S.y : S.x] != null;
       const missNote = missing.filter((m) => !planNamed(m));
       if (missNote.length) {
-        const isZeroX = (m) => S.xScale === 'log' && (() => { const v = getAxisVal(m, S.x); return Number.isFinite(v) && v <= 0; })();
-        const isZeroY = (m) => S.yScale === 'log' && (() => { const v = getAxisVal(m, S.y); return Number.isFinite(v) && v <= 0; })();
+        const isZeroX = (m) => subActive && S.price === 'plan' && subAxisKey(S.x) && S.xScale === 'log' && (() => { const v = getAxisVal(m, S.x); return Number.isFinite(v) && v <= 0; })();
+        const isZeroY = (m) => subActive && S.price === 'plan' && subAxisKey(S.y) && S.yScale === 'log' && (() => { const v = getAxisVal(m, S.y); return Number.isFinite(v) && v <= 0; })();
         const zeroMiss = missNote.filter((m) => isZeroX(m) || isZeroY(m));
         const otherMiss = missNote.filter((m) => !isZeroX(m) && !isZeroY(m));
         if (zeroMiss.length) {
@@ -5677,15 +5695,21 @@
     const topMarginAllow = isExport ? 4 : (M.top >= 70 ? 14 : M.top >= 54 ? 10 : 4);
     const minTopY = Math.max(4, M.top - topMarginAllow);
 
+    const placeStartMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const largeCrowd = baseQueue.length > 24 || points.length > 28;
+    const budgetMs = largeCrowd ? 65 : 450;
+    const isOverBudget = () => (((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - placeStartMs) > budgetMs;
+
     const findBestPlacementFor = (p, txt, weight, placedBoxes, drawnLeaders, unplacedMeasured = [], allowNear = true, fine = false) => {
       const tw = measureSvgText(txt, lblFont, weight) + 4;
       const th = lblFont + 2.2;
       const off = markPaintedR(p) + 4.5;
       const ownDotR = S.pinned.has(p.m.id) ? 6.5 : p.isEnd ? 5.5 : 4.25;
-      const others = points.filter((o) => o.m.id !== p.m.id);
+      const xReach = tw + 180, yReach = th + 180;
+      const others = points.filter((o) => o.m.id !== p.m.id && Math.abs(o.px - p.px) <= xReach && Math.abs(o.py - p.py) <= yReach);
       const ownR = markPaintedR(p) + (fine ? 1.15 : 1.5);
       const ownOb = { x1: p.px - ownR, y1: p.py - ownR, x2: p.px + ownR, y2: p.py + ownR };
-      const dBoxes = fine ? dotBoxes : dotBoxesStrict;
+      const dBoxes = (fine ? dotBoxes : dotBoxesStrict).filter((db) => db.id !== p.m.id && db.x2 >= p.px - tw - 95 && db.x1 <= p.px + tw + 95 && db.y2 >= p.py - th - 95 && db.y1 <= p.py + th + 95);
       const segPad = fine ? 2.05 : 2.2;
       const sameRowHard = fine ? 18.2 : 19.5;
       const leaderSeg = (ax, ay) => {
@@ -5719,7 +5743,7 @@
           if (Math.abs(cy - o.py) < 10) {
             const dx = Math.min(Math.abs(box.x1 - o.px), Math.abs(box.x2 - o.px));
             if (dx < sameRowHard) return 15000;
-            if (dx < markPaintedR(o) + 18) pen += 1800;
+            if (dx < markPaintedR(o) + 34) pen += 2800;
           }
         }
         const boxPad = { x1: box.x1 - (fine ? 1.0 : 1.5), y1: box.y1 - (fine ? 1.0 : 1.5), x2: box.x2 + (fine ? 1.0 : 1.5), y2: box.y2 + (fine ? 1.0 : 1.5) };
@@ -5738,7 +5762,8 @@
         const lDist = seg ? Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1) : 0;
         if (c.far && lDist > 79.5) return { ...c, box, pen: pen + 25000, seg };
         const ownBoxD = distPointToBox(p.px, p.py, box);
-        if (c.far) pen += 22 + lDist * 0.42 + Math.abs((box.x1 + box.x2) / 2 - p.px) * 0.22;
+        const cy = (box.y1 + box.y2) / 2;
+        if (c.far) pen += 22 + lDist * 0.42 + Math.abs((box.x1 + box.x2) / 2 - p.px) * 0.22 + Math.abs(cy - p.py) * 0.55;
         if (!c.far) {
           for (const o of others) if (distPointToBox(o.px, o.py, box) < ownBoxD + (fine ? 4.8 : 7.5)) return { ...c, box, pen: pen + 15000, seg };
         } else {
@@ -5782,13 +5807,15 @@
           if (r.pen < bestPen) { bestPen = r.pen; best = r; if (r.pen === 0) break; }
         }
       }
-      if (!best || bestPen >= 10000) {
+      if ((!best || bestPen >= 10000) && (!largeCrowd || !isOverBudget())) {
         const yMin = Math.max(Math.ceil(th) + 4, minTopY + Math.ceil(th) - 1);
         const yMax = M.top + PH - 4;
-        const stepX = fine ? 2 : (narrow ? 3 : 6), stepY = fine ? 2 : (narrow ? 2 : 4);
+        const stepX = fine ? 2 : largeCrowd ? (narrow ? 10 : 14) : (narrow ? 3 : 6);
+        const stepY = fine ? 2 : largeCrowd ? (narrow ? 8 : 10) : (narrow ? 2 : 4);
         const yLo = Math.max(yMin, yMin + Math.max(0, Math.floor((p.py - 84 - yMin) / stepY)) * stepY);
         const yHi = Math.min(yMax, Math.ceil(p.py + th + 84));
         for (let ly = yLo; ly <= yHi; ly += stepY) {
+          if (largeCrowd && isOverBudget()) break;
           const by1 = ly - th + 2;
           const xMin = narrow ? 6 : Math.max(6, M.left + 2);
           const xMax = Math.max(xMin, W - 6 - tw);
@@ -5802,11 +5829,14 @@
             const cx = Math.max(b.x1, Math.min(b.x2, p.px)), cy = Math.max(b.y1, Math.min(b.y2, p.py));
             const candAnchors = [[cx, cy]];
             if (p.py < b.y1 || p.py > b.y2) {
-              candAnchors.push([b.x1 + 2, cy], [b.x2 - 2, cy], [Math.max(b.x1, Math.min(b.x2, p.px - 14)), cy], [Math.max(b.x1, Math.min(b.x2, p.px + 14)), cy]);
+              candAnchors.push([b.x1 + 2, cy], [b.x2 - 2, cy]);
+              if (!largeCrowd) candAnchors.push([Math.max(b.x1, Math.min(b.x2, p.px - 14)), cy], [Math.max(b.x1, Math.min(b.x2, p.px + 14)), cy]);
               if (fine) candAnchors.push([(b.x1 + b.x2) / 2, cy], [b.x1 + (b.x2 - b.x1) * 0.25, cy], [b.x1 + (b.x2 - b.x1) * 0.75, cy]);
             }
-            if (p.px <= b.x1) candAnchors.push([b.x1, b.y1], [b.x1, b.y2], [b.x1, (b.y1 + b.y2) / 2]);
-            else if (p.px >= b.x2) candAnchors.push([b.x2, b.y1], [b.x2, b.y2], [b.x2, (b.y1 + b.y2) / 2]);
+            if (!largeCrowd) {
+              if (p.px <= b.x1) candAnchors.push([b.x1, b.y1], [b.x1, b.y2], [b.x1, (b.y1 + b.y2) / 2]);
+              else if (p.px >= b.x2) candAnchors.push([b.x2, b.y1], [b.x2, b.y2], [b.x2, (b.y1 + b.y2) / 2]);
+            }
             for (const [ax, ay] of candAnchors) {
               const r = evalCand({ lx, ly, anchor: 'start', bx1: lx, by1, ax, ay, far: true }, b, bp);
               if (r.pen < bestPen) { bestPen = r.pen; best = r; }
@@ -5814,7 +5844,7 @@
           }
         }
       }
-      if ((!best || bestPen >= 10000) && !fine && !p.isLane2) {
+      if ((!best || bestPen >= 10000) && !fine && !p.isLane2 && !largeCrowd && !isOverBudget()) {
         return findBestPlacementFor(p, txt, weight, placedBoxes, drawnLeaders, unplacedMeasured, allowNear, true);
       }
       return best && bestPen < 10000 ? best : null;
@@ -5862,6 +5892,7 @@
     ];
     let bestRun = runPlacement([...frontierOrders[0], ...nonFrontItems]);
     const considerRun = (order, tail = nonFrontItems) => {
+      if (isOverBudget()) return;
       const cand = runPlacement([...order, ...tail]);
       if (
         cand.droppedFrontierLabels.length < bestRun.droppedFrontierLabels.length ||
@@ -5874,20 +5905,20 @@
         ))
       ) bestRun = cand;
     };
-    if ((bestRun.droppedFrontierLabels.length > 0 || bestRun.droppedMeasuredLabels.length > 0) && baseQueue.length <= 60) {
+    if ((bestRun.droppedFrontierLabels.length > 0 || bestRun.droppedMeasuredLabels.length > 0) && !largeCrowd && !isOverBudget()) {
       const dropIdx = baseFront.findIndex((f) => !bestRun.placedItems.some((pi) => pi.p.m.id === f.m.id));
       if (dropIdx > 0) {
-        for (let pos = dropIdx - 1; pos >= 0; pos--) {
+        for (let pos = dropIdx - 1; pos >= 0 && !isOverBudget(); pos--) {
           const reord = baseFront.slice(), [moved] = reord.splice(dropIdx, 1);
           reord.splice(pos, 0, moved); considerRun(reord);
         }
       }
-      for (let oi = 1; oi < frontierOrders.length; oi++) considerRun(frontierOrders[oi]);
-      if (bestRun.droppedMeasuredLabels.length > 0) {
+      for (let oi = 1; oi < frontierOrders.length && !isOverBudget(); oi++) considerRun(frontierOrders[oi]);
+      if (bestRun.droppedMeasuredLabels.length > 0 && !isOverBudget()) {
         const allMeasured = [...baseFront, ...measuredNonFront];
         considerRun(allMeasured.slice().sort((a, b) => (nearestMarkDist.get(a.m.id) - nearestMarkDist.get(b.m.id)) || b.yv - a.yv), estItems);
         let curOrder = allMeasured.slice();
-        for (let pass = 0; pass < 3 && bestRun.droppedMeasuredLabels.length > 0; pass++) {
+        for (let pass = 0; pass < 3 && bestRun.droppedMeasuredLabels.length > 0 && !isOverBudget(); pass++) {
           const dropSet = new Set(curOrder.filter((m) => !bestRun.placedItems.some((pi) => pi.p.m.id === m.m.id)).map((m) => m.m.id));
           if (!dropSet.size) break;
           const promoted = [...curOrder.filter((m) => dropSet.has(m.m.id)), ...curOrder.filter((m) => !dropSet.has(m.m.id))];

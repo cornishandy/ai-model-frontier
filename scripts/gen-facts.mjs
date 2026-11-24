@@ -325,14 +325,16 @@ async function main() {
             const br = c.getBoundingClientRect();
             return { x: (br.left + br.right) / 2 - cr.x, y: (br.top + br.bottom) / 2 - cr.y };
           });
-          const insideCnt = beads.filter(b => ptInPoly(b.x, b.y, polyPts)).length;
-          if (insideCnt >= Math.ceil(beads.length * 0.8)) { shadedBeads = beads; break; }
+          const insideBeads = beads.filter(b => ptInPoly(b.x, b.y, polyPts));
+          if (insideBeads.length >= 10) { shadedBeads = insideBeads; break; }
         }
         const lbls = [...document.querySelectorAll('#chart text.lbl-lane2')];
         let shadedLblRect = null;
         for (const l of lbls) {
           const r = rel(l.getBoundingClientRect());
-          if (r && ptInPoly(r.x + r.width / 2, r.y + r.height / 2, polyPts)) { shadedLblRect = r; break; }
+          if (r && [[r.x, r.y], [r.x + r.width, r.y], [r.x, r.y + r.height], [r.x + r.width, r.y + r.height]].every(([px, py]) => ptInPoly(px, py, polyPts))) {
+            shadedLblRect = r; break;
+          }
         }
         return {
           surfaceRgb: probe('var(--surface)'),

@@ -429,6 +429,8 @@ test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed
     fs.writeFileSync(path.join(tmpDir, 'index.html'), html.replace('</body>', '<script defer src="missing-local.js"></script></body>'));
     const { buildStandalone } = await import(path.join(ROOT, 'scripts/build-standalone.mjs'));
     assert.throws(() => buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out.html') }), /external <script src=>/);
+    fs.writeFileSync(path.join(tmpDir, 'index.html'), html.replace('</body>', '<script data-probe=">" defer src="offline-probe.js"></script></body>'));
+    assert.throws(() => buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out.html') }), /external <script src=>/);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
