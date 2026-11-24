@@ -431,6 +431,11 @@ test('9. Typed scrubSet covers 100% of live index.html snapshot() keys (63 typed
     assert.throws(() => buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out.html') }), /external <script src=>/);
     fs.writeFileSync(path.join(tmpDir, 'index.html'), html.replace('</body>', '<script data-probe=">" defer src="offline-probe.js"></script></body>'));
     assert.throws(() => buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out.html') }), /external <script src=>/);
+    fs.writeFileSync(path.join(tmpDir, 'index.html'), html.replace('</body>', '<script data-probe=">"src="offline-probe.js"></script></body>'));
+    assert.throws(() => buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out.html') }), /external <script src=>/);
+    fs.writeFileSync(path.join(tmpDir, 'index.html'), html.replace('</body>', '<script data-src="inert.js">/* inert */</script></body>'));
+    const okInert = buildStandalone({ rootDir: tmpDir, outPath: path.join(tmpDir, 'out-inert.html') });
+    assert.ok(okInert.bytes > 100000, 'Inert data-src attribute on inline script must not false-positive');
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

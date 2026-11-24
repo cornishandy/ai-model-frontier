@@ -4711,14 +4711,14 @@
     const availW = isExport ? exportCtx.width : Math.max(280, Math.floor(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
     let W = availW;
     // Narrow (phone): a taller-than-wide plot that fits the screen, tighter margins, horizontal y title.
-    const narrow = W < 560, diamond = S.shape === 'diamond', tall = S.shape === 'tall';
+    const narrow = W < 560, diamond = S.shape === 'diamond', tall = S.shape === 'tall', tallSubDesk = tall && !narrow && subActive;
     // Tall: a narrow plot (about 46% of the card on a desk, the whole width on a phone) as tall as that width times the
     // slider's ratio, so the Y axis gets the room. On a desk the SVG is only as wide as it needs, centred.
     // Tall on a desk fills the window's visible height (below the sticky axis bar), and the slider sets how narrow the
     // plot is (width = height ÷ ratio); at 220 px wide it stops narrowing and grows taller instead.
     const visH = (() => { const main = document.querySelector('main'), bar = document.querySelector('.toolbar.axes');
       const view = main && main.clientHeight > 0 && main.clientHeight < innerHeight ? main.clientHeight : innerHeight;
-      const note = $('autoNote'); return view - (bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0) - (note && !note.hidden ? note.offsetHeight + 4 : 0) - 12; })();
+      const note = $('autoNote'); return view - (bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0) - (!tallSubDesk && note && !note.hidden ? note.offsetHeight + 4 : 0) - 12; })();
     const tallPH = tall && !narrow ? Math.max(480, Math.min(1040, visH)) - 74 : 0;
     const tallPW = tall && !narrow ? Math.min(Math.max(220, Math.round(tallPH / S.tallRatio)), Math.max(220, availW - 70 - 150)) : 0;
     let H = tall ? Math.round((narrow ? W - 58 : tallPW) * S.tallRatio) + (narrow ? 70 : 74)
@@ -4753,6 +4753,7 @@
     const ladder = S.labels === 'ladder' && !diamond;
     if (!isExport) { $('ladderAtWrap').hidden = !ladder; $('ladderAtSel').value = S.ladderAt; }
     const chosen = [...S.selected].map((id) => BY_ID.get(id)).filter((m) => m && S.efforts.has(m.effort) && !superseded(m));
+    const baseChosen = chosen.slice();
     const subPriceMap = new Map();
     const getAxisVal = (m, k) => {
       if (!subActive || !subAxisKey(k)) return m[k];
@@ -4933,7 +4934,8 @@
       noteEl.hidden = !auto.note; noteEl.innerHTML = auto.note;
       if (tall && !narrow && !render.refit && (noteEl.hidden ? 0 : noteEl.offsetHeight) !== noteHBefore) { render.refit = true; queueMicrotask(() => { try { render(); } finally { render.refit = false; } }); }
       const basisTag = ` (${BASIS_SHORT[BASIS]})`, sharedBasis = usesYourIndex() && Y.label.includes(basisTag) && X.label.includes(basisTag);
-      $('chartTitle').textContent = sharedBasis ? `${Y.label.replace(basisTag, '')} vs. ${X.label.replace(basisTag, '')}, ${BASIS_PHRASE[BASIS]}` : `${Y.label} vs. ${X.label}`;
+      const liveTitleTxt = sharedBasis ? `${Y.label.replace(basisTag, '')} vs. ${X.label.replace(basisTag, '')}, ${BASIS_PHRASE[BASIS]}` : `${Y.label} vs. ${X.label}`;
+      $('chartTitle').textContent = liveTitleTxt;
       const subtitleText = (k, T, lower) => {
         const c = BASIS_KEYS.filter(([key]) => indexW()[key] != null).length, n = BASIS_KEYS.length;
         let text = k === 'myIndex' ? `${n} benchmarks averaged, 0–100` : (k === 'myCost' && !subActive) ? !c ? 'no AA cost for any of them' : c === n ? 'cost per task on them, USD' : `cost per task on the ${c} of them with an AA cost, USD` : T.long;
@@ -4945,17 +4947,24 @@
       $('chartSub').textContent = `Y: ${subtitleText(S.y,Y,false)} (${dir(Y)}). X: ${subtitleText(S.x,X,true)} (${dir(X)}). ${scales}.`;
       renderAAII();
       renderExplain();
-      svg.setAttribute('aria-label', $('chartTitle').textContent);
+      svg.setAttribute('aria-label', liveTitleTxt);
+    } else {
+      const basisTag = ` (${BASIS_SHORT[BASIS]})`, sharedBasis = usesYourIndex() && Y.label.includes(basisTag) && X.label.includes(basisTag);
+      const expTitleTxt = sharedBasis ? `${Y.label.replace(basisTag, '')} vs. ${X.label.replace(basisTag, '')}, ${BASIS_PHRASE[BASIS]}` : `${Y.label} vs. ${X.label}`;
+      svg.setAttribute('aria-label', expTitleTxt);
     }
     // wide value chips on the y axis (e.g. "95.0%") need more room, or they cover the rotated axis title
-    // On desktop Tall under a subscription lens, size margins from the selected model set (profile-invariant)
-    // so live SVG width always matches reproducible public exports across any personal plan/omission choice.
-    const tallSubDesk = tall && !narrow && subActive;
+    // On desktop Tall under a subscription lens, size margins strictly from profile-invariant inputs
+    // so live SVG width always matches reproducible public exports across any personal plan, Also show, or yRel choice.
+    const tallMarginPool = !tallSubDesk ? chosen : (S.autoBest || S.autoBase)
+      ? [...new Set(baseChosen.concat(ALL.filter((m) => passes(m) && labListed(m.creatorSlug) && S.efforts.has(m.effort) && (!PLAN_CAT?.labs || Object.prototype.hasOwnProperty.call(PLAN_CAT.labs, m.creatorSlug)))))]
+      : baseChosen;
+    const tallYRelOn = Boolean(Y.ref || (S.yRel && S.yRel !== 'off'));
     if (!diamond && (!narrow || subActive)) {
       const yFmtVals = tallSubDesk
-        ? (subY ? ['$100.00', '100.0%']
-          : Y.ref ? ['100.0×', '+100.0', '−100.0']
-          : chosen.filter((m) => scaleOk(S.yScale, m[S.y])).map((m) => Y.fmt(m[S.y])))
+        ? (tallYRelOn ? ['100.0×', '+100.0', '−100.0']
+          : subY ? ['$100.00', '100.0%']
+          : tallMarginPool.filter((m) => scaleOk(S.yScale, m[S.y])).map((m) => Y.fmt(m[S.y])))
         : points.map((p) => Y.fmt(p.yv));
       const yw = Math.max(0, ...yFmtVals.map((s) => textW(s, narrow ? 11 : 12, narrow ? 400 : 700)));
       const pinYw = (narrow && S.pinned.size) ? Math.max(0, ...points.filter((p) => S.pinned.has(p.m.id)).map((p) => textW(Y.fmt(p.yv), 12, 700))) : 0;
@@ -4965,7 +4974,7 @@
     // "Ladder" labels: model names in a column to the right of the plot, so they never sit on the data
     if (ladder) {
       const names = tallSubDesk
-        ? [...new Set(chosen.map((m) => m.familyName))]
+        ? [...new Set(tallMarginPool.map((m) => m.familyName))]
         : [...new Set(points.concat(anchors).map((p) => p.m.familyName))];
       const maxName = Math.max(0, ...names.map((n) => textW(n, narrow ? 11 : 12, 600)));
       // one ladder row per line (a non-reasoning dot is its own line), plus a hollow dot whose reasoning line shows no dot
@@ -4975,9 +4984,9 @@
         return S.ladderAt === 'top' ? ps.at(-1) : ps.find((p) => p.m.effort === S.ladderAt) || (line.endsWith(':nr') ? null : anchors.find((p) => p.m.family === fam)) || ps.slice().sort((a,b) => Math.abs(a.m.effortLevel-EFFORT_LEVEL[S.ladderAt])-Math.abs(b.m.effortLevel-EFFORT_LEVEL[S.ladderAt]) || a.m.effortLevel-b.m.effortLevel)[0];
       }).filter(Boolean).concat(anchors.filter((p) => !points.some((q) => q.m.family === p.m.family && q.m.effort !== 'non-reasoning')));
       const ladValTexts = tallSubDesk
-        ? (subY ? (S.ladderAt !== 'top' ? ['≈$100.00 (medium)', '≈100.0% (medium)'] : ['≈$100.00', '≈100.0%'])
-          : Y.ref ? (S.ladderAt !== 'top' ? ['100.0× (medium)', '+100.0 (medium)'] : ['100.0×', '+100.0'])
-          : chosen.filter((m) => scaleOk(S.yScale, m[S.y])).map((m) => {
+        ? (tallYRelOn ? (S.ladderAt !== 'top' ? ['100.0× (medium)', '+100.0 (medium)', '100.0 (10.0×) (medium)'] : ['100.0×', '+100.0', '100.0 (10.0×)'])
+          : subY ? (S.ladderAt !== 'top' ? ['≈$100.00 (medium)', '≈100.0% (medium)'] : ['≈$100.00', '≈100.0%'])
+          : tallMarginPool.filter((m) => scaleOk(S.yScale, m[S.y])).map((m) => {
               const base = Y.fmt(m[S.y]);
               return S.ladderAt !== 'top' && m.effort && m.effort !== S.ladderAt ? `${base} (${EFFORT_LABEL[m.effort] || m.effort})` : base;
             }))
@@ -5695,10 +5704,11 @@
     const topMarginAllow = isExport ? 4 : (M.top >= 70 ? 14 : M.top >= 54 ? 10 : 4);
     const minTopY = Math.max(4, M.top - topMarginAllow);
 
-    const placeStartMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    // Deterministic work bound (zero wall-clock dependence so renders and downloads are bit-for-bit repeatable across CPU speeds)
     const largeCrowd = baseQueue.length > 24 || points.length > 28;
-    const budgetMs = largeCrowd ? 65 : 450;
-    const isOverBudget = () => (((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - placeStartMs) > budgetMs;
+    let gridEvals = 0;
+    const maxGridEvals = largeCrowd ? 24000 : Infinity;
+    const isOverBudget = () => gridEvals >= maxGridEvals;
 
     const findBestPlacementFor = (p, txt, weight, placedBoxes, drawnLeaders, unplacedMeasured = [], allowNear = true, fine = false) => {
       const tw = measureSvgText(txt, lblFont, weight) + 4;
@@ -5822,8 +5832,10 @@
           const xLo = Math.max(xMin, xMin + Math.max(0, Math.floor((p.px - tw - 84 - xMin) / stepX)) * stepX);
           const xHi = Math.min(xMax, Math.ceil(p.px + 84));
           for (let lx = xLo; lx <= xHi; lx += stepX) {
+            if (largeCrowd && isOverBudget()) break;
             const b = { x1: lx - 1, y1: by1 - 0.5, x2: lx + tw + 1, y2: by1 + th + 0.5 };
             if (distPointToBox(p.px, p.py, b) > 84) continue;
+            if (largeCrowd) gridEvals++;
             const bp = boxBasePen(b);
             if (bp >= 10000 || bp >= bestPen) continue;
             const cx = Math.max(b.x1, Math.min(b.x2, p.px)), cy = Math.max(b.y1, Math.min(b.y2, p.py));

@@ -172,20 +172,33 @@ async function independentDomAudit(page, selector = '#chart') {
       }
     }
     const relRect = (r) => ({ x1: r.left - sr.left, y1: r.top - sr.top, x2: r.right - sr.left, y2: r.bottom - sr.top });
+    const toRelPt = (el, x, y) => {
+      const pt = svg.createSVGPoint(); pt.x = x; pt.y = y;
+      const sp = pt.matrixTransform(el.getScreenCTM());
+      return { x: sp.x - sr.left, y: sp.y - sr.top };
+    };
+    const ctmScale = (el) => { const m = el.getScreenCTM(); return Math.hypot(m.a, m.b); };
     const marks = new Map();
     for (const c of svg.querySelectorAll('circle[data-id]')) {
       const id = c.getAttribute('data-id');
-      const r = relRect(c.getBoundingClientRect());
-      const px = (r.x1 + r.x2) / 2, py = (r.y1 + r.y2) / 2, rad = Math.max(r.x2 - r.x1, r.y2 - r.y1) / 2;
+      const pt = toRelPt(c, +c.getAttribute('cx'), +c.getAttribute('cy'));
+      const rad = (+c.getAttribute('r') + (+c.getAttribute('stroke-width') || 0) / 2) * ctmScale(c);
       const prev = marks.get(id);
-      if (!prev || rad > prev.r) marks.set(id, { id, px, py, r: rad });
+      if (!prev || rad > prev.r) marks.set(id, { id, px: pt.x, py: pt.y, r: rad });
     }
     for (const g of svg.querySelectorAll('g.lane2-bead-ring[data-id]')) {
       const id = g.getAttribute('data-id');
-      const r = relRect(g.getBoundingClientRect());
-      const px = (r.x1 + r.x2) / 2, py = (r.y1 + r.y2) / 2, rad = Math.max(r.x2 - r.x1, r.y2 - r.y1) / 2;
-      const prev = marks.get(id);
-      if (!prev || rad > prev.r) marks.set(id, { id, px, py, r: rad });
+      let m = marks.get(id);
+      if (!m) {
+        const r = relRect(g.getBoundingClientRect());
+        m = { id, px: (r.x1 + r.x2) / 2, py: (r.y1 + r.y2) / 2, r: Math.max(r.x2 - r.x1, r.y2 - r.y1) / 2 };
+        marks.set(id, m);
+      }
+      for (const b of g.querySelectorAll('circle')) {
+        const bp = toRelPt(b, +b.getAttribute('cx'), +b.getAttribute('cy'));
+        const br = Math.hypot(bp.x - m.px, bp.y - m.py) + (+b.getAttribute('r') + (+b.getAttribute('stroke-width') || 0) / 2) * ctmScale(b);
+        if (br > m.r) m.r = br;
+      }
     }
     const markList = [...marks.values()];
     const lbls = [...svg.querySelectorAll('text.lbl-lane1, text.lbl-lane2')].map((el) => ({
@@ -378,9 +391,25 @@ async function runAt01(chromium, webkit, baseUrl) {
     assert.equal(tallLadExp1.width, tallLadLive1, `Desktop Tall Ladder export width ${tallLadExp1.width} != live ${tallLadLive1}`);
     assert.equal(tallLadExp1.text, tallLadExp2.text, 'Desktop Tall Ladder export must be byte-identical across profiles');
     assert.equal(tallLadExp1.labelAudit.clippedTexts.length, 0, `Desktop Tall Ladder clipped text: ${JSON.stringify(tallLadExp1.labelAudit.clippedTexts)}`);
-    await p2.evaluate(() => window.__AIMF_TEST.setStatePatch({ shape: 'standard', labels: 'auto' }));
+    // Desktop Tall Ladder with Also show (autoBest=1) AND with sweet-spot Y ref (yRel=sweet): live width === export width & full byte-identical SVG incl. aria-label!
+    for (const [modeTag, patch] of [
+      ['AlsoShow', { shape: 'tall', tallRatio: 3, labels: 'ladder', ladderAt: 'high', autoBest: true, autoBestPct: 100, yRel: 'off' }],
+      ['SweetY', { shape: 'tall', tallRatio: 3, labels: 'ladder', ladderAt: 'high', autoBest: false, yRel: 'sweet' }],
+    ]) {
+      await p1.evaluate((pt) => window.__AIMF_TEST.setStatePatch(pt), patch);
+      await p2.evaluate((pt) => window.__AIMF_TEST.setStatePatch(pt), patch);
+      const lw1 = await p1.evaluate(() => +document.getElementById('chart').getAttribute('width'));
+      const lw2 = await p2.evaluate(() => +document.getElementById('chart').getAttribute('width'));
+      const ex1 = await p1.evaluate(() => window.__AIMF_TEST.svgString());
+      const ex2 = await p2.evaluate(() => window.__AIMF_TEST.svgString());
+      assert.equal(lw1, lw2, `Desktop Tall Ladder ${modeTag} live width diverged across profiles: ${lw1} vs ${lw2}`);
+      assert.equal(ex1.width, lw1, `Desktop Tall Ladder ${modeTag} export width ${ex1.width} != live ${lw1}`);
+      assert.equal(ex1.text, ex2.text, `Desktop Tall Ladder ${modeTag} export SVG (incl. aria-label) must be byte-identical across profiles`);
+      assert.equal(ex1.labelAudit.clippedTexts.length, 0, `Desktop Tall Ladder ${modeTag} clipped text`);
+    }
+    await p2.evaluate(() => window.__AIMF_TEST.setStatePatch({ shape: 'standard', labels: 'auto', ladderAt: 'top', autoBest: false, yRel: 'off' }));
     await p1.evaluate(() => {
-      window.__AIMF_TEST.setStatePatch({ labels: 'auto' });
+      window.__AIMF_TEST.setStatePatch({ labels: 'auto', ladderAt: 'top', autoBest: false, yRel: 'off' });
       window.__AIMF_TEST.setProfile({ plans: { anthropic: { id: 'claude_max_20x', fee: 4321.77 }, openai: { id: 'chatgpt_pro_20x', fee: 199 }, google: { id: 'google_ai_ultra_20x_us', fee: 0 }, xai: { id: 'none', fee: null } }, use: 0.25, fableCap: 'own', estimate: false });
     });
 
@@ -543,24 +572,65 @@ async function runAt01(chromium, webkit, baseUrl) {
       return document.getElementById('chartNote').textContent;
     });
     assert.match(zeroLogNote, /\$0\.00/, `$0 fee on log scale must explain $0.00, got: ${zeroLogNote}`);
-    // Deterministic mixed log-scale hide: 1 Anthropic $0.00 row + 1 real row with null costPerTask (never skipped!)
-    const mixedLogNote = await pFirst.evaluate(() => {
+    // Deterministic mixed log-scale hide: 1 Anthropic $0.00 row + 1 4-lab row with null costPerTask (works on committed AND refreshed data!)
+    const pMix = await bChrom.newPage({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 2 });
+    await attachTestRoutes(pMix);
+    await pMix.route('**/data/models.js*', async (route) => {
+      const response = await route.fetch();
+      let body = await response.text();
+      // If a future live data refresh omits all 4-lab null-cost rows, append one deterministic probe row so the check never flakes or skips
+      const ctx = { window: {} };
+      require('node:vm').runInNewContext(body, ctx);
+      const fourLabs = new Set(['anthropic', 'openai', 'google', 'xai']);
+      const hasReal = (ctx.window.AA_DATA?.models || []).some(m => fourLabs.has(m.creatorSlug) && m.costPerTask == null && m.intelligence != null && !m.deprecated);
+      if (!hasReal) {
+        const base = (ctx.window.AA_DATA?.models || []).find(m => m.creatorSlug === 'google' && m.intelligence != null && !m.deprecated);
+        if (base) {
+          const probe = { ...base, id: 'probe-null-cost-row', slug: 'probe-null-cost-low', name: 'Gemini Probe (Low)', shortName: 'Gemini Probe (low)', effort: 'low', effortLevel: 20, costPerTask: null, costToRun: null, defaultSelected: false };
+          ctx.window.AA_DATA.models.push(probe);
+          body = `window.AA_DATA = ${JSON.stringify(ctx.window.AA_DATA)};\n`;
+        }
+      }
+      await route.fulfill({ response, body });
+    });
+    await pMix.goto(`${baseUrl}/index.html?noAutoUpdate=1&xScale=log&price=plan`, { waitUntil: 'networkidle' });
+    const mixedLogNote = await pMix.evaluate(() => {
+      const prof = window.__AIMF_TEST.getProfile();
+      prof.plans.anthropic.fee = 0;
+      window.__AIMF_TEST.setProfile(prof);
+      const fourLabs = new Set(['anthropic', 'openai', 'google', 'xai']);
       const anthZero = window.AA_DATA.models.find(m => m.creatorSlug === 'anthropic' && m.family === 'claude-opus-5-5' && m.effort === 'xhigh');
-      const noCost = window.AA_DATA.models.find(m => m.costPerTask == null && m.intelligence != null && !m.deprecated && m.effort === 'low');
+      const noCost = window.AA_DATA.models.find(m => fourLabs.has(m.creatorSlug) && m.costPerTask == null && m.intelligence != null && !m.deprecated && m.effort === 'low')
+        || window.AA_DATA.models.find(m => fourLabs.has(m.creatorSlug) && m.costPerTask == null && m.intelligence != null && !m.deprecated);
       if (!anthZero || !noCost) return { missingFixture: true };
       window.__AIMF_TEST.setSelection([anthZero.id, noCost.id]);
       const lbl = (m) => m.shortName.replace(/ with fallback\)/, ')');
       return { missingFixture: false, note: document.getElementById('chartNote').textContent, zeroLabel: lbl(anthZero), missLabel: lbl(noCost) };
     });
-    assert.equal(mixedLogNote.missingFixture, false, 'Expected real deterministic $0.00 + null-cost models in committed fixture');
-    assert.match(mixedLogNote.note, /1 selected model-effort variant is hidden on a log scale because Plan \$ per task is \$0\.00/);
-    assert.match(mixedLogNote.note, /1 selected model-effort variant has no Plan \$ per task data/);
-    assert.ok(mixedLogNote.note.includes(mixedLogNote.zeroLabel) && mixedLogNote.note.includes(mixedLogNote.missLabel));
-    // API $ log scale on AA-Omniscience (negative scores) must NEVER claim "$0.00" or "$0 plans"
-    await pFirst.goto(`${baseUrl}/index.html?noAutoUpdate=1&price=api&x=intelligence&y=omniscience&yScale=log`, { waitUntil: 'networkidle' });
-    const omniApiNote = await pFirst.locator('#chartNote').innerText();
-    assert.equal(omniApiNote.includes('$0 plans'), false, `API log Omniscience wrongly claimed "$0 plans": ${omniApiNote}`);
-    assert.equal(omniApiNote.includes('$0.00'), false, `API log Omniscience wrongly claimed "$0.00": ${omniApiNote}`);
+    await pMix.close();
+    assert.equal(mixedLogNote.missingFixture, false, 'Expected deterministic $0.00 + null-cost models');
+    const noteParts = mixedLogNote.note.split(' · ');
+    const zeroPart = noteParts.find(s => /1 selected model-effort variant is hidden on a log scale because Plan \$ per task is \$0\.00/.test(s)) || '';
+    const missPart = noteParts.find(s => /1 selected model-effort variant has no Plan \$ per task data/.test(s)) || '';
+    assert.ok(zeroPart, `Missing $0.00 sentence in: ${mixedLogNote.note}`);
+    assert.ok(missPart, `Missing no-data sentence in: ${mixedLogNote.note}`);
+    assert.ok(zeroPart.includes(mixedLogNote.zeroLabel) && !zeroPart.includes(mixedLogNote.missLabel), `Wrong names in $0.00 sentence: ${zeroPart}`);
+    assert.ok(missPart.includes(mixedLogNote.missLabel) && !missPart.includes(mixedLogNote.zeroLabel), `Wrong names in no-data sentence: ${missPart}`);
+
+    // Non-vacuous fresh-page regression: API $ AND Plan $ log Y on AA-Omniscience (negative scores) must show non-empty note naming negative models and NEVER "$0.00" or "$0 plans"!
+    for (const [tag, qs] of [
+      ['API log Omniscience', 'noAutoUpdate=1&price=api&x=intelligence&y=omniscience&yScale=log'],
+      ['Plan $ log Omniscience', 'noAutoUpdate=1&price=plan&x=costPerTask&y=omniscience&yScale=log'],
+    ]) {
+      const pOmni = await bChrom.newPage({ viewport: { width: 1280, height: 860 } });
+      await attachTestRoutes(pOmni);
+      await pOmni.goto(`${baseUrl}/index.html?${qs}`, { waitUntil: 'networkidle' });
+      const omniNote = await pOmni.locator('#chartNote').innerText();
+      await pOmni.close();
+      assert.ok(omniNote.includes('GPT-6 Luna'), `${tag} regression check must be non-vacuous and name negative-score models, got: ${omniNote}`);
+      assert.equal(omniNote.includes('$0 plans'), false, `${tag} wrongly claimed "$0 plans": ${omniNote}`);
+      assert.equal(omniNote.includes('$0.00'), false, `${tag} wrongly claimed "$0.00": ${omniNote}`);
+    }
     const preFeatureRes = await pFirst.evaluate(() => {
       window.__AIMF_TEST.applySet({ x: 'costPerTask', y: 'intelligence', xScale: 'linear', yScale: 'linear' }, false);
       return window.__AIMF_TEST.getState().price;
@@ -669,19 +739,25 @@ async function runAt01(chromium, webkit, baseUrl) {
             assert.ok(expMeasured.true.has(id), `Export measured label ${id} dropped when est=ON (${engineName}/${ds.label} ${expW}px)`);
           }
         }
-        // Real width stride sweep for Heavy est-ON across narrow/mid/laptop/Values=both widths (catches between-breakpoint drops!)
+        // Real width stride sweep for Heavy est-OFF -> est-ON superset, maxLeader, & DOM audit across narrow/mid/laptop/Values=both widths
         if (ds.canonical) {
           for (const sw of [320, 330, 360, 380, 400, 420, 440, 760, 780, 960, 1040, 1120, 1160, 1280]) {
             await pLbl.setViewportSize({ width: sw, height: sw < 560 ? 640 : 860 });
             await pLbl.waitForTimeout(30);
-            await pLbl.evaluate(() => {
+            const offIds = await pLbl.evaluate(() => {
               window.__AIMF_TEST.setStatePatch({ labels: 'auto', valueLabels: 'off' });
+              window.__AIMF_TEST.setProfile(window.PlanMath.getExampleProfile(window.PLAN_ALLOWANCES, 'heavy', false));
+              return window.__AIMF_TEST.getLastLabelAudit().drawnMeasuredIds;
+            });
+            await pLbl.evaluate(() => {
               window.__AIMF_TEST.setProfile(window.PlanMath.getExampleProfile(window.PLAN_ALLOWANCES, 'heavy', true));
             });
             const a = await pLbl.evaluate(() => window.__AIMF_TEST.getLastLabelAudit());
             const dom = await independentDomAudit(pLbl, '#chart');
             assert.equal(a.droppedFrontierCount, 0, `${engineName} sweep ${sw}px Heavy ON dropped frontier`);
             assert.equal(a.droppedMeasuredCount, 0, `${engineName} sweep ${sw}px Heavy ON dropped measured`);
+            assert.ok(dom.maxLeader <= 80, `${engineName} sweep ${sw}px Heavy ON maxLeader ${dom.maxLeader} > 80`);
+            for (const id of offIds) assert.ok(a.drawnMeasuredIds.includes(id), `${engineName} sweep ${sw}px Heavy ON dropped est-OFF measured ${id}`);
             assert.equal(dom.overlaps + dom.dotOverlaps + dom.quadHintOverlaps + dom.misattached + dom.sameRowHits + dom.leaderThroughMark + dom.leaderThroughLabel + dom.leaderCrossLeader + dom.clipped.length, 0, `${engineName} sweep ${sw}px Heavy ON DOM issue: ${JSON.stringify(dom)}`);
           }
           for (const sw of [760, 780]) {
@@ -705,6 +781,38 @@ async function runAt01(chromium, webkit, baseUrl) {
         const allAudit = await pLbl.evaluate(() => window.__AIMF_TEST.getLastLabelAudit());
         assert.equal(allAudit.overlaps, 0, `${engineName}/${ds.label} labels=all overlap`);
         assert.equal(allAudit.droppedFrontierCount, 0, `${engineName}/${ds.label} labels=all dropped frontier`);
+        // Deterministic CPU-throttling check (Chromium CDP): identical labels & bit-for-bit identical dense SVG exports across 1x vs 6x/4x CPU!
+        if (ds.canonical && engineName === 'chromium') {
+          const cdp = await pLbl.context().newCDPSession(pLbl);
+          try {
+            await pLbl.setViewportSize({ width: 320, height: 640 });
+            await pLbl.evaluate(() => {
+              window.__AIMF_TEST.setStatePatch({ labels: 'auto', valueLabels: 'off' });
+              window.__AIMF_TEST.setProfile(window.PlanMath.getExampleProfile(window.PLAN_ALLOWANCES, 'heavy', true));
+            });
+            const baseAudit = await pLbl.evaluate(() => window.__AIMF_TEST.getLastLabelAudit());
+            await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+            const slowAudit = await pLbl.evaluate(() => {
+              window.__AIMF_TEST.setProfile(window.PlanMath.getExampleProfile(window.PLAN_ALLOWANCES, 'heavy', true));
+              return window.__AIMF_TEST.getLastLabelAudit();
+            });
+            assert.deepEqual(slowAudit.drawnLabels, baseAudit.drawnLabels, '6x CPU throttle changed canonical15 320px Heavy labels');
+            assert.equal(slowAudit.droppedFrontierCount, 0, '6x CPU throttle dropped canonical15 frontier label');
+            await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+            await pLbl.setViewportSize({ width: 900, height: 860 });
+            const denseSvg1 = await pLbl.evaluate(() => {
+              const ids = window.AA_DATA.models.filter(m => ['anthropic','openai','google','xai'].includes(m.creatorSlug) && !m.deprecated && m.intelligence != null && m.costPerTask > 0).map(m => m.id);
+              window.__AIMF_TEST.setSelection(ids);
+              window.__AIMF_TEST.setStatePatch({ labels: 'all', valueLabels: 'both' });
+              return window.__AIMF_TEST.svgString().text;
+            });
+            await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+            const denseSvg4 = await pLbl.evaluate(() => window.__AIMF_TEST.svgString().text);
+            assert.equal(denseSvg4, denseSvg1, 'Dense SVG export changed under 4x CPU throttling');
+          } finally {
+            await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 }).catch(() => {});
+          }
+        }
         await pLbl.close();
       }
     }
@@ -1160,7 +1268,7 @@ async function runAt04(chromium, webkit) {
   assert.equal(siteCatSha, '4af5bdbd', `Expected _site catalog SHA 4af5bdbd, got ${siteCatSha}`);
   const standaloneRaw = fs.readFileSync(standalonePath, 'utf8');
   assert.equal(standaloneRaw.includes(repoCatRaw.trim()), true, 'Standalone AI Model Frontier.html must inline exact data/plan-allowances.js');
-  assert.equal(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*\bsrc\s*=/i.test(standaloneRaw), false, 'Standalone AI Model Frontier.html must contain zero external <script src=> tags');
+  assert.equal(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*(?:[\s/]|(?<=["']))src\s*=/i.test(standaloneRaw), false, 'Standalone AI Model Frontier.html must contain zero external <script src=> tags');
   assert.equal(/window\.__AIMF_SUB\b/.test(standaloneRaw), false, 'Standalone bundle must not contain production test hooks');
 
   const { srv, url } = await startServer(siteDir);

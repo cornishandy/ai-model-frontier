@@ -115,7 +115,7 @@ if (typeof buildStandalone === 'function') {
     const js = rel === 'data/models.js' ? `window.AA_DATA = ${JSON.stringify(out)};\n` : fs.readFileSync(here('./' + rel), 'utf8');
     page = page.replace(tag, () => inlineScript(js));
   }
-  const leftoverScript = page.match(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*\bsrc\s*=/i);
+  const leftoverScript = page.match(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*(?:[\s/]|(?<=["']))src\s*=/i);
   if (leftoverScript) throw new Error(`Standalone bundle still contains un-inlined external script tag: ${leftoverScript[0]}`);
   fs.writeFileSync(here('./AI Model Frontier.html'), page);
 }
