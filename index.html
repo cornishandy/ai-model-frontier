@@ -4719,7 +4719,7 @@
     const visH = (() => { const main = document.querySelector('main'), bar = document.querySelector('.toolbar.axes');
       const view = main && main.clientHeight > 0 && main.clientHeight < innerHeight ? main.clientHeight : innerHeight;
       const note = $('autoNote');
-      const noteReserve = tallSubDesk ? ((S.autoBest || S.autoBase) ? 44 : 0) : (note && !note.hidden ? note.offsetHeight + 4 : 0);
+      const noteReserve = tallSubDesk ? ((S.autoBest || S.autoBase) ? 60 : 0) : (note && !note.hidden ? note.offsetHeight + 4 : 0);
       return view - (bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0) - noteReserve - 12; })();
     const tallPH = tall && !narrow ? Math.max(480, Math.min(1040, visH)) - 74 : 0;
     const tallPW = tall && !narrow ? Math.min(Math.max(220, Math.round(tallPH / S.tallRatio)), Math.max(220, availW - 70 - 150)) : 0;
@@ -5719,7 +5719,7 @@
     // Deterministic work bound (zero wall-clock dependence so renders and downloads are bit-for-bit repeatable across CPU speeds)
     const largeCrowd = baseQueue.length > 24 || points.length > 28;
     let gridEvals = 0;
-    const maxGridEvals = largeCrowd ? 24000 : 180000;
+    const maxGridEvals = largeCrowd ? 24000 : 360000;
     const isOverBudget = () => gridEvals >= maxGridEvals;
 
     const findBestPlacementFor = (p, txt, weight, placedBoxes, drawnLeaders, unplacedMeasured = [], allowNear = true, fine = false) => {
@@ -5964,12 +5964,12 @@
     if (hasMeasuredDrops() && !largeCrowd && !isOverBudget()) {
       const dropIdx = baseFront.findIndex((f) => !bestRun.placedItems.some((pi) => pi.p.m.id === f.m.id));
       if (dropIdx > 0) {
-        for (let pos = dropIdx - 1; pos >= 0 && hasMeasuredDrops() && !isOverBudget(); pos--) {
+        for (let pos = dropIdx - 1; pos >= 0 && !isOverBudget(); pos--) {
           const reord = baseFront.slice(), [moved] = reord.splice(dropIdx, 1);
           reord.splice(pos, 0, moved); considerRun(reord);
         }
       }
-      for (let oi = 1; oi < frontierOrders.length && hasMeasuredDrops() && !isOverBudget(); oi++) considerRun(frontierOrders[oi]);
+      for (let oi = 1; oi < frontierOrders.length && !isOverBudget(); oi++) considerRun(frontierOrders[oi]);
       if (bestRun.droppedMeasuredLabels.length > 0 && !isOverBudget()) {
         const allMeasured = [...baseFront, ...measuredNonFront];
         considerRun(allMeasured.slice().sort((a, b) => (nearestMarkDist.get(a.m.id) - nearestMarkDist.get(b.m.id)) || b.yv - a.yv), estItems);
